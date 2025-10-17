@@ -1,112 +1,94 @@
-import streamlit as st
+import os
 from datetime import datetime
+import streamlit as st
 
-# ============================
-# CONFIGURAÇÃO GERAL
-# ============================
+from utils.parser_pdf import extract_text_from_pdf, summarize_text
+from utils.formatter_docx import markdown_to_docx
+
+# ===========================================
+# 🔧 CONFIGURAÇÕES INICIAIS
+# ===========================================
 
 st.set_page_config(
-    page_title="SynapseNext – Ecossistema SAAB 5.0",
+    page_title="SynapseNext – Analisador de Artefatos",
     layout="wide",
-    initial_sidebar_state="expanded",
+    page_icon="🧭"
 )
 
-# ============================
-# CABEÇALHO E IDENTIDADE
-# ============================
+st.title("🧭 SynapseNext — Ambiente de Processamento de Artefatos")
+st.markdown("""
+O **SynapseNext** faz parte do Ecossistema **SAAB 5.0** e permite processar documentos 
+de forma automatizada, a partir de PDFs ou textos extraídos, aplicando validação semântica,
+formatação institucional e geração automática em formato `.docx`.
 
-st.title("🏛️ SynapseNext – Ecossistema SAAB 5.0")
-st.caption("Ambiente integrado de apoio à Fase Interna das Contratações Públicas • SAAB/TJSP")
+---
+""")
 
-st.divider()
+# ===========================================
+# 📂 UPLOAD DE DOCUMENTOS
+# ===========================================
 
-# ============================
-# PAINEL DE INTRODUÇÃO
-# ============================
-
-st.subheader("🧭 Bem-vindo ao SynapseNext")
-st.markdown(
-    """
-O **SynapseNext** é um ambiente de trabalho desenvolvido pela **Secretaria de Administração e Abastecimento (SAAB)** do **Tribunal de Justiça de São Paulo (TJSP)**, com o objetivo de 
-**integrar, automatizar e validar os artefatos da fase interna das contratações públicas**, conforme a **Lei nº 14.133/2021** e a **IN SAAB nº 12/2025**.
-
-Use o menu lateral ou as abas abaixo para navegar entre os módulos principais da jornada:
-
-> 🧩 **DFD → ETP → TR → Contrato → Fiscalização**
-"""
-)
-
-st.info(
-    """
-💡 **Dica:** Você pode importar arquivos PDF, DOCX ou relatórios técnicos para subsidiar a geração dos artefatos.  
-O sistema analisará automaticamente o conteúdo e sugerirá aprimoramentos.
-"""
-)
-
-st.divider()
-
-# ============================
-# SEÇÃO DE ACESSO RÁPIDO
-# ============================
-
-st.subheader("🚀 Acesso Rápido aos Módulos")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("### 📘 Formalização da Demanda (DFD)")
-    st.write("Crie o Documento de Formalização da Demanda com tutoria guiada e validação semântica.")
-    st.page_link("pages/1_SynapseNext.py", label="Abrir DFD", icon="📘")
-
-with col2:
-    st.markdown("### 🧩 Estudo Técnico Preliminar (ETP)")
-    st.write("Registre e compare alternativas técnicas, critérios de seleção e justificativas.")
-    st.page_link("pages/1_SynapseNext.py", label="Abrir ETP", icon="🧩")
-
-with col3:
-    st.markdown("### 📑 Termo de Referência (TR)")
-    st.write("Monte o TR com base nas informações do DFD e ETP, incluindo estimativas e critérios.")
-    st.page_link("pages/1_SynapseNext.py", label="Abrir TR", icon="📑")
-
-st.divider()
-
-# ============================
-# UPLOAD DE ARQUIVOS
-# ============================
-
-st.subheader("📎 Enviar Documentos de Apoio")
+st.header("📄 Envio e Extração de Documentos (PDF)")
+st.markdown("Envie um ou mais arquivos PDF que contenham as informações do processo administrativo ou da fase interna da contratação.")
 
 uploaded_files = st.file_uploader(
-    "Selecione arquivos PDF, DOCX ou ZIP contendo informações da demanda:",
-    accept_multiple_files=True,
-    type=["pdf", "docx", "zip"],
+    "Selecione os arquivos PDF...",
+    type=["pdf"],
+    accept_multiple_files=True
 )
 
 if uploaded_files:
-    st.success(f"{len(uploaded_files)} arquivo(s) carregado(s) com sucesso.")
-    for file in uploaded_files:
-        st.write(f"📄 {file.name}")
+    st.info(f"{len(uploaded_files)} arquivo(s) carregado(s). Clique abaixo para processar.")
 
-    st.info("🧠 Os documentos serão analisados automaticamente para extração de informações relevantes.")
+    if st.button("🚀 Processar Documentos"):
+        for file in uploaded_files:
+            with st.spinner(f"Processando {file.name}..."):
+                result = extract_text_from_pdf(file)
+
+                if result["success"]:
+                    st.success(f"✅ {file.name} processado com sucesso!")
+
+                    # Exibir metadados detectados
+                    st.subheader("📌 Metadados Identificados")
+                    st.json(result["metadata"])
+
+                    # Exibir trecho do texto extraído
+                    st.subheader("🧾 Prévia do Conteúdo Extraído")
+                    st.text_area(
+                        label="Trecho do Documento",
+                        value=summarize_text(result["text"]),
+                        height=200
+                    )
+
+                    # Gerar documento Word padronizado
+                    st.subheader("💾 Exportar Documento Formatado")
+                    buffer, path = markdown_to_docx(
+                        markdown_text=result["text"],
+                        title=f"Rascunho {file.name}",
+                        summary="Documento processado automaticamente a partir de upload PDF via SynapseNext."
+                    )
+
+                    st.download_button(
+                        label="⬇️ Baixar DOCX formatado",
+                        data=buffer,
+                        file_name=os.path.basename(path),
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+
+                    st.divider()
+
+                else:
+                    st.error(f"Erro ao processar {file.name}: {result['error']}")
 else:
-    st.caption("Nenhum arquivo enviado ainda.")
+    st.warning("⚠️ Nenhum arquivo carregado. Por favor, envie um PDF para iniciar o processamento.")
+
+# ===========================================
+# ℹ️ RODAPÉ INSTITUCIONAL
+# ===========================================
 
 st.divider()
-
-# ============================
-# STATUS DO PROJETO
-# ============================
-
-st.subheader("📊 Status do Projeto")
-st.markdown(
-    f"""
-**Versão:** `v1.0 – Estrutura de Abas Integradas`  
-**Data:** {datetime.now().strftime("%d/%m/%Y")}  
-**Desenvolvimento:** Equipe SAAB-8 • TJSP  
-**Coordenação:** Carlos Darwin de Mattos  
-**Arquitetura:** GPT-5 (OpenAI)  
-"""
-)
-
-st.divider()
-st.caption("SynapseNext • SAAB/TJSP – Prova de Conceito (Fase Brasília)")
+st.markdown("""
+**© 2025 – Tribunal de Justiça do Estado de São Paulo**  
+Secretaria de Administração e Abastecimento (SAAB) – Projeto Synapse.IA  
+Desenvolvido em ambiente experimental • Uso restrito institucional.
+""")
