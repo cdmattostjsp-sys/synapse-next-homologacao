@@ -12,3 +12,13 @@ O projeto busca fortalecer a autonomia tecnológica do Tribunal, reduzindo depen
 ---
 
 ## ⚙️ Estrutura do Repositório
+synapse-next/
+│
+├── agents/ # Agentes internos (guia e detecção de estágios)
+├── journey/ # Configurações e fluxos das jornadas (DFD, ETP, TR)
+├── knowledge/ # Base de conhecimento institucional (leis e manuais)
+├── knowledge_base/ # Modelos e checklists de conformidade
+├── prompts/ # Conjuntos de prompts orientados por classe
+├── streamlit_app/ # Aplicações interativas e interface do Tutor
+├── utils/ # Módulos de suporte (formatação, recomendação, etc.)
+└── tests/ # Scripts de validação e testes automatizados
