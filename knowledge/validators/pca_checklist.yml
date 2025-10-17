@@ -1,0 +1,25 @@
+itens:
+  - id: PCA1
+    descricao: Identificação da unidade demandante
+    obrigatorio: true
+  - id: PCA2
+    descricao: Relação das demandas previstas para o exercício
+    obrigatorio: true
+  - id: PCA3
+    descricao: Justificativa da necessidade de cada demanda
+    obrigatorio: true
+  - id: PCA4
+    descricao: Estimativa preliminar de custos
+    obrigatorio: true
+  - id: PCA5
+    descricao: Compatibilidade com o planejamento estratégico institucional
+    obrigatorio: true
+  - id: PCA6
+    descricao: Priorização das demandas (critérios técnicos ou estratégicos)
+    obrigatorio: true
+  - id: PCA7
+    descricao: Identificação de riscos relevantes
+    obrigatorio: false
+  - id: PCA8
+    descricao: Aprovação formal pela autoridade competente
+    obrigatorio: true
