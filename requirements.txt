@@ -1,9 +1,29 @@
-streamlit>=1.26.0
-openai>=1.40.0
-PyPDF2>=3.0.1
+# --- Núcleo do projeto ---
+streamlit>=1.37.0
+pandas>=2.2.2
 python-docx>=1.1.0
-pandas>=2.2.0
-openpyxl>=3.1.2
-PyYAML>=6.0
-markdown
-beautifulsoup4
+reportlab>=4.2.0
+PyYAML>=6.0.1
+requests>=2.32.3
+openpyxl>=3.1.3
+PyPDF2>=3.0.1
+fpdf2>=2.7.9
+
+# --- IA e NLP ---
+tiktoken>=0.7.0
+langchain>=0.2.12
+openai>=1.40.0
+
+# --- Utilidades e formatação ---
+beautifulsoup4>=4.12.3
+markdown2>=2.4.13
+html2text>=2024.2.26
+jinja2>=3.1.4
+
+# --- Validação e testes ---
+pytest>=8.3.2
+validators>=0.34.0
+
+# --- Visualização e UI ---
+plotly>=5.23.0
+matplotlib>=3.9.2
