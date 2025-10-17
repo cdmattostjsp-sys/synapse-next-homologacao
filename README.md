@@ -1,4 +1,5 @@
-# 🧠 Synapse.IA — POC TJSP
+# SynapseNext – Ecossistema SAAB 5.0
+Ambiente operacional do TJSP para apoio à elaboração de artefatos da fase interna de licitações públicas.🧠 Synapse.IA — POC TJSP
 
 Prova de conceito de **Agente Orquestrador** com **Agentes Especializados** para apoiar a elaboração de artefatos de contratação pública no TJSP, de acordo com a **Lei 14.133/2021 (Nova Lei de Licitações e Contratos)**.
 
