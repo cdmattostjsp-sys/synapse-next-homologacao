@@ -1,13 +1,94 @@
-# utils/next_pipeline.py (trecho adicional)
+# utils/next_pipeline.py
+# ==========================================================
+# SynapseNext – pipeline utilitário para artefatos DFD / ETP / TR
+# ==========================================================
+
+from datetime import datetime
+from pathlib import Path
+import json
+import os
+from openai import OpenAI
+from validator_engine_vNext import validate_document
+
+
+# ==========================================================
+# Função 1 – build_dfd_markdown
+# ==========================================================
+def build_dfd_markdown(respostas: dict) -> str:
+    """
+    Monta o conteúdo institucional em Markdown com base nas respostas do formulário DFD.
+    """
+    md = f"""# Documento de Formalização da Demanda (DFD)
+
+**Unidade solicitante:** {respostas.get("unidade", "")}  
+**Responsável pelo pedido:** {respostas.get("responsavel", "")}  
+**Objeto da contratação:** {respostas.get("objeto", "")}  
+**Urgência:** {respostas.get("urgencia", "")}  
+**Data de geração:** {respostas.get("timestamp", "")}
+
+---
+
+### Justificativa da necessidade
+{respostas.get("justificativa", "—")}
+
+### Quantidade / Escopo
+{respostas.get("quantidade_escopo", "—")}
+
+### Riscos identificados
+{respostas.get("riscos", "—")}
+
+### Alinhamento institucional
+{respostas.get("alinhamento", "—")}
+
+---
+
+**Anexos:**  
+{", ".join(respostas.get("anexos", [])) if respostas.get("anexos") else "Nenhum anexo informado."}
+
+---
+"""
+    return md
+
+
+# ==========================================================
+# Função 2 – save_log
+# ==========================================================
+def save_log(artefato: str, dados: dict):
+    """
+    Registra logs das ações do usuário (geração, exportação, validação, etc.).
+    """
+    base = Path(__file__).resolve().parents[1]
+    logs_dir = base / "exports" / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    log_entry = {
+        "artefato": artefato,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "dados": dados,
+    }
+
+    log_path = logs_dir / f"log_{datetime.now().strftime('%Y%m%d')}.json"
+
+    if log_path.exists():
+        with open(log_path, "r", encoding="utf-8") as f:
+            logs = json.load(f)
+    else:
+        logs = []
+
+    logs.append(log_entry)
+
+    with open(log_path, "w", encoding="utf-8") as f:
+        json.dump(logs, f, indent=4, ensure_ascii=False)
+
+
+# ==========================================================
+# Função 3 – run_semantic_validation
+# ==========================================================
 def run_semantic_validation(artefato: str, markdown_text: str, client=None) -> dict:
     """
     Executa a validação semântica com o motor validator_engine_vNext.
     Retorna dict com rigid_score, semantic_score, guided_markdown, etc.
     """
-    from openai import OpenAI
-    import os
-    from validator_engine_vNext import validate_document
-
     if client is None:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -16,12 +97,12 @@ def run_semantic_validation(artefato: str, markdown_text: str, client=None) -> d
 
     result = validate_document(markdown_text, artefato, client)
 
-    # logs
+    # registra log resumido
     save_log(artefato, {
         "acao": "validar_semantico",
         "scores": {
             "rigid_score": result.get("rigid_score"),
-            "semantic_score": result.get("semantic_score")
-        }
+            "semantic_score": result.get("semantic_score"),
+        },
     })
     return result
