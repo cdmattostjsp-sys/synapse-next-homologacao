@@ -1,11 +1,17 @@
+# streamlit_app/pages/Next_10_DFD.py
+# ==========================================================
+# SynapseNext – Fase Brasília
+# DFD → Form → Markdown → Validação IA → Exportação com/sugestões
+# ==========================================================
+
 import sys
 from pathlib import Path
 from datetime import datetime
 import streamlit as st
 
-# ================================================
-# Correção de caminho robusta (ambiente local e cloud)
-# ================================================
+# ==========================================================
+# Correção de caminho robusta (local e cloud)
+# ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
@@ -21,8 +27,10 @@ try:
 except Exception as e:
     st.error(f"❌ Erro ao importar módulos utilitários: {e}")
     st.stop()
-# Configurações gerais da página
-# -------------------------------------------------------------
+
+# ==========================================================
+# Configurações gerais
+# ==========================================================
 st.set_page_config(page_title="SynapseNext – DFD", layout="wide")
 
 st.title("DFD — Documento de Formalização da Demanda")
@@ -31,12 +39,12 @@ st.caption(
     "validação semântica e exportação em `.docx` (modo com/sugestões)."
 )
 
+# ==========================================================
+# Bloco 1 – Formulário institucional
+# ==========================================================
 st.divider()
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
-# -------------------------------------------------------------
-# Formulário
-# -------------------------------------------------------------
 with st.form("form_dfd", clear_on_submit=False):
     col1, col2 = st.columns(2)
     with col1:
@@ -68,9 +76,9 @@ with st.form("form_dfd", clear_on_submit=False):
     anexos = st.file_uploader("Anexos (opcional, múltiplos arquivos)", accept_multiple_files=True)
     submitted = st.form_submit_button("Gerar rascunho do DFD")
 
-# -------------------------------------------------------------
-# Processamento
-# -------------------------------------------------------------
+# ==========================================================
+# Bloco 2 – Processamento
+# ==========================================================
 if submitted:
     respostas = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -91,16 +99,16 @@ if submitted:
     st.success("✅ Rascunho gerado com sucesso!")
     st.divider()
 
-    # ---------------------------------------------------------
+    # ----------------------------------------------------------
     # Preview Markdown
-    # ---------------------------------------------------------
+    # ----------------------------------------------------------
     st.subheader("2️⃣ Rascunho – Preview (Markdown)")
     st.markdown(md)
     st.divider()
 
-    # ---------------------------------------------------------
+    # ----------------------------------------------------------
     # Validação semântica (IA)
-    # ---------------------------------------------------------
+    # ----------------------------------------------------------
     st.subheader("3️⃣ Validação semântica (IA)")
     st.caption("Executa `validator_engine_vNext.validate_document(markdown_text, 'DFD', client)`.")
     if st.button("🚀 Executar validação semântica"):
@@ -119,8 +127,8 @@ if submitted:
         guided_md_path = result.get("guided_markdown_path")
 
         c1, c2 = st.columns(2)
-        c1.metric("Checklist rígido (presença obrigatória)", f"{rigid:.0f}%")
-        c2.metric("Adequação semântica (qualidade do conteúdo)", f"{semantic:.0f}%")
+        c1.metric("Checklist rígido", f"{rigid:.0f}%")
+        c2.metric("Adequação semântica", f"{semantic:.0f}%")
 
         with st.expander("📋 Itens obrigatórios (checklist rígido)", expanded=False):
             st.write(rigid_result or "Sem dados retornados.")
@@ -136,9 +144,9 @@ if submitted:
 
         save_log("DFD", {"acao": "validar_semantico", "scores": {"rigid": rigid, "semantic": semantic}})
 
-    # ---------------------------------------------------------
-    # Exportação (modo com/sugestões)
-    # ---------------------------------------------------------
+    # ----------------------------------------------------------
+    # Exportação .docx
+    # ----------------------------------------------------------
     st.divider()
     st.subheader("4️⃣ Exportação – `.docx` (modo com/sugestões)")
 
