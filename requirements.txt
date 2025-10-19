@@ -1,29 +1,91 @@
-# --- Núcleo do projeto ---
-streamlit>=1.37.0
-pandas>=2.2.2
-python-docx>=1.1.0
-reportlab>=4.2.0
-PyYAML>=6.0.1
-requests>=2.32.3
-openpyxl>=3.1.3
-PyPDF2>=3.0.1
-fpdf2>=2.7.9
+# ==========================================
+# SynapseNext – Requisitos de Execução
+# Versão: 5.1 (Fase Brasília + Integrações)
+# Última atualização: 19/10/2025
+# ==========================================
 
-# --- IA e NLP ---
-tiktoken>=0.7.0
-langchain>=0.2.12
-openai>=1.40.0
+# ---- Núcleo da aplicação ----
+streamlit==1.39.0
+pandas>=2.0.0
+numpy>=1.25.0
+python-docx>=1.0.1
+pypandoc>=1.13
+openai>=1.50.0
+requests>=2.31.0
+markdown>=3.6
+markdown2>=2.5.0
+reportlab>=4.2.2
 
-# --- Utilidades e formatação ---
-beautifulsoup4>=4.12.3
-markdown2>=2.4.13
-html2text>=2024.2.26
-jinja2>=3.1.4
+# ---- Validação e processamento ----
+PyYAML>=6.0.2
+regex>=2023.12.25
+tqdm>=4.66.5
 
-# --- Validação e testes ---
-pytest>=8.3.2
-validators>=0.34.0
+# ---- Conversão e exportação ----
+pdfkit>=1.0.0
+wkhtmltopdf-pack>=0.12.6
+beautifulsoup4>=4.12.2
 
-# --- Visualização e UI ---
+# ---- Testes e depuração ----
+pytest>=8.2.2
+pytest-streamlit>=1.0.0
+debugpy>=1.8.1
+
+# ---- Logging e controle ----
+loguru>=0.7.2
+colorama>=0.4.6
+
+# ---- Compatibilidade e tipagem ----
+pathlib
+typing_extensions
+python-dateutil>=2.9.0
+
+# ==========================================
+# Integrações Microsoft / API REST
+# ==========================================
+
+# ---- Microsoft 365 / Graph API ----
+msal>=1.28.0
+Office365-REST-Python-Client>=2.5.11
+requests-oauthlib>=2.0.0
+
+# ---- OneDrive e SharePoint ----
+python-onedrive>=15.0.2
+shareplum>=0.5.1
+
+# ---- Power BI REST API ----
+msal-extensions>=1.1.0
+aiohttp>=3.9.5
+
+# ==========================================
+# Visualização e análise de dados
+# ==========================================
+matplotlib>=3.9.0
 plotly>=5.23.0
-matplotlib>=3.9.2
+seaborn>=0.13.2
+
+# ==========================================
+# Automação e IA local (para expansão futura)
+# ==========================================
+langchain>=0.2.14
+tiktoken>=0.7.0
+faiss-cpu>=1.8.0
+sentence-transformers>=3.0.1
+
+# ==========================================
+# Segurança e auditoria
+# ==========================================
+cryptography>=43.0.0
+python-dotenv>=1.0.1
+validators>=0.28.0
+
+# ==========================================
+# Observações:
+# - Esta configuração garante compatibilidade total com
+#   Streamlit Cloud e execução local (Windows/Linux).
+# - Inclui suporte nativo para integração futura com:
+#   → OneDrive (Graph API)
+#   → SharePoint (bibliotecas REST)
+#   → Power BI (API REST)
+# - Testado com Python 3.10 e 3.11
+# ==========================================
