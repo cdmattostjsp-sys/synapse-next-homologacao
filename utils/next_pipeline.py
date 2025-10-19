@@ -1,287 +1,236 @@
+# ==========================================
 # utils/next_pipeline.py
-# ==========================================================
-# SynapseNext – Fase Brasília
-# Pipelines utilitários para geração e validação de artefatos
-# ==========================================================
+# SynapseNext – Pipeline Consolidado (Fase Brasília)
+# Atualizado em: 19/10/2025
+# ==========================================
 
 from datetime import datetime
-from pathlib import Path
-import json
-import os
-from openai import OpenAI
-from validator_engine_vNext import validate_document
 
-
-# ==========================================================
-# Função 1 – build_dfd_markdown
-# ==========================================================
+# =========================================================
+# 1️⃣ – DOCUMENTO DE FORMALIZAÇÃO DA DEMANDA (DFD)
+# =========================================================
 def build_dfd_markdown(respostas: dict) -> str:
-    """
-    Monta o conteúdo institucional em Markdown com base nas respostas do formulário DFD.
-    """
-    md = f"""# Documento de Formalização da Demanda (DFD)
+    """Gera o conteúdo do Documento de Formalização da Demanda (DFD)."""
+    texto = f"""# 📄 DOCUMENTO DE FORMALIZAÇÃO DA DEMANDA (DFD)
 
-**Unidade solicitante:** {respostas.get("unidade", "")}  
-**Responsável pelo pedido:** {respostas.get("responsavel", "")}  
-**Objeto da contratação:** {respostas.get("objeto", "")}  
-**Urgência:** {respostas.get("urgencia", "")}  
-**Data de geração:** {respostas.get("timestamp", "")}
+**Data de geração:** {respostas.get("data", datetime.now().strftime("%d/%m/%Y"))}
 
 ---
 
-### Justificativa da necessidade
-{respostas.get("justificativa", "—")}
+## 1️⃣ UNIDADE SOLICITANTE
+{respostas.get("unidade", "—")}
 
-### Quantidade / Escopo
-{respostas.get("quantidade_escopo", "—")}
+## 2️⃣ RESPONSÁVEL PELO PEDIDO
+{respostas.get("responsavel", "—")}
 
-### Riscos identificados
-{respostas.get("riscos", "—")}
-
-### Alinhamento institucional
-{respostas.get("alinhamento", "—")}
-
----
-
-**Anexos:**  
-{", ".join(respostas.get("anexos", [])) if respostas.get("anexos") else "Nenhum anexo informado."}
-
----
-
-_Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
-"""
-    return md
-
-
-# ==========================================================
-# Função 2 – save_log
-# ==========================================================
-def save_log(artefato: str, dados: dict):
-    """
-    Registra logs das ações do usuário (geração, exportação, validação, etc.).
-    Cada artefato é registrado em JSON, com data e hora.
-    """
-    base = Path(__file__).resolve().parents[1]
-    logs_dir = base / "exports" / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-
-    log_entry = {
-        "artefato": artefato,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "dados": dados,
-    }
-
-    log_path = logs_dir / f"log_{datetime.now().strftime('%Y%m%d')}.json"
-
-    if log_path.exists():
-        try:
-            with open(log_path, "r", encoding="utf-8") as f:
-                logs = json.load(f)
-        except json.JSONDecodeError:
-            logs = []
-    else:
-        logs = []
-
-    logs.append(log_entry)
-
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(logs, f, indent=4, ensure_ascii=False)
-
-
-# ==========================================================
-# Função 3 – run_semantic_validation
-# ==========================================================
-def run_semantic_validation(artefato: str, markdown_text: str, client=None) -> dict:
-    """
-    Executa a validação semântica com o motor validator_engine_vNext.
-    Retorna dict com rigid_score, semantic_score, guided_markdown, etc.
-    """
-    if client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("Chave OPENAI_API_KEY não configurada nas secrets.")
-        client = OpenAI(api_key=api_key)
-
-    result = validate_document(markdown_text, artefato, client)
-
-    # Registra log resumido
-    save_log(
-        artefato,
-        {
-            "acao": "validar_semantico",
-            "scores": {
-                "rigid_score": result.get("rigid_score"),
-                "semantic_score": result.get("semantic_score"),
-            },
-        },
-    )
-    return result
-
-
-# ==========================================================
-# Função 4 – build_etp_markdown
-# ==========================================================
-def build_etp_markdown(respostas: dict, dfd_data: dict | None = None) -> str:
-    """
-    Monta o Estudo Técnico Preliminar (ETP) em Markdown,
-    reutilizando informações do DFD quando disponíveis.
-    """
-    dfd_trecho = ""
-    if dfd_data:
-        dfd_trecho = f"""
-**Origem (DFD):**  
-- Unidade solicitante: {dfd_data.get('unidade', '—')}  
-- Responsável: {dfd_data.get('responsavel', '—')}  
-- Objeto do DFD: {dfd_data.get('objeto', '—')}  
-"""
-
-    md = f"""# Estudo Técnico Preliminar (ETP)
-
-**Data de geração:** {respostas.get("timestamp", "")}
-
-{dfd_trecho}
-
----
-
-## 1. Objeto da contratação
+## 3️⃣ OBJETO DA DEMANDA
 {respostas.get("objeto", "—")}
 
-## 2. Necessidade da contratação
-{respostas.get("necessidade", "—")}
-
-## 3. Requisitos técnicos essenciais
-{respostas.get("requisitos", "—")}
-
-## 4. Soluções/alternativas estudadas
-{respostas.get("alternativas", "—")}
-
-## 5. Riscos e medidas de mitigação
-{respostas.get("riscos", "—")}
-
-## 6. Estimativa de custo
-R$ {respostas.get("estimativa", "—")}
-
----
-
-_Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
-"""
-    return md
-
-
-# ==========================================================
-# Função 5 – build_tr_markdown
-# ==========================================================
-def build_tr_markdown(respostas: dict, etp_data: dict | None = None) -> str:
-    """
-    Monta o Termo de Referência (TR) em Markdown,
-    reutilizando informações do ETP quando disponíveis.
-    """
-    etp_trecho = ""
-    if etp_data:
-        etp_trecho = f"""
-**Origem (ETP):**  
-- Objeto: {etp_data.get('objeto', '—')}  
-- Requisitos: {etp_data.get('requisitos', '—')}  
-- Estimativa: R$ {etp_data.get('estimativa', '—')}  
-"""
-
-    md = f"""# Termo de Referência (TR)
-
-**Data de geração:** {respostas.get("timestamp", "")}
-
-{etp_trecho}
-
----
-
-## 1. Objeto da contratação
-{respostas.get("objeto", "—")}
-
-## 2. Justificativa técnica
+## 4️⃣ JUSTIFICATIVA
 {respostas.get("justificativa", "—")}
 
-## 3. Especificações técnicas detalhadas
-{respostas.get("especificacoes", "—")}
+## 5️⃣ RESULTADOS ESPERADOS
+{respostas.get("resultados", "—")}
 
-## 4. Metodologia de execução
-{respostas.get("metodologia_execucao", "—")}
-
-## 5. Critérios de julgamento
-{respostas.get("criterios_julgamento", "—")}
-
-## 6. Fontes da pesquisa de preços
-{respostas.get("fonte_precos", "—")}
-
-## 7. Estimativa final de custo
-R$ {respostas.get("estimativa_final", "—")}
-
-## 8. Prazo estimado de execução
-{respostas.get("prazo_execucao", "—")}
-
-## 9. Condições contratuais principais
-{respostas.get("condicoes_contrato", "—")}
+## 6️⃣ PRAZO ESTIMADO
+{respostas.get("prazo", "—")}
 
 ---
 
-_Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
+**Observação:**  
+Este rascunho é gerado automaticamente pelo SynapseNext (Fase Brasília)  
+e segue o modelo padrão definido pela Secretaria de Administração e Abastecimento – TJSP.
 """
-    return md
+    return texto
 
 
-# ==========================================================
-# Função 6 – build_contrato_markdown
-# ==========================================================
-def build_contrato_markdown(respostas: dict, tr_data: dict | None = None) -> str:
-    """
-    Monta o Contrato Administrativo em Markdown,
-    reutilizando informações do TR quando disponíveis.
-    """
-    tr_trecho = ""
-    if tr_data:
-        tr_trecho = f"""
-**Origem (TR):**  
-- Objeto: {tr_data.get('objeto', '—')}  
-- Valor estimado: R$ {tr_data.get('estimativa_final', '—')}  
-- Prazo de execução: {tr_data.get('prazo_execucao', '—')}  
-"""
+# =========================================================
+# 2️⃣ – ESTUDO TÉCNICO PRELIMINAR (ETP)
+# =========================================================
+def build_etp_markdown(respostas: dict) -> str:
+    """Gera o conteúdo do Estudo Técnico Preliminar (ETP)."""
+    texto = f"""# 📘 ESTUDO TÉCNICO PRELIMINAR (ETP)
 
-    md = f"""# Contrato Administrativo
-
-**Data de geração:** {respostas.get("timestamp", "")}
-
-{tr_trecho}
+**Data de geração:** {respostas.get("data", datetime.now().strftime("%d/%m/%Y"))}
 
 ---
 
-## 1. Partes Contratantes
+## 1️⃣ DESCRIÇÃO DA NECESSIDADE
+{respostas.get("descricao", "—")}
+
+## 2️⃣ MOTIVAÇÃO DA CONTRATAÇÃO
+{respostas.get("motivacao", "—")}
+
+## 3️⃣ ESTIMATIVA DE CUSTOS
+{respostas.get("custos", "—")}
+
+## 4️⃣ SOLUÇÕES AVALIADAS
+{respostas.get("solucoes", "—")}
+
+## 5️⃣ RESULTADO DA ANÁLISE
+{respostas.get("analise", "—")}
+
+---
+
+**Observação:**  
+Rascunho gerado automaticamente pelo SynapseNext (Fase Brasília)  
+com base nas diretrizes da Instrução Normativa nº 12/2025.
+"""
+    return texto
+
+
+# =========================================================
+# 3️⃣ – TERMO DE REFERÊNCIA (TR)
+# =========================================================
+def build_tr_markdown(respostas: dict) -> str:
+    """Gera o conteúdo do Termo de Referência (TR)."""
+    texto = f"""# 📙 TERMO DE REFERÊNCIA (TR)
+
+**Data de geração:** {respostas.get("data", datetime.now().strftime("%d/%m/%Y"))}
+
+---
+
+## 1️⃣ OBJETO
+{respostas.get("objeto", "—")}
+
+## 2️⃣ JUSTIFICATIVA
+{respostas.get("justificativa", "—")}
+
+## 3️⃣ FUNDAMENTAÇÃO LEGAL
+{respostas.get("fundamentacao", "—")}
+
+## 4️⃣ DESCRIÇÃO DO OBJETO
+{respostas.get("descricao", "—")}
+
+## 5️⃣ OBRIGAÇÕES DAS PARTES
+{respostas.get("obrigacoes", "—")}
+
+## 6️⃣ PRAZOS E CONDIÇÕES
+{respostas.get("prazos", "—")}
+
+## 7️⃣ CRITÉRIOS DE ACEITAÇÃO
+{respostas.get("criterios", "—")}
+
+## 8️⃣ ESTIMATIVA DE CUSTOS
+{respostas.get("custos", "—")}
+
+---
+
+**Observação:**  
+Documento gerado automaticamente pelo SynapseNext,  
+em conformidade com a Lei nº 14.133/2021 e a IN nº 12/2025 – TJSP.
+"""
+    return texto
+
+
+# =========================================================
+# 4️⃣ – EDITAL DE LICITAÇÃO (NOVO)
+# =========================================================
+def build_edital_markdown(respostas: dict) -> str:
+    """Gera o conteúdo do Edital em formato Markdown."""
+    texto = f"""# 🧾 EDITAL DE LICITAÇÃO
+
+**Data de geração:** {respostas.get("data", datetime.now().strftime("%d/%m/%Y"))}
+
+---
+
+## 1️⃣ OBJETO
+{respostas.get("objeto", "—")}
+
+## 2️⃣ FUNDAMENTO LEGAL
+{respostas.get("fundamento", "—")}
+
+## 3️⃣ CRITÉRIOS DE JULGAMENTO
+{respostas.get("criterios", "—")}
+
+## 4️⃣ CLÁUSULAS ESSENCIAIS
+{respostas.get("clausulas", "—")}
+
+---
+
+**Observação:**  
+Este rascunho é gerado automaticamente pelo SynapseNext (Fase Brasília)  
+e serve de base para elaboração do edital final, conforme diretrizes do TJSP e da IN nº 12/2025.
+"""
+    return texto
+
+
+# =========================================================
+# 5️⃣ – CONTRATO (fase externa – modelo base)
+# =========================================================
+def build_contrato_markdown(respostas: dict) -> str:
+    """Gera o conteúdo do Contrato Administrativo (fase externa)."""
+    texto = f"""# 📑 CONTRATO ADMINISTRATIVO
+
+**Data de geração:** {respostas.get("data", datetime.now().strftime("%d/%m/%Y"))}
+
+---
+
+## 1️⃣ PARTES CONTRATANTES
 {respostas.get("partes", "—")}
 
-## 2. Objeto do Contrato
+## 2️⃣ OBJETO
 {respostas.get("objeto", "—")}
 
-## 3. Valor Global
-R$ {respostas.get("valor_global", "—")}
+## 3️⃣ VIGÊNCIA
+{respostas.get("vigencia", "—")}
 
-## 4. Prazo e Vigência
-- Prazo de execução: {respostas.get("prazo_execucao", "—")}  
-- Vigência contratual: {respostas.get("vigencia", "—")}
+## 4️⃣ VALOR E DOTAÇÃO ORÇAMENTÁRIA
+{respostas.get("valor", "—")}
 
-## 5. Obrigações da Contratada
-{respostas.get("obrigacoes_contratada", "—")}
+## 5️⃣ OBRIGAÇÕES DAS PARTES
+{respostas.get("obrigacoes", "—")}
 
-## 6. Obrigações da Contratante
-{respostas.get("obrigacoes_contratante", "—")}
+## 6️⃣ SANÇÕES E PENALIDADES
+{respostas.get("sancoes", "—")}
 
-## 7. Garantias e Penalidades
-{respostas.get("garantias", "—")}
-
-## 8. Fiscalização e Acompanhamento
-{respostas.get("fiscalizacao", "—")}
-
-## 9. Assinaturas
-{respostas.get("assinatura", "—")}
+## 7️⃣ ASSINATURAS
+{respostas.get("assinaturas", "—")}
 
 ---
 
-_Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
+**Observação:**  
+Modelo de contrato gerado pelo SynapseNext, compatível com a Lei nº 14.133/2021  
+e a IN nº 12/2025 – TJSP (fase externa do processo licitatório).
 """
-    return md
+    return texto
+
+
+# =========================================================
+# 6️⃣ – CONTROLE DE EXPORTAÇÃO E LOG
+# =========================================================
+def exportar_arquivo(markdown_text: str, nome_arquivo: str) -> str:
+    """
+    Exporta o texto em Markdown para o diretório /exports/rascunhos/
+    Retorna o caminho completo do arquivo salvo.
+    """
+    import os
+
+    pasta = os.path.join("exports", "rascunhos")
+    os.makedirs(pasta, exist_ok=True)
+
+    caminho_arquivo = os.path.join(pasta, f"{nome_arquivo}.md")
+
+    with open(caminho_arquivo, "w", encoding="utf-8") as f:
+        f.write(markdown_text)
+
+    return caminho_arquivo
+
+
+def registrar_log(artefato: str, usuario: str = "Sistema") -> None:
+    """
+    Cria ou atualiza um arquivo de log para registrar o histórico
+    de geração de artefatos no SynapseNext.
+    """
+    import os
+
+    pasta = os.path.join("exports", "logs")
+    os.makedirs(pasta, exist_ok=True)
+
+    log_path = os.path.join(pasta, "log_geracao.txt")
+
+    with open(log_path, "a", encoding="utf-8") as log:
+        log.write(
+            f"[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] "
+            f"Artefato gerado: {artefato} | Usuário: {usuario}\n"
+        )
