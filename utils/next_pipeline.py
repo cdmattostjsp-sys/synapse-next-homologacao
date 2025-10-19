@@ -220,6 +220,59 @@ R$ {respostas.get("estimativa_final", "—")}
 ## 9. Condições contratuais principais
 {respostas.get("condicoes_contrato", "—")}
 
+# ==========================================================
+# Função 6 – build_contrato_markdown
+# ==========================================================
+def build_contrato_markdown(respostas: dict, tr_data: dict | None = None) -> str:
+    """
+    Monta o Contrato Administrativo em Markdown,
+    reutilizando informações do TR quando disponíveis.
+    """
+    tr_trecho = ""
+    if tr_data:
+        tr_trecho = f"""
+**Origem (TR):**  
+- Objeto: {tr_data.get('objeto', '—')}  
+- Valor estimado: R$ {tr_data.get('estimativa_final', '—')}  
+- Prazo de execução: {tr_data.get('prazo_execucao', '—')}  
+"""
+
+    md = f"""# Contrato Administrativo
+
+**Data de geração:** {respostas.get("timestamp", "")}
+
+{tr_trecho}
+
+---
+
+## 1. Partes Contratantes
+{respostas.get("partes", "—")}
+
+## 2. Objeto do Contrato
+{respostas.get("objeto", "—")}
+
+## 3. Valor Global
+R$ {respostas.get("valor_global", "—")}
+
+## 4. Prazo e Vigência
+- Prazo de execução: {respostas.get("prazo_execucao", "—")}  
+- Vigência contratual: {respostas.get("vigencia", "—")}
+
+## 5. Obrigações da Contratada
+{respostas.get("obrigacoes_contratada", "—")}
+
+## 6. Obrigações da Contratante
+{respostas.get("obrigacoes_contratante", "—")}
+
+## 7. Garantias e Penalidades
+{respostas.get("garantias", "—")}
+
+## 8. Fiscalização e Acompanhamento
+{respostas.get("fiscalizacao", "—")}
+
+## 9. Assinaturas
+{respostas.get("assinatura", "—")}
+
 ---
 
 _Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
