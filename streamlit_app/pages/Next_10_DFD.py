@@ -1,6 +1,6 @@
 # ==========================================================
-# SynapseNext – Fase Brasília
-# DFD → Form → Markdown → Exportação e Log
+# SynapseNext – Fase Brasília (Passo 9)
+# DFD → Form → Markdown → Validação IA → Exportação
 # ==========================================================
 
 import sys
@@ -9,7 +9,7 @@ from datetime import datetime
 import streamlit as st
 
 # ==========================================================
-# Correção de caminho robusta (local e cloud)
+# Caminho e importações
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
@@ -19,7 +19,8 @@ if str(root_dir) not in sys.path:
 try:
     from utils.next_pipeline import (
         build_dfd_markdown,
-        registrar_log
+        registrar_log,
+        run_semantic_validation
     )
     from utils.formatter_docx import markdown_to_docx
 except Exception as e:
@@ -30,15 +31,11 @@ except Exception as e:
 # Configurações gerais
 # ==========================================================
 st.set_page_config(page_title="SynapseNext – DFD", layout="wide")
-
 st.title("DFD — Documento de Formalização da Demanda")
-st.caption(
-    "Formulário interativo para geração de rascunho institucional (Markdown) "
-    "e exportação em `.docx`. A validação semântica será integrada na próxima fase."
-)
+st.caption("Geração de rascunho, validação semântica e exportação institucional (.docx)")
 
 # ==========================================================
-# Bloco 1 – Formulário institucional
+# Formulário
 # ==========================================================
 st.divider()
 st.subheader("1️⃣ Entrada – Formulário institucional")
@@ -46,36 +43,20 @@ st.subheader("1️⃣ Entrada – Formulário institucional")
 with st.form("form_dfd", clear_on_submit=False):
     col1, col2 = st.columns(2)
     with col1:
-        unidade = st.text_input("Unidade solicitante", placeholder="Ex.: Fórum de Sorocaba / Secretaria do Foro")
-        responsavel = st.text_input("Responsável pelo pedido", placeholder="Ex.: Carlos Darwin de Mattos (cargo/setor)")
-        objeto = st.text_input("Objeto da contratação", placeholder="Ex.: Fornecimento de água mineral em garrafões")
-        quantidade_escopo = st.text_area(
-            "Quantidade / Escopo (resumo objetivo)",
-            placeholder="Ex.: 500 garrafões de 20L/mês, abrangendo 12 prédios da RAJ X.",
-            height=120
-        )
+        unidade = st.text_input("Unidade solicitante")
+        responsavel = st.text_input("Responsável pelo pedido")
+        objeto = st.text_input("Objeto da contratação")
+        quantidade_escopo = st.text_area("Quantidade / Escopo")
     with col2:
-        justificativa = st.text_area(
-            "Justificativa da necessidade",
-            placeholder="Ex.: Garantir abastecimento contínuo de água potável aos servidores e jurisdicionados.",
-            height=120
-        )
-        urgencia = st.selectbox("Urgência", ["Sem urgência", "Baixa", "Média", "Alta"], index=0)
-        riscos = st.text_area(
-            "Riscos identificados (se houver)",
-            placeholder="Ex.: desabastecimento, atraso logístico, não conformidade sanitária.",
-            height=120
-        )
-        alinhamento = st.text_area(
-            "Alinhamento institucional",
-            placeholder="Ex.: Alinhado ao planejamento estratégico, sustentabilidade e bem-estar.",
-            height=120
-        )
-    anexos = st.file_uploader("Anexos (opcional, múltiplos arquivos)", accept_multiple_files=True)
+        justificativa = st.text_area("Justificativa da necessidade")
+        urgencia = st.selectbox("Urgência", ["Sem urgência", "Baixa", "Média", "Alta"])
+        riscos = st.text_area("Riscos identificados (se houver)")
+        alinhamento = st.text_area("Alinhamento institucional")
+    anexos = st.file_uploader("Anexos (opcional)", accept_multiple_files=True)
     submitted = st.form_submit_button("Gerar rascunho do DFD")
 
 # ==========================================================
-# Bloco 2 – Processamento
+# Processamento
 # ==========================================================
 if submitted:
     respostas = {
@@ -96,24 +77,39 @@ if submitted:
 
     st.success("✅ Rascunho gerado com sucesso!")
     st.divider()
-
-    # ----------------------------------------------------------
-    # Preview Markdown
-    # ----------------------------------------------------------
-    st.subheader("2️⃣ Rascunho – Preview (Markdown)")
+    st.subheader("2️⃣ Rascunho – Preview")
     st.markdown(md)
-    st.divider()
 
-    # ----------------------------------------------------------
-    # Exportação .docx
-    # ----------------------------------------------------------
+    # ==========================================================
+    # Validação IA
+    # ==========================================================
     st.divider()
-    st.subheader("3️⃣ Exportação – `.docx`")
+    st.subheader("3️⃣ Validação Semântica – IA TJSP")
+
+    with st.spinner("Executando análise semântica..."):
+        resultado = run_semantic_validation(md)
+
+    if "erro" in resultado and resultado["erro"]:
+        st.error(f"⚠️ Erro ao validar o documento: {resultado['erro']}")
+    else:
+        st.markdown(f"**🪶 Resumo:** {resultado.get('resumo', '')}")
+        st.markdown(f"**📊 Pontuação:** {resultado.get('pontuacao', 0)}%")
+        if resultado.get("sugestoes"):
+            st.markdown("### 💡 Sugestões de melhoria:")
+            for s in resultado["sugestoes"]:
+                st.markdown(f"- {s}")
+
+    registrar_log("DFD", "validacao_semantica")
+
+    # ==========================================================
+    # Exportação
+    # ==========================================================
+    st.divider()
+    st.subheader("4️⃣ Exportação – `.docx`")
 
     base = Path(__file__).resolve().parents[2]
     rascunhos_dir = base / "exports" / "rascunhos"
     rascunhos_dir.mkdir(parents=True, exist_ok=True)
-
     filename_base = f"DFD_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     docx_path = rascunhos_dir / f"{filename_base}.docx"
 
