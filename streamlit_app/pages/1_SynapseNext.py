@@ -1,148 +1,90 @@
 import streamlit as st
-from utils.formatter_docx import markdown_to_docx
-from utils.recommender_engine import generate_recommendations
+from datetime import datetime
 
-# ============================
-# CONFIGURAÇÃO GERAL
-# ============================
+# =============================================================================
+# Página: SynapseNext – Fase Brasília (Ecosistema SAAB 5.0)
+# =============================================================================
 
-st.set_page_config(
-    page_title="SynapseNext – Ecossistema SAAB 5.0",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="SynapseNext – Fase Brasília", layout="wide")
 
-st.title("🧠 SynapseNext – Ecossistema SAAB 5.0")
-st.caption("Ambiente integrado de apoio à fase interna das contratações públicas • SAAB/TJSP")
+# -----------------------------------------------------------------------------
+# Cabeçalho
+# -----------------------------------------------------------------------------
+st.title("SynapseNext — Fase Brasília (Ecossistema SAAB 5.0)")
+st.caption("Ambiente operacional para geração de artefatos da fase interna: **DFD → ETP → TR → Contrato.**")
 
-st.divider()
+# -----------------------------------------------------------------------------
+# Bloco: Objetivo
+# -----------------------------------------------------------------------------
+st.header("Objetivo")
 
-# ============================
-# ESTRUTURA DE ABAS PRINCIPAIS
-# ============================
+st.markdown("""
+O **SynapseNext** padroniza a produção dos artefatos da fase interna de contratação, com:
 
-tabs = st.tabs([
-    "📘 DFD – Formalização da Demanda",
-    "🧩 ETP – Estudo Técnico Preliminar",
-    "📑 TR – Termo de Referência",
-    "📜 Contrato",
-    "🔍 Fiscalização"
-])
+- **Rascunho institucional** em formato Markdown;
+- **Exportação** para `.docx` (e `.pdf` como opção em versões futuras);
+- **Validação semântica** (acoplada no Passo 2);
+- **Rastreabilidade**, com logs mínimos e salvamento automático de rascunhos.
+""")
 
-# ============================
-# ABA 1 – DFD
-# ============================
+# -----------------------------------------------------------------------------
+# Bloco: Diretrizes desta fase
+# -----------------------------------------------------------------------------
+st.header("Diretrizes desta fase")
 
-with tabs[0]:
-    st.header("📘 Documento de Formalização da Demanda (DFD)")
-    st.markdown("Preencha as informações abaixo para gerar o rascunho do DFD institucional.")
+st.markdown("""
+- **UI:** baseada em *Streamlit* (layout `wide`), com linguagem institucional e orientações integradas.
+- **Exportação:** `utils/formatter_docx.markdown_to_docx`.
+- **Logs:** `exports/logs` e rascunhos em `exports/rascunhos`.
+- **Sem** dependência de *JavaScript/AJAX* externo — apenas *Python/Streamlit* puro.
+""")
 
-    unidade = st.text_input("Unidade solicitante:")
-    responsavel = st.text_input("Responsável (nome/cargo):")
-    objeto = st.text_area("Objeto da contratação:")
-    justificativa = st.text_area("Justificativa da necessidade:")
-    quantidade = st.text_input("Quantidade / Dimensão do serviço:")
-    urgencia = st.text_area("Urgência ou prazo limite:")
-    riscos = st.text_area("Riscos identificados caso o pedido não seja atendido:")
-    alinhamento = st.text_input("Alinhamento institucional:")
-    suporte = st.text_input("Documentos de suporte (opcional):")
+# -----------------------------------------------------------------------------
+# Bloco: Navegação
+# -----------------------------------------------------------------------------
+st.header("Navegação")
 
-    st.divider()
-    if st.button("Gerar Rascunho DFD"):
-        texto = f"""
-        **Documento de Formalização da Demanda (DFD)**  
-        Unidade Solicitante: {unidade}  
-        Responsável: {responsavel}  
+st.markdown("""
+➡️ **DFD – Documento de Formalização da Demanda**
 
-        **1️⃣ Descrição do Objeto**  
-        {objeto}
+🔒 **ETP – Estudo Técnico Preliminar** *(disponível nos próximos passos)*
 
-        **2️⃣ Justificativa da Necessidade**  
-        {justificativa}
+🔒 **TR – Termo de Referência** *(disponível nos próximos passos)*
 
-        **3️⃣ Quantidade, Urgência e Riscos**  
-        {quantidade}  
-        {urgencia}  
-        {riscos}
+🔒 **Contrato** *(disponível nos próximos passos)*
+""")
 
-        **4️⃣ Alinhamento Institucional**  
-        {alinhamento}
+# -----------------------------------------------------------------------------
+# Bloco: Jornada prevista
+# -----------------------------------------------------------------------------
+st.header("Jornada prevista")
 
-        **5️⃣ Documentos de Suporte**  
-        {suporte}
-        """
-        st.markdown(texto)
-        st.success("✅ Rascunho do DFD gerado com sucesso!")
-        st.download_button("⬇️ Baixar Rascunho em DOCX", texto, file_name="DFD_SynapseNext.docx")
+st.markdown("""
+1. **DFD** → Coletar informações essenciais e gerar *rascunho institucional* (Markdown) com exportação `.docx`.
+2. **ETP** → Encadear respostas do DFD e detalhar o estudo técnico preliminar.
+3. **TR** → Encadear dados do ETP para compor o termo de referência.
+4. **Contrato** → Encadear especificações do TR e consolidar o artefato final.
 
-# ============================
-# ABA 2 – ETP
-# ============================
+> A **validação semântica** está integrada no *Passo 2*, utilizando `validator_engine_vNext.validate_document`.
+""")
 
-with tabs[1]:
-    st.header("🧩 Estudo Técnico Preliminar (ETP)")
-    st.markdown("Estrutura base para elaboração do ETP. Campos e recomendações virão das próximas integrações.")
+# -----------------------------------------------------------------------------
+# Bloco: Placeholders institucionais
+# -----------------------------------------------------------------------------
+with st.expander("⚙️ Placeholders institucionais (futuro)"):
+    st.markdown("""
+    - Parâmetros de integração com o agente **DFD.IA**.
+    - Sugestões automáticas para **ETP.IA** e **TR.IA**.
+    - Motor de recomendações e conexões contextuais com bases documentais institucionais.
+    """)
 
-    st.info("💡 Esta aba será expandida com a análise comparativa de soluções e critérios técnicos de seleção.")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.text_area("Problema a ser resolvido:")
-        st.text_area("Alternativas consideradas:")
-    with col2:
-        st.text_area("Critérios de escolha da solução:")
-        st.text_area("Impactos esperados:")
+# -----------------------------------------------------------------------------
+# Bloco: Rodapé informativo
+# -----------------------------------------------------------------------------
+st.info(f"📂 Diretórios de saída prontos: `exports/logs` e `exports/rascunhos` (checados em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}).")
 
-    if st.button("Gerar Rascunho ETP"):
-        st.success("🧩 Modelo inicial do ETP gerado (placeholder para próxima etapa).")
+# -----------------------------------------------------------------------------
+# Observação de desenvolvimento futuro
+# -----------------------------------------------------------------------------
+st.caption("💡 Módulo de recomendações será ativado nas próximas versões (vNext).")
 
-# ============================
-# ABA 3 – TR
-# ============================
-
-with tabs[2]:
-    st.header("📑 Termo de Referência (TR)")
-    st.markdown("Base estrutural para desenvolvimento do Termo de Referência.")
-
-    st.info("💡 Nesta aba serão incluídos campos automáticos de especificação técnica, estimativa de custos e matriz de riscos.")
-    st.text_area("Especificações técnicas:")
-    st.text_area("Estimativa de custos:")
-    st.text_area("Critérios de julgamento:")
-
-    if st.button("Gerar Rascunho TR"):
-        st.success("📑 Estrutura do TR gerada (em construção).")
-
-# ============================
-# ABA 4 – CONTRATO
-# ============================
-
-with tabs[3]:
-    st.header("📜 Minuta de Contrato")
-    st.markdown("Modelo básico da minuta contratual a ser aprimorada com variáveis e cláusulas padrão.")
-
-    st.info("💡 Este módulo futuramente permitirá selecionar modelos por tipo de contrato (obra, serviço, fornecimento etc.)")
-    tipo_contrato = st.selectbox("Tipo de contrato:", ["Serviço", "Obra", "Fornecimento", "Outro"])
-    prazo = st.text_input("Prazo de execução:")
-    clausulas = st.text_area("Cláusulas específicas:")
-
-    if st.button("Gerar Rascunho de Contrato"):
-        st.success(f"📜 Rascunho de contrato do tipo {tipo_contrato} gerado com sucesso!")
-
-# ============================
-# ABA 5 – FISCALIZAÇÃO
-# ============================
-
-with tabs[4]:
-    st.header("🔍 Fiscalização Contratual")
-    st.markdown("Módulo para registro e acompanhamento de execuções contratuais.")
-
-    st.info("💡 Este módulo incluirá dashboards de acompanhamento e alertas de vencimentos de prazos.")
-    st.text_input("Número do contrato:")
-    st.text_area("Resumo da execução:")
-    st.text_area("Ocorrências registradas:")
-    st.text_area("Penalidades ou recomendações:")
-
-    if st.button("Gerar Relatório de Fiscalização"):
-        st.success("🔍 Relatório de fiscalização gerado (placeholder para futura integração).")
-
-st.divider()
-st.caption("SynapseNext • SAAB/TJSP – Protótipo v1.0 (Abas Integradas)")
