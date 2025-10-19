@@ -119,50 +119,60 @@ def run_semantic_validation(artefato: str, markdown_text: str, client=None) -> d
 
 
 # ==========================================================
-# Função 4 – build_etp_markdown
+# Função 5 – build_tr_markdown
 # ==========================================================
-def build_etp_markdown(respostas: dict, dfd_data: dict | None = None) -> str:
+def build_tr_markdown(respostas: dict, etp_data: dict | None = None) -> str:
     """
-    Monta o Estudo Técnico Preliminar (ETP) em Markdown,
-    reutilizando informações do DFD quando disponíveis.
+    Monta o Termo de Referência (TR) em Markdown,
+    reutilizando informações do ETP quando disponíveis.
     """
-    dfd_trecho = ""
-    if dfd_data:
-        dfd_trecho = f"""
-**Origem (DFD):**  
-- Unidade solicitante: {dfd_data.get('unidade', '—')}  
-- Responsável: {dfd_data.get('responsavel', '—')}  
-- Objeto do DFD: {dfd_data.get('objeto', '—')}  
+    etp_trecho = ""
+    if etp_data:
+        etp_trecho = f"""
+**Origem (ETP):**  
+- Objeto: {etp_data.get('objeto', '—')}  
+- Requisitos: {etp_data.get('requisitos', '—')}  
+- Estimativa: R$ {etp_data.get('estimativa', '—')}  
 """
 
-    md = f"""# Estudo Técnico Preliminar (ETP)
+    md = f"""# Termo de Referência (TR)
 
 **Data de geração:** {respostas.get("timestamp", "")}
 
-{dfd_trecho}
+{etp_trecho}
 
 ---
 
 ## 1. Objeto da contratação
 {respostas.get("objeto", "—")}
 
-## 2. Necessidade da contratação
-{respostas.get("necessidade", "—")}
+## 2. Justificativa técnica
+{respostas.get("justificativa", "—")}
 
-## 3. Requisitos técnicos essenciais
-{respostas.get("requisitos", "—")}
+## 3. Especificações técnicas detalhadas
+{respostas.get("especificacoes", "—")}
 
-## 4. Soluções/alternativas estudadas
-{respostas.get("alternativas", "—")}
+## 4. Metodologia de execução
+{respostas.get("metodologia_execucao", "—")}
 
-## 5. Riscos e medidas de mitigação
-{respostas.get("riscos", "—")}
+## 5. Critérios de julgamento
+{respostas.get("criterios_julgamento", "—")}
 
-## 6. Estimativa de custo
-R$ {respostas.get("estimativa", "—")}
+## 6. Fontes da pesquisa de preços
+{respostas.get("fonte_precos", "—")}
+
+## 7. Estimativa final de custo
+R$ {respostas.get("estimativa_final", "—")}
+
+## 8. Prazo estimado de execução
+{respostas.get("prazo_execucao", "—")}
+
+## 9. Condições contratuais principais
+{respostas.get("condicoes_contrato", "—")}
 
 ---
 
 _Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
 """
     return md
+
