@@ -1,9 +1,13 @@
 # streamlit_app/pages/Next_10_DFD.py
-# DFD — Entrada (form) → Rascunho (markdown) → Exportação (.docx) → Validação semântica (Passo 2)
+# DFD — Entrada (form) → Rascunho (markdown) → Exportação (.docx) → Validação semântica
+
+import sys
+from pathlib import Path
+# .../synapse-next/streamlit_app/pages/Next_10_DFD.py -> sobe 2 níveis até a raiz
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import streamlit as st
 from datetime import datetime
-from pathlib import Path
 
 from utils.next_pipeline import (
     build_dfd_markdown,
@@ -49,12 +53,12 @@ with st.form("form_dfd", clear_on_submit=False):
         urgencia = st.selectbox("Urgência", ["Sem urgência", "Baixa", "Média", "Alta"], index=0)
         riscos = st.text_area(
             "Riscos identificados (se houver)",
-            placeholder="Ex.: risco de desabastecimento, atraso logístico, não conformidade com normas sanitárias.",
+            placeholder="Ex.: desabastecimento, atraso logístico, não conformidade sanitária.",
             height=120
         )
         alinhamento = st.text_area(
             "Alinhamento institucional",
-            placeholder="Ex.: Ação alinhada ao planejamento estratégico, sustentabilidade e bem-estar.",
+            placeholder="Ex.: Alinhado ao planejamento estratégico, sustentabilidade e bem-estar.",
             height=120
         )
 
@@ -143,29 +147,20 @@ if submitted:
         rigid_result = result.get("rigid_result", [])
         semantic_result = result.get("semantic_result", [])
         guided_md = result.get("guided_markdown", "")
-        guided_md_path = result.get("guided_markdown_path")  # relativo à raiz
+        guided_md_path = result.get("guided_markdown_path")
 
-        # Sumário
-        m1, m2 = st.columns(2)
-        with m1:
+        c1, c2 = st.columns(2)
+        with c1:
             st.metric("Checklist rígido (presença obrigatória)", f"{rigid:.0f}%")
-        with m2:
+        with c2:
             st.metric("Adequação semântica (qualidade do conteúdo)", f"{semantic:.0f}%")
 
-        # Resultados detalhados
         with st.expander("📋 Detalhamento — Itens rígidos (checklist)", expanded=False):
-            if rigid_result:
-                st.write(rigid_result)
-            else:
-                st.write("Sem dados retornados para o checklist rígido.")
+            st.write(rigid_result or "Sem dados retornados para o checklist rígido.")
 
         with st.expander("🧠 Recomendações — Avaliação semântica", expanded=True):
-            if semantic_result:
-                st.write(semantic_result)
-            else:
-                st.write("Sem dados retornados para a avaliação semântica.")
+            st.write(semantic_result or "Sem dados retornados para a avaliação semântica.")
 
-        # Rascunho Orientado
         with st.expander("📝 Rascunho Orientado (guided_markdown)", expanded=False):
             if guided_md:
                 st.markdown(guided_md)
