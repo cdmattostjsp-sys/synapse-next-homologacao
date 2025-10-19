@@ -1,78 +1,103 @@
-import os
-from datetime import datetime
-from io import BytesIO
+# utils/formatter_docx.py
+# ==========================================================
+# SynapseNext – Fase Brasília
+# Formatter institucional para exportação .docx com padrão TJSP
+# ==========================================================
+
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from datetime import datetime
+from pathlib import Path
+import markdown
 
-# ===========================================
-# 📁 DIRETÓRIO PADRÃO PARA SALVAR DOCUMENTOS
-# ===========================================
-
-OUTPUT_DIR = os.path.join(os.getcwd(), "outputs")
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-
-# ===========================================
-# 🔧 FUNÇÃO PRINCIPAL – GERAR DOCUMENTO
-# ===========================================
-
-def markdown_to_docx(markdown_text: str, title: str = "Documento Synapse", summary: str = ""):
+# ==========================================================
+# Função principal
+# ==========================================================
+def markdown_to_docx(markdown_text: str, output_path: str, artefato_nome: str = "Documento") -> None:
     """
-    Converte o conteúdo validado (ou extraído via parser PDF) em um arquivo DOCX formatado.
-    Compatível com DFD, ETP, TR e Contrato.
-    Retorna o arquivo como buffer (para download no Streamlit) e o caminho salvo localmente.
+    Converte texto Markdown em documento .docx institucional com padrão TJSP.
+    Inclui capa, cabeçalho, rodapé e formatação.
     """
-    document = Document()
 
-    # === CABEÇALHO INSTITUCIONAL ===
-    title_paragraph = document.add_paragraph(title)
-    title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_paragraph.runs[0].bold = True
-    title_paragraph.runs[0].font.size = Pt(14)
-
-    document.add_paragraph(f"Data de geração: {datetime.now().strftime('%d/%m/%Y')}")
-    document.add_paragraph("Tribunal de Justiça do Estado de São Paulo – Secretaria de Administração e Abastecimento (SAAB)")
-    document.add_paragraph("Projeto Synapse.IA – Ecossistema SAAB 5.0")
-    document.add_paragraph("")
-
-    # === CONTEÚDO PRINCIPAL ===
+    # Conversão básica markdown → texto bruto (mantém quebras de linha)
+    html = markdown.markdown(markdown_text)
     lines = markdown_text.split("\n")
+
+    doc = Document()
+
+    # ==========================================================
+    # Capa institucional
+    # ==========================================================
+    section = doc.sections[0]
+    section.top_margin = Inches(1)
+    section.bottom_margin = Inches(1)
+    section.left_margin = Inches(1.1)
+    section.right_margin = Inches(1.1)
+
+    logo_path = Path(__file__).resolve().parents[1] / "assets" / "tjsp_logo.png"
+    if logo_path.exists():
+        try:
+            doc.add_picture(str(logo_path), width=Inches(1.1))
+        except Exception:
+            pass
+
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_title = p_title.add_run("TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO\n")
+    run_title.bold = True
+    run_title.font.size = Pt(14)
+
+    p_sub = doc.add_paragraph()
+    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_sub = p_sub.add_run(f"{artefato_nome} – SynapseNext | Fase Brasília\n\n")
+    run_sub.font.size = Pt(11)
+
+    p_date = doc.add_paragraph()
+    p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_date = p_date.add_run(datetime.now().strftime("Gerado em %d/%m/%Y às %H:%M\n"))
+    run_date.italic = True
+    run_date.font.size = Pt(10)
+
+    doc.add_page_break()
+
+    # ==========================================================
+    # Corpo do documento
+    # ==========================================================
     for line in lines:
-        if not line.strip():
+        line = line.strip()
+        if not line:
             continue
 
+        # Títulos
         if line.startswith("# "):
-            p = document.add_paragraph(line.replace("# ", ""), style="Heading1")
+            p = doc.add_paragraph(line[2:].strip())
+            p.style = "Heading 1"
         elif line.startswith("## "):
-            p = document.add_paragraph(line.replace("## ", ""), style="Heading2")
+            p = doc.add_paragraph(line[3:].strip())
+            p.style = "Heading 2"
         elif line.startswith("### "):
-            p = document.add_paragraph(line.replace("### ", ""), style="Heading3")
-        elif line.startswith("💡"):
-            p = document.add_paragraph(line, style="ListBullet")
+            p = doc.add_paragraph(line[4:].strip())
+            p.style = "Heading 3"
         else:
-            p = document.add_paragraph(line)
-            p.paragraph_format.space_after = Pt(6)
+            p = doc.add_paragraph(line)
+            p.style = "Normal"
+            for run in p.runs:
+                run.font.name = "Calibri"
+                run.font.size = Pt(11)
 
-    # === RESUMO OPCIONAL ===
-    if summary:
-        document.add_page_break()
-        document.add_heading("Resumo e Recomendações", level=2)
-        document.add_paragraph(summary)
+    # ==========================================================
+    # Rodapé institucional
+    # ==========================================================
+    section = doc.sections[0]
+    footer = section.footer.paragraphs[0]
+    footer.text = "Gerado automaticamente pelo SynapseNext – SAAB 5.0 | Tribunal de Justiça do Estado de São Paulo"
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    footer.runs[0].font.size = Pt(9)
+    footer.runs[0].italic = True
 
-    # === RODAPÉ PADRÃO ===
-    document.add_paragraph("")
-    document.add_paragraph("Gerado automaticamente pelo SynapseNext • SAAB/TJSP")
-    document.add_paragraph("© Tribunal de Justiça do Estado de São Paulo – Todos os direitos reservados.")
-
-    # === SALVAR E RETORNAR ===
-    file_name = f"{title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
-    file_path = os.path.join(OUTPUT_DIR, file_name)
-
-    buffer = BytesIO()
-    document.save(buffer)
-    buffer.seek(0)
-    document.save(file_path)
-
-    return buffer, file_path
+    # ==========================================================
+    # Salvamento final
+    # ==========================================================
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    doc.save(output_path)
