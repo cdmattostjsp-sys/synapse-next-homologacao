@@ -1,6 +1,8 @@
 # streamlit_app/pages/Next_20_ETP.py
+# ==========================================================
 # SynapseNext – Fase Brasília
-# ETP → Reuso de DFD → Formulário → Markdown → Exportação .docx
+# ETP → Reuso do DFD → Formulário → Markdown → Exportação .docx
+# ==========================================================
 
 import sys
 from pathlib import Path
@@ -8,18 +10,24 @@ from datetime import datetime
 import json
 import streamlit as st
 
-# Corrige o caminho no ambiente Streamlit Cloud
+# ==========================================================
+# Correção de caminho robusta (local e cloud)
+# ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2]
+root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-from utils.next_pipeline import build_etp_markdown, save_log
-from utils.formatter_docx import markdown_to_docx
+try:
+    from utils.next_pipeline import build_etp_markdown, save_log
+    from utils.formatter_docx import markdown_to_docx
+except Exception as e:
+    st.error(f"❌ Erro ao importar módulos utilitários: {e}")
+    st.stop()
 
-# ---------------------------------------------------------
+# ==========================================================
 # Configuração da página
-# ---------------------------------------------------------
+# ==========================================================
 st.set_page_config(page_title="SynapseNext – ETP", layout="wide")
 
 st.title("ETP — Estudo Técnico Preliminar")
@@ -28,9 +36,9 @@ st.caption(
     "em formato institucional (.docx)."
 )
 
-# ---------------------------------------------------------
+# ==========================================================
 # Bloco 1 — Reuso de dados do DFD
-# ---------------------------------------------------------
+# ==========================================================
 st.divider()
 st.subheader("1️⃣ Reaproveitamento do DFD")
 
@@ -44,7 +52,6 @@ if logs_dir.exists():
         last_log = log_files[0]
         with open(last_log, "r", encoding="utf-8") as f:
             logs = json.load(f)
-        # busca o último registro de geração de DFD
         dfd_entries = [l for l in logs if l.get("artefato") == "DFD" and "gerar_rascunho" in str(l)]
         if dfd_entries:
             dfd_data = dfd_entries[-1].get("dados", {}).get("respostas")
@@ -56,9 +63,9 @@ if logs_dir.exists():
 else:
     st.info("A pasta de logs ainda não foi criada.")
 
-# ---------------------------------------------------------
+# ==========================================================
 # Bloco 2 — Formulário do ETP
-# ---------------------------------------------------------
+# ==========================================================
 st.divider()
 st.subheader("2️⃣ Complementação – Dados Técnicos do ETP")
 
@@ -98,9 +105,9 @@ with st.form("form_etp", clear_on_submit=False):
 
     enviado = st.form_submit_button("Gerar rascunho do ETP")
 
-# ---------------------------------------------------------
+# ==========================================================
 # Bloco 3 — Geração e visualização
-# ---------------------------------------------------------
+# ==========================================================
 if enviado:
     respostas_etp = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
