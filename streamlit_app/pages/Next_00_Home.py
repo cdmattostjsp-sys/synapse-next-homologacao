@@ -1,14 +1,14 @@
 # streamlit_app/pages/Next_00_Home.py
-# SynapseNext – Fase Brasília (SAAB 5.0)
 # Capa institucional + navegação interna
-# Requisitos:
-# - layout wide, linguagem institucional
-# - explicar jornada (DFD → ETP → TR → Contrato)
-# - botões/links internos para páginas
-# - placeholder para SharePoint/OneDrive (sem integração neste passo)
+
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do repositório ao PYTHONPATH (necessário no Streamlit Cloud)
+# .../synapse-next/streamlit_app/pages/Next_00_Home.py -> sobe 2 níveis
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import streamlit as st
-from pathlib import Path
 from datetime import datetime
 
 st.set_page_config(page_title="SynapseNext – Home", layout="wide")
@@ -27,7 +27,7 @@ with col_a:
 O **SynapseNext** padroniza a produção dos artefatos da fase interna de contratação, com:
 - **Rascunho institucional** em Markdown;
 - **Exportação** para `.docx` (e `.pdf` como opcional em passos futuros);
-- **Validação semântica** (a ser acoplada no Passo 2);
+- **Validação semântica** (acoplada no Passo 2);
 - **Rastreabilidade**, com logs mínimos e salvamento de rascunhos.
         """
     )
@@ -51,24 +51,19 @@ st.subheader("Navegação")
 
 nav_cols = st.columns(4)
 destinos = {
-    "Documento de Formalização da Demanda (DFD)": "pages/Next_10_DFD.py",
-    "Estudo Técnico Preliminar (ETP)": None,     # Placeholder (próximos passos)
-    "Termo de Referência (TR)": None,            # Placeholder (próximos passos)
-    "Contrato": None                              # Placeholder (próximos passos)
+    "DFD": "pages/Next_10_DFD.py",
+    "ETP": None,     # Placeholder (próximos passos)
+    "TR": None,      # Placeholder (próximos passos)
+    "Contrato": None # Placeholder (próximos passos)
 }
 
-# Preferimos usar st.page_link (quando disponível na sua versão do Streamlit).
-# Mantemos um fallback para versões antigas.
 def _page_link_or_fallback(label: str, page_path: str | None):
     if page_path:
         try:
-            # Streamlit 1.32+ (aprox.) tem st.page_link
             st.page_link(page_path, label=label, icon="➡️")
         except Exception:
-            # Fallback: instrução simples + botão que tenta usar switch_page se existir
             if st.button(label):
                 try:
-                    # Streamlit >= 1.25
                     st.switch_page(page_path)
                 except Exception:
                     st.warning("Use o menu ‘Pages’ na barra lateral para abrir a página correspondente.")
@@ -76,11 +71,11 @@ def _page_link_or_fallback(label: str, page_path: str | None):
         st.write(f"🔒 {label} *(disponível nos próximos passos)*")
 
 with nav_cols[0]:
-    _page_link_or_fallback("DFD – Documento de Formalização da Demanda", destinos["Documento de Formalização da Demanda (DFD)"])
+    _page_link_or_fallback("DFD – Documento de Formalização da Demanda", destinos["DFD"])
 with nav_cols[1]:
-    _page_link_or_fallback("ETP – Estudo Técnico Preliminar", destinos["Estudo Técnico Preliminar (ETP)"])
+    _page_link_or_fallback("ETP – Estudo Técnico Preliminar", destinos["ETP"])
 with nav_cols[2]:
-    _page_link_or_fallback("TR – Termo de Referência", destinos["Termo de Referência (TR)"])
+    _page_link_or_fallback("TR – Termo de Referência", destinos["TR"])
 with nav_cols[3]:
     _page_link_or_fallback("Contrato", destinos["Contrato"])
 
@@ -97,7 +92,7 @@ st.markdown(
 3. **TR** → Encadear dados do ETP para compor o termo de referência.  
 4. **Contrato** → Encadear especificações do TR e consolidar o artefato final.
 
-> **Validação semântica:** será integrada no **Passo 2**, utilizando `validator_engine_vNext.validate_document`.
+> **Validação semântica:** integrada no **Passo 2** via `validator_engine_vNext.validate_document`.
     """
 )
 
@@ -124,6 +119,5 @@ for p in (exports, logs_dir, rascunhos_dir):
     p.mkdir(parents=True, exist_ok=True)
 
 st.info(
-    f"📂 Diretórios de saída prontos: `{logs_dir.relative_to(base)}` e `{rascunhos_dir.relative_to(base)}` "
-    f"(criados/validados em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')})."
+    f"📂 Diretórios de saída prontos: `{logs_dir.relative_to(base)}` e `{rascunhos_dir.relative_to(base)}`."
 )
