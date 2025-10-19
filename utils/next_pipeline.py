@@ -220,6 +220,13 @@ R$ {respostas.get("estimativa_final", "—")}
 ## 9. Condições contratuais principais
 {respostas.get("condicoes_contrato", "—")}
 
+---
+
+_Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
+"""
+    return md
+
+
 # ==========================================================
 # Função 6 – build_contrato_markdown
 # ==========================================================
