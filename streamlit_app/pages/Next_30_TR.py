@@ -1,6 +1,6 @@
 # ==========================================================
-# SynapseNext – Fase Brasília (Passo 9)
-# TR → Form → Markdown → Validação IA → Exportação
+# SynapseNext – TR (Termo de Referência)
+# Fase Brasília – Passo 10A (com integração Auditoria.IA)
 # ==========================================================
 
 import sys
@@ -8,34 +8,34 @@ from pathlib import Path
 from datetime import datetime
 import streamlit as st
 
+# Ajuste de path
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
 try:
-    from utils.next_pipeline import (
-        build_tr_markdown,
-        registrar_log,
-        run_semantic_validation
-    )
+    from utils.next_pipeline import build_tr_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
+    from utils.auditoria_pipeline import audit_event
 except Exception as e:
-    st.error(f"❌ Erro ao importar módulos utilitários: {e}")
+    st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
+# Configuração da página
 st.set_page_config(page_title="SynapseNext – TR", layout="wide")
 st.title("TR — Termo de Referência")
-st.caption("Geração de rascunho, validação semântica e exportação institucional (.docx)")
+st.caption("Elaboração institucional, validação IA e trilha de auditoria digital.")
 
+# Formulário
 st.divider()
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
 with st.form("form_tr", clear_on_submit=False):
-    objeto = st.text_area("Objeto")
-    justificativa = st.text_area("Justificativa")
+    objeto = st.text_area("Objeto da contratação")
+    justificativa = st.text_area("Justificativa da contratação")
     fundamentacao = st.text_area("Fundamentação legal")
-    descricao = st.text_area("Descrição do objeto")
+    descricao = st.text_area("Descrição detalhada do objeto")
     obrigacoes = st.text_area("Obrigações das partes")
     prazos = st.text_area("Prazos e condições")
     criterios = st.text_area("Critérios de aceitação")
@@ -57,15 +57,14 @@ if submitted:
 
     md = build_tr_markdown(respostas)
     registrar_log("TR", "gerar_rascunho")
+    audit_event("TR", "gerar_rascunho", md, meta={"usuario": "Sistema", "versao": "Fase Brasília"})
 
     st.success("✅ Rascunho gerado com sucesso!")
     st.divider()
     st.subheader("2️⃣ Rascunho – Preview")
     st.markdown(md)
 
-    # ==========================================================
     # Validação IA
-    # ==========================================================
     st.divider()
     st.subheader("3️⃣ Validação Semântica – IA TJSP")
 
@@ -73,7 +72,7 @@ if submitted:
         resultado = run_semantic_validation(md)
 
     if "erro" in resultado and resultado["erro"]:
-        st.error(f"⚠️ Erro ao validar o documento: {resultado['erro']}")
+        st.error(f"⚠️ Erro ao validar: {resultado['erro']}")
     else:
         st.markdown(f"**🪶 Resumo:** {resultado.get('resumo', '')}")
         st.markdown(f"**📊 Pontuação:** {resultado.get('pontuacao', 0)}%")
@@ -83,10 +82,9 @@ if submitted:
                 st.markdown(f"- {s}")
 
     registrar_log("TR", "validacao_semantica")
+    audit_event("TR", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
 
-    # ==========================================================
-    # Exportação
-    # ==========================================================
+    # Exportação DOCX
     st.divider()
     st.subheader("4️⃣ Exportação – `.docx`")
 
@@ -99,6 +97,8 @@ if submitted:
     if st.button("📄 Exportar para .docx"):
         markdown_to_docx(md, str(docx_path))
         registrar_log("TR", "exportar_docx")
+        audit_event("TR", "exportar_docx", md, meta={"arquivo": docx_path.name})
+
         with open(docx_path, "rb") as f:
             data = f.read()
         st.download_button(
@@ -109,6 +109,5 @@ if submitted:
             use_container_width=True,
         )
         st.info(f"Arquivo salvo em: `exports/rascunhos/{docx_path.name}`")
-
 else:
     st.info("Preencha o formulário e clique em **Gerar rascunho do TR**.")
