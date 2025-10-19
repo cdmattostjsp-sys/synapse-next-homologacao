@@ -1,6 +1,6 @@
 # ==========================================================
 # SynapseNext – Fase Brasília
-# DFD → Form → Markdown → Validação IA → Exportação com/sugestões
+# DFD → Form → Markdown → Exportação e Log
 # ==========================================================
 
 import sys
@@ -19,8 +19,7 @@ if str(root_dir) not in sys.path:
 try:
     from utils.next_pipeline import (
         build_dfd_markdown,
-        registrar_log,
-        run_semantic_validation,
+        registrar_log
     )
     from utils.formatter_docx import markdown_to_docx
 except Exception as e:
@@ -34,8 +33,8 @@ st.set_page_config(page_title="SynapseNext – DFD", layout="wide")
 
 st.title("DFD — Documento de Formalização da Demanda")
 st.caption(
-    "Formulário interativo para geração de rascunho institucional (Markdown), "
-    "validação semântica e exportação em `.docx` (modo com/sugestões)."
+    "Formulário interativo para geração de rascunho institucional (Markdown) "
+    "e exportação em `.docx`. A validação semântica será integrada na próxima fase."
 )
 
 # ==========================================================
@@ -109,7 +108,7 @@ if submitted:
     # Exportação .docx
     # ----------------------------------------------------------
     st.divider()
-    st.subheader("4️⃣ Exportação – `.docx`")
+    st.subheader("3️⃣ Exportação – `.docx`")
 
     base = Path(__file__).resolve().parents[2]
     rascunhos_dir = base / "exports" / "rascunhos"
