@@ -19,7 +19,7 @@ if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
 try:
-    from utils.next_pipeline import build_contrato_markdown, save_log
+    from utils.next_pipeline import build_contrato_markdown, registrar_log
     from utils.formatter_docx import markdown_to_docx
 except Exception as e:
     st.error(f"❌ Erro ao importar módulos utilitários: {e}")
