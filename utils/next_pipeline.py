@@ -1,108 +1,48 @@
-# utils/next_pipeline.py
 # ==========================================================
-# SynapseNext – pipeline utilitário para artefatos DFD / ETP / TR
+# Função 4 – build_etp_markdown
 # ==========================================================
-
-from datetime import datetime
-from pathlib import Path
-import json
-import os
-from openai import OpenAI
-from validator_engine_vNext import validate_document
-
-
-# ==========================================================
-# Função 1 – build_dfd_markdown
-# ==========================================================
-def build_dfd_markdown(respostas: dict) -> str:
+def build_etp_markdown(respostas: dict, dfd_data: dict | None = None) -> str:
     """
-    Monta o conteúdo institucional em Markdown com base nas respostas do formulário DFD.
+    Monta o Estudo Técnico Preliminar (ETP) em Markdown,
+    reutilizando informações do DFD quando disponíveis.
     """
-    md = f"""# Documento de Formalização da Demanda (DFD)
+    dfd_trecho = ""
+    if dfd_data:
+        dfd_trecho = f"""
+**Origem (DFD):**  
+- Unidade solicitante: {dfd_data.get('unidade', '—')}  
+- Responsável: {dfd_data.get('responsavel', '—')}  
+- Objeto do DFD: {dfd_data.get('objeto', '—')}  
+"""
 
-**Unidade solicitante:** {respostas.get("unidade", "")}  
-**Responsável pelo pedido:** {respostas.get("responsavel", "")}  
-**Objeto da contratação:** {respostas.get("objeto", "")}  
-**Urgência:** {respostas.get("urgencia", "")}  
+    md = f"""# Estudo Técnico Preliminar (ETP)
+
 **Data de geração:** {respostas.get("timestamp", "")}
 
+{dfd_trecho}
+
 ---
 
-### Justificativa da necessidade
-{respostas.get("justificativa", "—")}
+## 1. Objeto da contratação
+{respostas.get("objeto", "—")}
 
-### Quantidade / Escopo
-{respostas.get("quantidade_escopo", "—")}
+## 2. Necessidade da contratação
+{respostas.get("necessidade", "—")}
 
-### Riscos identificados
+## 3. Requisitos técnicos essenciais
+{respostas.get("requisitos", "—")}
+
+## 4. Soluções/alternativas estudadas
+{respostas.get("alternativas", "—")}
+
+## 5. Riscos e medidas de mitigação
 {respostas.get("riscos", "—")}
 
-### Alinhamento institucional
-{respostas.get("alinhamento", "—")}
+## 6. Estimativa de custo
+R$ {respostas.get("estimativa", "—")}
 
 ---
 
-**Anexos:**  
-{", ".join(respostas.get("anexos", [])) if respostas.get("anexos") else "Nenhum anexo informado."}
-
----
+_Rascunho gerado automaticamente pelo SynapseNext – SAAB 5.0 (Fase Brasília)._
 """
     return md
-
-
-# ==========================================================
-# Função 2 – save_log
-# ==========================================================
-def save_log(artefato: str, dados: dict):
-    """
-    Registra logs das ações do usuário (geração, exportação, validação, etc.).
-    """
-    base = Path(__file__).resolve().parents[1]
-    logs_dir = base / "exports" / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-
-    log_entry = {
-        "artefato": artefato,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "dados": dados,
-    }
-
-    log_path = logs_dir / f"log_{datetime.now().strftime('%Y%m%d')}.json"
-
-    if log_path.exists():
-        with open(log_path, "r", encoding="utf-8") as f:
-            logs = json.load(f)
-    else:
-        logs = []
-
-    logs.append(log_entry)
-
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(logs, f, indent=4, ensure_ascii=False)
-
-
-# ==========================================================
-# Função 3 – run_semantic_validation
-# ==========================================================
-def run_semantic_validation(artefato: str, markdown_text: str, client=None) -> dict:
-    """
-    Executa a validação semântica com o motor validator_engine_vNext.
-    Retorna dict com rigid_score, semantic_score, guided_markdown, etc.
-    """
-    if client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("Chave OPENAI_API_KEY não configurada nas secrets.")
-        client = OpenAI(api_key=api_key)
-
-    result = validate_document(markdown_text, artefato, client)
-
-    # registra log resumido
-    save_log(artefato, {
-        "acao": "validar_semantico",
-        "scores": {
-            "rigid_score": result.get("rigid_score"),
-            "semantic_score": result.get("semantic_score"),
-        },
-    })
-    return result
