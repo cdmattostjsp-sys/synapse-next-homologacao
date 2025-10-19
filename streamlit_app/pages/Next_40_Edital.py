@@ -1,43 +1,106 @@
-import streamlit as st
+# ==========================================================
+# SynapseNext – Fase Brasília (Passo 9)
+# EDITAL → Form → Markdown → Validação IA → Exportação
+# ==========================================================
+
+import sys
+from pathlib import Path
 from datetime import datetime
-from utils.next_pipeline import build_edital_markdown
+import streamlit as st
 
-st.set_page_config(page_title="Next 40 – Edital", layout="wide")
+current_dir = Path(__file__).resolve().parents[0]
+root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
 
-st.markdown("# 📘 Next 40 – Edital")
-st.markdown("### Artefato final da Fase Interna da Licitação")
+try:
+    from utils.next_pipeline import (
+        build_edital_markdown,
+        registrar_log,
+        run_semantic_validation
+    )
+    from utils.formatter_docx import markdown_to_docx
+except Exception as e:
+    st.error(f"❌ Erro ao importar módulos utilitários: {e}")
+    st.stop()
 
-st.info(
-    """
-    O **Edital** é o documento que encerra a fase interna e dá início à fase externa da licitação.  
-    Ele consolida as informações técnicas, jurídicas e orçamentárias reunidas nos artefatos anteriores:
-    - DFD (necessidade e motivação)
-    - ETP (análise de viabilidade)
-    - TR (descrição técnica e critérios)
-    """
-)
+st.set_page_config(page_title="SynapseNext – Edital", layout="wide")
+st.title("EDITAL — Encerramento da Fase Interna")
+st.caption("Geração de rascunho, validação semântica e exportação institucional (.docx)")
 
-# --- Coleta de dados simples para teste inicial ---
-with st.form("form_edital"):
-    objeto = st.text_area("📄 Descreva o objeto da licitação:")
-    fundamento = st.text_area("⚖️ Fundamento legal (artigos, incisos, dispositivos):")
-    criterios = st.text_area("📊 Critérios de julgamento (menor preço, técnica e preço, etc.):")
-    clausulas = st.text_area("📑 Cláusulas essenciais (prazos, garantias, sanções):")
-    submitted = st.form_submit_button("Gerar Rascunho do Edital")
+st.divider()
+st.subheader("1️⃣ Entrada – Formulário institucional")
+
+with st.form("form_edital", clear_on_submit=False):
+    objeto = st.text_area("Objeto da licitação")
+    fundamento = st.text_area("Fundamento legal")
+    criterios = st.text_area("Critérios de julgamento")
+    clausulas = st.text_area("Cláusulas essenciais")
+    submitted = st.form_submit_button("Gerar rascunho do Edital")
 
 if submitted:
     respostas = {
-        "objeto": objeto,
-        "fundamento": fundamento,
-        "criterios": criterios,
-        "clausulas": clausulas,
         "data": datetime.now().strftime("%d/%m/%Y"),
+        "objeto": objeto.strip(),
+        "fundamento": fundamento.strip(),
+        "criterios": criterios.strip(),
+        "clausulas": clausulas.strip(),
     }
-    markdown = build_edital_markdown(respostas)
-    st.download_button(
-        "📥 Baixar Edital Gerado",
-        data=markdown,
-        file_name="Edital_SynapseNext.md",
-        mime="text/markdown",
-    )
-    st.success("Rascunho gerado com sucesso!")
+
+    md = build_edital_markdown(respostas)
+    registrar_log("Edital", "gerar_rascunho")
+
+    st.success("✅ Rascunho gerado com sucesso!")
+    st.divider()
+    st.subheader("2️⃣ Rascunho – Preview")
+    st.markdown(md)
+
+    # ==========================================================
+    # Validação IA
+    # ==========================================================
+    st.divider()
+    st.subheader("3️⃣ Validação Semântica – IA TJSP")
+
+    with st.spinner("Executando análise semântica..."):
+        resultado = run_semantic_validation(md)
+
+    if "erro" in resultado and resultado["erro"]:
+        st.error(f"⚠️ Erro ao validar o documento: {resultado['erro']}")
+    else:
+        st.markdown(f"**🪶 Resumo:** {resultado.get('resumo', '')}")
+        st.markdown(f"**📊 Pontuação:** {resultado.get('pontuacao', 0)}%")
+        if resultado.get("sugestoes"):
+            st.markdown("### 💡 Sugestões de melhoria:")
+            for s in resultado["sugestoes"]:
+                st.markdown(f"- {s}")
+
+    registrar_log("Edital", "validacao_semantica")
+
+    # ==========================================================
+    # Exportação
+    # ==========================================================
+    st.divider()
+    st.subheader("4️⃣ Exportação – `.docx`")
+
+    base = Path(__file__).resolve().parents[2]
+    rascunhos_dir = base / "exports" / "rascunhos"
+    rascunhos_dir.mkdir(parents=True, exist_ok=True)
+    filename_base = f"EDITAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    docx_path = rascunhos_dir / f"{filename_base}.docx"
+
+    if st.button("📄 Exportar para .docx"):
+        markdown_to_docx(md, str(docx_path))
+        registrar_log("Edital", "exportar_docx")
+        with open(docx_path, "rb") as f:
+            data = f.read()
+        st.download_button(
+            label="⬇️ Baixar arquivo .docx",
+            data=data,
+            file_name=docx_path.name,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+        )
+        st.info(f"Arquivo salvo em: `exports/rascunhos/{docx_path.name}`")
+
+else:
+    st.info("Preencha o formulário e clique em **Gerar rascunho do Edital**.")
