@@ -1,4 +1,3 @@
-# streamlit_app/pages/Next_10_DFD.py
 # ==========================================================
 # SynapseNext – Fase Brasília
 # DFD → Form → Markdown → Validação IA → Exportação com/sugestões
@@ -20,7 +19,7 @@ if str(root_dir) not in sys.path:
 try:
     from utils.next_pipeline import (
         build_dfd_markdown,
-        save_log,
+        registrar_log,
         run_semantic_validation,
     )
     from utils.formatter_docx import markdown_to_docx
@@ -94,7 +93,7 @@ if submitted:
     }
 
     md = build_dfd_markdown(respostas)
-    save_log("DFD", {"acao": "gerar_rascunho", "respostas": respostas})
+    registrar_log("DFD", "gerar_rascunho")
 
     st.success("✅ Rascunho gerado com sucesso!")
     st.divider()
@@ -107,76 +106,31 @@ if submitted:
     st.divider()
 
     # ----------------------------------------------------------
-    # Validação semântica (IA)
-    # ----------------------------------------------------------
-    st.subheader("3️⃣ Validação semântica (IA)")
-    st.caption("Executa `validator_engine_vNext.validate_document(markdown_text, 'DFD', client)`.")
-    if st.button("🚀 Executar validação semântica"):
-        with st.spinner("Avaliando o DFD com o motor de validação semântica..."):
-            try:
-                result = run_semantic_validation("DFD", md)
-            except Exception as e:
-                st.error(f"Erro na validação: {e}")
-                st.stop()
-
-        rigid = float(result.get("rigid_score", 0.0))
-        semantic = float(result.get("semantic_score", 0.0))
-        rigid_result = result.get("rigid_result", [])
-        semantic_result = result.get("semantic_result", [])
-        guided_md = result.get("guided_markdown", "")
-        guided_md_path = result.get("guided_markdown_path")
-
-        c1, c2 = st.columns(2)
-        c1.metric("Checklist rígido", f"{rigid:.0f}%")
-        c2.metric("Adequação semântica", f"{semantic:.0f}%")
-
-        with st.expander("📋 Itens obrigatórios (checklist rígido)", expanded=False):
-            st.write(rigid_result or "Sem dados retornados.")
-
-        with st.expander("💬 Recomendações semânticas (IA)", expanded=True):
-            st.write(semantic_result or "Sem recomendações retornadas.")
-
-        if guided_md:
-            st.markdown("#### 🧠 Rascunho Orientado (versão IA)")
-            st.markdown(guided_md)
-            if guided_md_path:
-                st.info(f"Arquivo salvo em: `{guided_md_path}`")
-
-        save_log("DFD", {"acao": "validar_semantico", "scores": {"rigid": rigid, "semantic": semantic}})
-
-    # ----------------------------------------------------------
     # Exportação .docx
     # ----------------------------------------------------------
     st.divider()
-    st.subheader("4️⃣ Exportação – `.docx` (modo com/sugestões)")
+    st.subheader("4️⃣ Exportação – `.docx`")
 
     base = Path(__file__).resolve().parents[2]
     rascunhos_dir = base / "exports" / "rascunhos"
     rascunhos_dir.mkdir(parents=True, exist_ok=True)
 
     filename_base = f"DFD_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    docx_clean = rascunhos_dir / f"{filename_base}_limpo.docx"
-    docx_suggested = rascunhos_dir / f"{filename_base}_sugestoes.docx"
+    docx_path = rascunhos_dir / f"{filename_base}.docx"
 
-    modo = st.radio("Escolha o modo de exportação:", ["Sem sugestões (institucional)", "Com sugestões IA"])
-    texto_export = md if modo == "Sem sugestões (institucional)" else result.get("guided_markdown", md)
-
-    if st.button("📄 Gerar arquivo `.docx`"):
-        markdown_to_docx(texto_export, str(docx_clean if modo == "Sem sugestões (institucional)" else docx_suggested))
-        nome_final = docx_clean.name if modo == "Sem sugestões (institucional)" else docx_suggested.name
-        caminho_final = rascunhos_dir / nome_final
-
-        with open(caminho_final, "rb") as f:
+    if st.button("📄 Exportar para .docx"):
+        markdown_to_docx(md, str(docx_path))
+        registrar_log("DFD", "exportar_docx")
+        with open(docx_path, "rb") as f:
             data = f.read()
-
         st.download_button(
-            label=f"⬇️ Baixar {nome_final}",
+            label="⬇️ Baixar arquivo .docx",
             data=data,
-            file_name=nome_final,
+            file_name=docx_path.name,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True,
         )
-        st.info(f"Arquivo salvo em: `exports/rascunhos/{nome_final}`")
+        st.info(f"Arquivo salvo em: `exports/rascunhos/{docx_path.name}`")
 
 else:
-    st.info("Preencha o formulário e clique em **Gerar rascunho do DFD** para liberar a validação e exportação.")
+    st.info("Preencha o formulário e clique em **Gerar rascunho do DFD**.")
