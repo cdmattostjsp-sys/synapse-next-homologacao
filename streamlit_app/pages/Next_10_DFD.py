@@ -1,23 +1,26 @@
-# streamlit_app/pages/Next_10_DFD.py
-# SynapseNext – Fase Brasília
-# DFD → Form → Markdown → Validação IA → Exportação com/sugestões
-
 import sys
 from pathlib import Path
 from datetime import datetime
 import streamlit as st
 
-# Corrige path no Streamlit Cloud
-sys.path.append(str(Path(__file__).resolve().parents[2]))
+# ================================================
+# Correção de caminho robusta (ambiente local e cloud)
+# ================================================
+current_dir = Path(__file__).resolve().parents[0]
+root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
 
-from utils.next_pipeline import (
-    build_dfd_markdown,
-    save_log,
-    run_semantic_validation,
-)
-from utils.formatter_docx import markdown_to_docx
-
-# -------------------------------------------------------------
+try:
+    from utils.next_pipeline import (
+        build_dfd_markdown,
+        save_log,
+        run_semantic_validation,
+    )
+    from utils.formatter_docx import markdown_to_docx
+except Exception as e:
+    st.error(f"❌ Erro ao importar módulos utilitários: {e}")
+    st.stop()
 # Configurações gerais da página
 # -------------------------------------------------------------
 st.set_page_config(page_title="SynapseNext – DFD", layout="wide")
