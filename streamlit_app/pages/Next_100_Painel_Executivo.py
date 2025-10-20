@@ -1,180 +1,150 @@
-# ==============================================================
-# SynapseNext – Fase Brasília (Passo 12B)
-# Painel Executivo Interativo – TJSP / SAAB
-# ==============================================================
-# Versão 2025-10-20 | Autor: Carlos Darwin de Mattos
-# ==============================================================
+# ==========================================================
+# SynapseNext – Fase Brasília | Passo 11F
+# Painel Executivo Institucional – TJSP / SAAB 5.0
+# ==========================================================
+# Função: Exibir visualmente os resultados consolidados dos módulos:
+# governança, alertas e insights históricos, além de permitir
+# geração do relatório executivo em PDF.
+# ==========================================================
+
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import json
 from pathlib import Path
+import json
+from datetime import datetime
+import matplotlib.pyplot as plt
+import io
+from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
 
-# ==============================================================
-# Configuração inicial da página
-# ==============================================================
-st.set_page_config(page_title="Painel Executivo – SynapseNext", layout="wide")
-st.title("📊 Painel Executivo – SynapseNext / SAAB")
-st.markdown("Visualização integrada de indicadores, alertas e relatórios institucionais.")
+# ==========================================================
+# 🔧 Funções utilitárias
+# ==========================================================
 
-# ==============================================================
-# Função: garantir estrutura de diretórios 'exports'
-# ==============================================================
-def ensure_exports_structure(base_path: Path):
+def ensure_exports_structure(root_exports: Path):
     """
-    Garante que a estrutura de pastas exports/analises, exports/auditoria e exports/relatorios exista.
-    Cria automaticamente caso alguma esteja ausente.
+    Garante a existência da estrutura de diretórios exports/.
+    Caso encontre arquivos com o mesmo nome, remove-os e recria
+    as pastas necessárias de forma segura.
     """
-    for subdir in ["analises", "auditoria", "relatorios"]:
-        target = base_path / subdir
+    subdirs = ["analises", "relatorios", "auditoria", "logs"]
+    for folder in subdirs:
+        target = root_exports / folder
+        if target.exists() and target.is_file():
+            target.unlink()  # remove arquivo que impede criação do diretório
         target.mkdir(parents=True, exist_ok=True)
 
-# Define o caminho raiz de exports
+
+def carregar_json(path: Path):
+    """
+    Carrega um arquivo JSON se existir; retorna dicionário vazio caso contrário.
+    """
+    if not path.exists() or not path.is_file():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+# ==========================================================
+# 🧭 Interface principal
+# ==========================================================
+
+st.set_page_config(
+    page_title="Painel Executivo – SynapseNext",
+    layout="wide",
+    page_icon="📊"
+)
+
+st.title("📊 Painel Executivo – SynapseNext")
+st.markdown("#### Consolidação Institucional • SAAB 5.0 • Tribunal de Justiça de São Paulo")
+
+# ==========================================================
+# 🗂️ Estrutura de diretórios
+# ==========================================================
+
 root_exports = Path(__file__).resolve().parents[2] / "exports"
 ensure_exports_structure(root_exports)
 
-# Caminhos principais
 analises = root_exports / "analises"
-auditoria = root_exports / "auditoria"
 relatorios = root_exports / "relatorios"
 
-# ==============================================================
-# Funções utilitárias
-# ==============================================================
-def carregar_json(path: Path):
-    """
-    Carrega um arquivo JSON de forma segura.
-    Retorna {} se o arquivo não existir, for diretório ou estiver vazio.
-    """
-    if not path or not path.exists() or path.is_dir():
-        return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        st.warning(f"⚠️ Erro ao carregar {path.name}: {e}")
-        return {}
+# ==========================================================
+# 📂 Carregamento de dados
+# ==========================================================
 
-def get_latest_file(pattern: str):
-    """
-    Retorna o arquivo mais recente dentro de 'exports/analises' que corresponda ao padrão informado.
-    Exemplo: get_latest_file('alertas_*.json')
-    """
-    files = list(analises.glob(pattern))
-    return max(files, key=lambda p: p.stat().st_mtime) if files else None
+def carregar_dados():
+    governanca_path = max(analises.glob("relatorio_coerencia_*.json"), default=None)
+    alertas_path = max(analises.glob("alertas_*.json"), default=None)
+    insights_path = max(analises.glob("insights_*.json"), default=None)
 
-# ==============================================================
-# Verificações iniciais
-# ==============================================================
-if not any(analises.glob("*.json")):
-    st.warning("⚠️ Nenhum arquivo de análise encontrado em 'exports/analises/'. "
-               "Gere os relatórios antes de abrir o Painel Executivo.")
-    st.stop()
+    governanca = carregar_json(governanca_path) if governanca_path else {}
+    alertas = carregar_json(alertas_path) if alertas_path else {}
+    insights = carregar_json(insights_path) if insights_path else {}
 
-# ==============================================================
-# Carregamento de dados
-# ==============================================================
-governanca = carregar_json(get_latest_file("relatorio_coerencia_*.json"))
-alertas = carregar_json(get_latest_file("alertas_*.json"))
-insights = carregar_json(get_latest_file("insights_*.json"))
+    return governanca, alertas, insights
 
-# ==============================================================
-# Seção: Governança
-# ==============================================================
-st.subheader("📈 Indicadores de Governança")
+governanca, alertas, insights = carregar_dados()
 
-if governanca:
-    resumo = governanca.get("resumo", {})
-    if resumo:
-        df_gov = pd.DataFrame(list(resumo.items()), columns=["Indicador", "Valor"])
-        st.dataframe(df_gov, use_container_width=True)
-    else:
-        st.info("Nenhum indicador de governança disponível.")
-else:
-    st.info("Arquivo de governança não encontrado ou vazio.")
+# ==========================================================
+# 📈 Visualização dos dados
+# ==========================================================
 
-# ==============================================================
-# Seção: Alertas
-# ==============================================================
-st.subheader("⚠️ Alertas de Auditoria")
+st.divider()
+st.subheader("Indicadores Consolidados")
 
-if alertas:
-    totais = alertas.get("totais", {})
-    if totais:
-        fig_alertas = px.bar(
-            x=list(totais.keys()),
-            y=list(totais.values()),
-            color=list(totais.keys()),
-            title="Distribuição de Alertas por Severidade",
-            color_discrete_sequence=["#c0392b", "#e67e22", "#27ae60"]
-        )
-        st.plotly_chart(fig_alertas, use_container_width=True)
-    else:
-        st.info("Nenhum alerta registrado.")
-else:
-    st.warning("Arquivo de alertas não encontrado.")
+col1, col2, col3 = st.columns(3)
 
-# ==============================================================
-# Seção: Insights Históricos
-# ==============================================================
-st.subheader("💡 Insights Históricos")
+with col1:
+    st.metric("Documentos Auditados", len(governanca.get("documentos", [])))
+with col2:
+    st.metric("Alertas Totais", sum(alertas.get("totais", {}).values()))
+with col3:
+    st.metric("Insights Gerados", len(insights.get("serie_temporal", [])))
 
-serie = insights.get("coerencia_global_mm", []) if insights else []
-if serie:
-    df_insights = pd.DataFrame({"Período": range(1, len(serie) + 1), "Coerência": serie})
-    fig_insights = px.line(
-        df_insights,
-        x="Período",
-        y="Coerência",
-        markers=True,
-        title="Coerência Global – Média Móvel",
-        line_shape="spline",
-        color_discrete_sequence=["#2c3e50"]
+# ==========================================================
+# 📊 Gráfico – Distribuição de Alertas
+# ==========================================================
+
+if alertas.get("totais"):
+    st.subheader("Distribuição de Alertas por Severidade")
+    fig, ax = plt.subplots()
+    ax.bar(
+        ["Alto", "Médio", "Baixo"],
+        [
+            alertas["totais"].get("alto", 0),
+            alertas["totais"].get("medio", 0),
+            alertas["totais"].get("baixo", 0)
+        ],
+        color=["#C0392B", "#F1C40F", "#27AE60"]
     )
-    st.plotly_chart(fig_insights, use_container_width=True)
+    ax.set_ylabel("Quantidade")
+    ax.set_xlabel("Severidade")
+    ax.set_title("Alertas Detectados (Classificação)")
+    st.pyplot(fig)
 else:
-    st.info("Sem dados de insights disponíveis.")
+    st.info("Nenhum alerta consolidado disponível no momento.")
 
-# ==============================================================
-# Seção: Relatórios Publicados (SharePoint)
-# ==============================================================
-st.subheader("📂 Relatórios Publicados (SharePoint)")
+# ==========================================================
+# 📘 Geração do Relatório Executivo em PDF
+# ==========================================================
 
-log_path = auditoria / "upload_log.jsonl"
-links_sharepoint = []
+st.divider()
+st.subheader("📘 Relatório Executivo – Exportação em PDF")
 
-if log_path.exists():
-    with open(log_path, "r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                links_sharepoint.append(json.loads(line.strip()))
-            except json.JSONDecodeError:
-                continue
+if st.button("Gerar Relatório Executivo PDF"):
+    if not (governanca or alertas or insights):
+        st.warning("⚠️ Não há dados consolidados suficientes para gerar o relatório.")
+    else:
+        caminho_pdf = gerar_relatorio_executivo(governanca, alertas, insights)
+        st.success(f"✅ Relatório gerado com sucesso!\n\n📄 Caminho: `{caminho_pdf}`")
 
-if links_sharepoint:
-    df_links = pd.DataFrame(links_sharepoint)
-    if "timestamp" in df_links.columns:
-        df_links["uploaded_at"] = pd.to_datetime(df_links["timestamp"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
-    df_display = df_links.rename(
-        columns={"uploaded_at": "Data", "file": "Arquivo", "url": "Link SharePoint"}
-    )
-    st.dataframe(df_display[["Data", "Arquivo", "Link SharePoint"]], use_container_width=True)
-else:
-    st.info("Nenhum relatório publicado encontrado.")
+        with open(caminho_pdf, "rb") as f:
+            st.download_button(
+                label="📥 Baixar Relatório Executivo",
+                data=f,
+                file_name=Path(caminho_pdf).name,
+                mime="application/pdf"
+            )
 
-# ==============================================================
-# Seção: Download do último PDF
-# ==============================================================
-st.subheader("📄 Último Relatório Executivo Gerado")
-
-ultimo_pdf = max(relatorios.glob("relatorio_executivo_*.pdf"), default=None)
-if ultimo_pdf and ultimo_pdf.exists():
-    with open(ultimo_pdf, "rb") as f:
-        st.download_button(
-            label="📥 Baixar Relatório Executivo (PDF)",
-            data=f,
-            file_name=ultimo_pdf.name,
-            mime="application/pdf"
-        )
-else:
-    st.warning("Nenhum relatório PDF encontrado em 'exports/relatorios/'.")
+# ==========================================================
+# 📅 Rodapé
+# ==========================================================
+st.divider()
+st.caption(f"TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0  \nVersão institucional vNext • Gerado em {datetime.now():%d/%m/%Y %H:%M}")
