@@ -58,3 +58,46 @@ st.markdown("""
 O ecossistema é desenvolvido em **Python + Streamlit**, com base em modularidade e rastreabilidade institucional.
 
 **Estrutura de diretórios principal:**
+/utils/ → pipelines de auditoria, validação e formatação
+/pages/ → interfaces de cada módulo (DFD, ETP, TR, Contrato, etc.)
+/exports/ → repositório de saídas institucionais
+├── analises/ → relatórios de coerência e KPIs (JSON)
+├── relatorios/ → PDFs executivos e relatórios consolidados
+├── auditoria/ → logs de trilha e histórico de revisões
+├── rascunhos/ → versões intermediárias dos artefatos
+└── logs/ → registros operacionais e alertas do sistema
+/assets/ → logotipos, ícones e elementos visuais
+/docs/ → documentação institucional e técnica (sem exibição pública)
+
+
+O sistema não depende de bibliotecas externas de front-end (JavaScript, AJAX ou frameworks SPA), mantendo a **segurança compatível com o ambiente institucional TJSP**.
+---
+""")
+
+# --------------------------------------------------------------
+# Benefícios e diretrizes institucionais
+# --------------------------------------------------------------
+st.markdown("""
+### 🏛️ Benefícios Institucionais
+
+- **Padronização documental** e rastreabilidade integral das versões.  
+- **Automação** e encadeamento entre artefatos (DFD → ETP → TR → Contrato).  
+- **Validação semântica** acoplada à IA institucional do Synapse.  
+- **Exportação integrada** para `.docx` e `.pdf`.  
+- **Trilhas de auditoria e logs** com salvamento automático.  
+- **Relatórios executivos** automatizados e padronizados para análise gerencial.  
+- **Governança de dados** e transparência, em conformidade com o CNJ e a LGPD.
+
+---
+""")
+
+# --------------------------------------------------------------
+# Rodapé
+# --------------------------------------------------------------
+st.markdown("""
+<div style="text-align:center; color:#666; font-size:0.9rem; margin-top:20px;">
+TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0<br>
+Versão institucional vNext (POC) • Desenvolvido em ambiente Python / Streamlit
+</div>
+""", unsafe_allow_html=True)
+
