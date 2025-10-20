@@ -1,11 +1,12 @@
 # ==============================================================
 # SynapseNext – Fase Brasília
-# Página Inicial (Home v2)
+# Página Inicial (Home v3)
 # ==============================================================
 # Versão 2025-10-20 | Autor: Carlos Darwin de Mattos
 # ==============================================================
 import streamlit as st
 from pathlib import Path
+import base64
 
 # --------------------------------------------------------------
 # Configuração da página
@@ -17,10 +18,17 @@ st.set_page_config(
 )
 
 # --------------------------------------------------------------
-# Caminhos das imagens (logotipo e selo)
+# Caminho da imagem institucional
 # --------------------------------------------------------------
 LOGO_PATH = Path(__file__).resolve().parents[1] / "utils" / "assets" / "tjsp_logo.png"
-SELO_PATH = Path(__file__).resolve().parents[1] / "utils" / "assets" / "tjsp_selo.png"  # opcional
+
+def get_base64_image(path: Path) -> str:
+    """Retorna imagem em base64 para exibição inline"""
+    if path.exists():
+        return base64.b64encode(path.read_bytes()).decode()
+    return ""
+
+LOGO_BASE64 = get_base64_image(LOGO_PATH)
 
 # --------------------------------------------------------------
 # Estilos customizados
@@ -93,21 +101,6 @@ section.main > div {
     font-size: 0.95rem;
 }
 
-/* ======= SELO INSTITUCIONAL (menu lateral) ======= */
-[data-testid="stSidebar"]::after {
-    content: "";
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 64px;
-    height: 64px;
-    background-image: url("app/utils/assets/tjsp_logo.png");
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0.25;
-}
-
 /* ======= RODAPÉ ======= */
 .footer {
     text-align:center;
@@ -119,17 +112,24 @@ section.main > div {
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Cabeçalho com logotipo e título
+# Cabeçalho com logotipo embutido e título
 # --------------------------------------------------------------
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
 
-if LOGO_PATH.exists():
-    st.markdown('<div class="header-logo">', unsafe_allow_html=True)
-    st.image(str(LOGO_PATH), use_column_width=False)
-    st.markdown('</div>', unsafe_allow_html=True)
+# logotipo (lado esquerdo)
+if LOGO_BASE64:
+    st.markdown(
+        f"""
+        <div class="header-logo">
+            <img src="data:image/png;base64,{LOGO_BASE64}" alt="TJSP">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 else:
     st.markdown('<div class="header-logo"></div>', unsafe_allow_html=True)
 
+# título e subtítulo
 st.markdown('<div class="header-title">', unsafe_allow_html=True)
 st.markdown("<h1>SynapseNext – Hub Institucional</h1>", unsafe_allow_html=True)
 st.markdown("<p>Secretaria de Administração e Abastecimento • Fase Brasília</p>", unsafe_allow_html=True)
@@ -176,7 +176,7 @@ for title, desc in cards:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Rodapé institucional
+# Rodapé institucional com selo do TJSP
 # --------------------------------------------------------------
 st.markdown("""
 <div class="footer">
@@ -184,3 +184,14 @@ TJSP • Secretaria de Administração e Abastecimento (SAAB) • Projeto Synaps
 Versão institucional vNext • Desenvolvido em ambiente Python + Streamlit
 </div>
 """, unsafe_allow_html=True)
+
+if LOGO_BASE64:
+    st.markdown(
+        f"""
+        <div style='text-align:center; margin-top:8px;'>
+            <img src="data:image/png;base64,{LOGO_BASE64}" 
+                 alt="TJSP" style="width:72px; opacity:0.35;">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
