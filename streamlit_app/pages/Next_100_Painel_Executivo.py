@@ -2,7 +2,7 @@
 # SynapseNext – Fase Brasília (Passo 12B)
 # Painel Executivo Interativo – TJSP / SAAB
 # ==============================================================
-# Versão revisada 2025-10-19
+# Versão 2025-10-20 | Autor: Carlos Darwin de Mattos
 # ==============================================================
 import streamlit as st
 import pandas as pd
@@ -10,25 +10,41 @@ import plotly.express as px
 import json
 from pathlib import Path
 
-# === Configuração da página ===
+# ==============================================================
+# Configuração inicial da página
+# ==============================================================
 st.set_page_config(page_title="Painel Executivo – SynapseNext", layout="wide")
 st.title("📊 Painel Executivo – SynapseNext / SAAB")
 st.markdown("Visualização integrada de indicadores, alertas e relatórios institucionais.")
 
-# === Caminhos padrão ===
-base_path = Path(__file__).resolve().parents[2] / "exports"
-analises = base_path / "analises"
-auditoria = base_path / "auditoria"
-relatorios = base_path / "relatorios"
+# ==============================================================
+# Função: garantir estrutura de diretórios 'exports'
+# ==============================================================
+def ensure_exports_structure(base_path: Path):
+    """
+    Garante que a estrutura de pastas exports/analises, exports/auditoria e exports/relatorios exista.
+    Cria automaticamente caso alguma esteja ausente.
+    """
+    for subdir in ["analises", "auditoria", "relatorios"]:
+        target = base_path / subdir
+        target.mkdir(parents=True, exist_ok=True)
+
+# Define o caminho raiz de exports
+root_exports = Path(__file__).resolve().parents[2] / "exports"
+ensure_exports_structure(root_exports)
+
+# Caminhos principais
+analises = root_exports / "analises"
+auditoria = root_exports / "auditoria"
+relatorios = root_exports / "relatorios"
 
 # ==============================================================
 # Funções utilitárias
 # ==============================================================
-
 def carregar_json(path: Path):
     """
     Carrega um arquivo JSON de forma segura.
-    Retorna um dicionário vazio se o arquivo não existir ou for inválido.
+    Retorna {} se o arquivo não existir, for diretório ou estiver vazio.
     """
     if not path or not path.exists() or path.is_dir():
         return {}
@@ -42,6 +58,7 @@ def carregar_json(path: Path):
 def get_latest_file(pattern: str):
     """
     Retorna o arquivo mais recente dentro de 'exports/analises' que corresponda ao padrão informado.
+    Exemplo: get_latest_file('alertas_*.json')
     """
     files = list(analises.glob(pattern))
     return max(files, key=lambda p: p.stat().st_mtime) if files else None
@@ -49,20 +66,14 @@ def get_latest_file(pattern: str):
 # ==============================================================
 # Verificações iniciais
 # ==============================================================
-
-if not analises.exists():
-    st.error("❌ Pasta 'exports/analises' não encontrada. Gere os relatórios de análise antes de continuar.")
-    st.stop()
-
-# Aviso se não houver arquivos
 if not any(analises.glob("*.json")):
-    st.warning("Nenhum arquivo de análise encontrado em 'exports/analises/'. Gere os relatórios antes de abrir o Painel Executivo.")
+    st.warning("⚠️ Nenhum arquivo de análise encontrado em 'exports/analises/'. "
+               "Gere os relatórios antes de abrir o Painel Executivo.")
     st.stop()
 
 # ==============================================================
 # Carregamento de dados
 # ==============================================================
-
 governanca = carregar_json(get_latest_file("relatorio_coerencia_*.json"))
 alertas = carregar_json(get_latest_file("alertas_*.json"))
 insights = carregar_json(get_latest_file("insights_*.json"))
@@ -70,7 +81,6 @@ insights = carregar_json(get_latest_file("insights_*.json"))
 # ==============================================================
 # Seção: Governança
 # ==============================================================
-
 st.subheader("📈 Indicadores de Governança")
 
 if governanca:
@@ -86,7 +96,6 @@ else:
 # ==============================================================
 # Seção: Alertas
 # ==============================================================
-
 st.subheader("⚠️ Alertas de Auditoria")
 
 if alertas:
@@ -108,7 +117,6 @@ else:
 # ==============================================================
 # Seção: Insights Históricos
 # ==============================================================
-
 st.subheader("💡 Insights Históricos")
 
 serie = insights.get("coerencia_global_mm", []) if insights else []
@@ -130,7 +138,6 @@ else:
 # ==============================================================
 # Seção: Relatórios Publicados (SharePoint)
 # ==============================================================
-
 st.subheader("📂 Relatórios Publicados (SharePoint)")
 
 log_path = auditoria / "upload_log.jsonl"
@@ -158,7 +165,6 @@ else:
 # ==============================================================
 # Seção: Download do último PDF
 # ==============================================================
-
 st.subheader("📄 Último Relatório Executivo Gerado")
 
 ultimo_pdf = max(relatorios.glob("relatorio_executivo_*.pdf"), default=None)
