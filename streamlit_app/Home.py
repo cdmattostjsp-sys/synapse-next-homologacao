@@ -1,8 +1,9 @@
 # ==============================================================
-# SynapseNext – Fase Brasília
-# Página Inicial (Home v3)
+# SynapseNext – SAAB 5.0
+# Página Inicial (Home v4)
 # ==============================================================
-# Versão 2025-10-20 | Autor: Carlos Darwin de Mattos
+# Versão institucional vNext – Outubro/2025
+# Desenvolvido em ambiente Python / Streamlit
 # ==============================================================
 import streamlit as st
 from pathlib import Path
@@ -12,13 +13,13 @@ import base64
 # Configuração da página
 # --------------------------------------------------------------
 st.set_page_config(
-    page_title="SynapseNext – Hub Institucional",
+    page_title="SynapseNext – SAAB 5.0 | TJSP",
     layout="wide",
     page_icon="🧭"
 )
 
 # --------------------------------------------------------------
-# Caminho da imagem institucional
+# Caminho da imagem institucional (bandeira TJSP)
 # --------------------------------------------------------------
 LOGO_PATH = Path(__file__).resolve().parents[1] / "utils" / "assets" / "tjsp_logo.png"
 
@@ -35,15 +36,15 @@ LOGO_BASE64 = get_base64_image(LOGO_PATH)
 # --------------------------------------------------------------
 st.markdown("""
 <style>
-/* ======= RESET E BASE ======= */
+/* ======= BASE E RESET ======= */
 section.main > div {
-    padding-top: 10px !important; /* reduz espaço superior */
+    padding-top: 10px !important;
 }
 .block-container {
     padding-top: 0rem !important;
 }
 
-/* ======= HEADER ======= */
+/* ======= CABEÇALHO ======= */
 .header-wrap {
     display: flex;
     align-items: center;
@@ -51,7 +52,7 @@ section.main > div {
     margin: -10px 0 10px 0;
 }
 .header-logo img {
-    width: 170px;
+    width: 165px;
     height: auto;
     object-fit: contain;
 }
@@ -60,11 +61,12 @@ section.main > div {
     font-size: 2.3rem;
     color: #000000;
     line-height: 1.2;
+    font-weight: 700;
 }
 .header-title p {
     margin: 3px 0 0 0;
     font-size: 1rem;
-    color: #666666;
+    color: #555555;
 }
 .divider {
     height: 1px;
@@ -90,7 +92,7 @@ section.main > div {
 .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    border-color: #990000; /* vermelho TJSP */
+    border-color: #990000;
 }
 .card h4 {
     margin: 0 0 6px 0;
@@ -108,11 +110,16 @@ section.main > div {
     color:#666666;
     font-size:0.9rem;
 }
+.footer img {
+    width: 70px;
+    opacity: 0.35;
+    margin-top: 5px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Cabeçalho com logotipo embutido e título
+# Cabeçalho com logotipo e título institucional
 # --------------------------------------------------------------
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
 
@@ -131,19 +138,19 @@ else:
 
 # título e subtítulo
 st.markdown('<div class="header-title">', unsafe_allow_html=True)
-st.markdown("<h1>SynapseNext – Hub Institucional</h1>", unsafe_allow_html=True)
-st.markdown("<p>Secretaria de Administração e Abastecimento • Fase Brasília</p>", unsafe_allow_html=True)
+st.markdown("<h1>SynapseNext – SAAB 5.0</h1>", unsafe_allow_html=True)
+st.markdown("<p>Secretaria de Administração e Abastecimento • Tribunal de Justiça de São Paulo</p>", unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div><div class="divider"></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Texto introdutório – finalidade da página
+# Conteúdo introdutório
 # --------------------------------------------------------------
 st.markdown("""
 ### 🧭 O que você encontra aqui
-Esta é a **página inicial** do ecossistema **SynapseNext**, uma plataforma integrada para apoio à **Fase Interna da Licitação** do Tribunal de Justiça de São Paulo.
+Esta é a **página inicial** do ecossistema **SynapseNext – SAAB 5.0**, uma plataforma integrada que apoia a **Fase Interna da Licitação** do Tribunal de Justiça de São Paulo.
 
-Use o **menu lateral** para navegar entre os módulos principais:
+Utilize o **menu lateral** para acessar os principais módulos:
 - **Documentos e Governança:** acompanhe indicadores e relatórios técnicos.  
 - **Alertas e Auditoria:** visualize inconsistências detectadas e status de coerência.  
 - **Insights Históricos:** explore a evolução dos dados e tendências de governança.  
@@ -176,21 +183,20 @@ for title, desc in cards:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Rodapé institucional com selo do TJSP
+# Rodapé institucional
 # --------------------------------------------------------------
 st.markdown("""
 <div class="footer">
-TJSP • Secretaria de Administração e Abastecimento (SAAB) • Projeto SynapseNext – Fase Brasília<br>
-Versão institucional vNext • Desenvolvido em ambiente Python + Streamlit
+TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0<br>
+Versão institucional vNext • Desenvolvido em ambiente Python / Streamlit
 </div>
 """, unsafe_allow_html=True)
 
 if LOGO_BASE64:
     st.markdown(
         f"""
-        <div style='text-align:center; margin-top:8px;'>
-            <img src="data:image/png;base64,{LOGO_BASE64}" 
-                 alt="TJSP" style="width:72px; opacity:0.35;">
+        <div style='text-align:center;'>
+            <img src="data:image/png;base64,{LOGO_BASE64}" alt="TJSP">
         </div>
         """,
         unsafe_allow_html=True
