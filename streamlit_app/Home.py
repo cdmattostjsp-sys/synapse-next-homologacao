@@ -1,6 +1,6 @@
 # ==============================================================
 # SynapseNext – Fase Brasília
-# Página Inicial (Home)
+# Página Inicial (Home v2)
 # ==============================================================
 # Versão 2025-10-20 | Autor: Carlos Darwin de Mattos
 # ==============================================================
@@ -11,42 +11,51 @@ from pathlib import Path
 # Configuração da página
 # --------------------------------------------------------------
 st.set_page_config(
-    page_title="SynapseNext – Home",
+    page_title="SynapseNext – Hub Institucional",
     layout="wide",
     page_icon="🧭"
 )
 
 # --------------------------------------------------------------
-# Caminho e verificação do logotipo TJSP
+# Caminhos das imagens (logotipo e selo)
 # --------------------------------------------------------------
 LOGO_PATH = Path(__file__).resolve().parents[1] / "utils" / "assets" / "tjsp_logo.png"
+SELO_PATH = Path(__file__).resolve().parents[1] / "utils" / "assets" / "tjsp_selo.png"  # opcional
 
 # --------------------------------------------------------------
-# Estilos customizados (baseado no manual de identidade TJSP)
+# Estilos customizados
 # --------------------------------------------------------------
 st.markdown("""
 <style>
-/* ===== HEADER ===== */
+/* ======= RESET E BASE ======= */
+section.main > div {
+    padding-top: 10px !important; /* reduz espaço superior */
+}
+.block-container {
+    padding-top: 0rem !important;
+}
+
+/* ======= HEADER ======= */
 .header-wrap {
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    margin: 20px 0 12px 0;
+    margin: -10px 0 10px 0;
 }
 .header-logo img {
-    width: 180px;
+    width: 170px;
     height: auto;
     object-fit: contain;
 }
 .header-title h1 {
     margin: 0;
-    font-size: 2.2rem;
+    font-size: 2.3rem;
     color: #000000;
     line-height: 1.2;
 }
 .header-title p {
-    margin: 4px 0 0 0;
-    font-size: 1.05rem;
+    margin: 3px 0 0 0;
+    font-size: 1rem;
     color: #666666;
 }
 .divider {
@@ -55,11 +64,11 @@ st.markdown("""
     margin: 12px 0 24px 0;
 }
 
-/* ===== CARDS DE ATALHO ===== */
+/* ======= CARTÕES ======= */
 .cards-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 20px;
+    gap: 18px;
     margin-top: 24px;
 }
 .card {
@@ -83,13 +92,37 @@ st.markdown("""
     color: #555555;
     font-size: 0.95rem;
 }
+
+/* ======= SELO INSTITUCIONAL (menu lateral) ======= */
+[data-testid="stSidebar"]::after {
+    content: "";
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 64px;
+    background-image: url("app/utils/assets/tjsp_logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: 0.25;
+}
+
+/* ======= RODAPÉ ======= */
+.footer {
+    text-align:center;
+    margin-top:40px;
+    color:#666666;
+    font-size:0.9rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Header institucional
+# Cabeçalho com logotipo e título
 # --------------------------------------------------------------
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
+
 if LOGO_PATH.exists():
     st.markdown('<div class="header-logo">', unsafe_allow_html=True)
     st.image(str(LOGO_PATH), use_column_width=False)
@@ -104,60 +137,41 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div><div class="divider"></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Seção descritiva – Objetivo da página
+# Texto introdutório – finalidade da página
 # --------------------------------------------------------------
 st.markdown("""
 ### 🧭 O que você encontra aqui
-Esta é a **página inicial** do ecossistema **SynapseNext**, plataforma integrada para apoio à **Fase Interna da Licitação** do Tribunal de Justiça de São Paulo.
+Esta é a **página inicial** do ecossistema **SynapseNext**, uma plataforma integrada para apoio à **Fase Interna da Licitação** do Tribunal de Justiça de São Paulo.
 
-Use o **menu lateral** para navegar entre os módulos:
+Use o **menu lateral** para navegar entre os módulos principais:
 - **Documentos e Governança:** acompanhe indicadores e relatórios técnicos.  
 - **Alertas e Auditoria:** visualize inconsistências detectadas e status de coerência.  
 - **Insights Históricos:** explore a evolução dos dados e tendências de governança.  
 - **Painel Executivo:** acesse o resumo consolidado, com gráficos e relatórios PDF.
 
-Todas as etapas seguem os padrões institucionais do **TJSP / SAAB**, respeitando a **Instrução Normativa nº 12/2025**.
+Todas as etapas seguem os padrões institucionais do **TJSP / SAAB**, conforme a **Instrução Normativa nº 12/2025**.
 """)
 
 # --------------------------------------------------------------
-# Cartões de Atalho (atalhos rápidos)
+# Cartões de navegação rápida
 # --------------------------------------------------------------
 st.markdown('<div class="cards-container">', unsafe_allow_html=True)
 
-st.markdown("""
-<div class="card">
-    <h4>📑 Relatórios Técnicos</h4>
-    <p>Gere e valide artefatos como DFD, ETP e TR, com auditoria integrada e exportação automatizada.</p>
-</div>
-""", unsafe_allow_html=True)
+cards = [
+    ("📑 Relatórios Técnicos", "Gere e valide artefatos como DFD, ETP e TR, com auditoria integrada e exportação automatizada."),
+    ("⚙️ Painel de Governança", "Monitore indicadores de coerência, auditoria e trilhas de controle em tempo real."),
+    ("⚠️ Alertas Proativos", "Acompanhe notificações sobre inconsistências, staleness e variações textuais."),
+    ("💡 Insights Históricos", "Analise a evolução da coerência global, volume de auditorias e médias móveis de desempenho."),
+    ("📊 Painel Executivo", "Visualize KPIs, gráficos e relatórios executivos integrados ao ambiente institucional do TJSP.")
+]
 
-st.markdown("""
-<div class="card">
-    <h4>⚙️ Painel de Governança</h4>
-    <p>Monitore indicadores de coerência, auditoria e trilhas de controle em tempo real.</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class="card">
-    <h4>⚠️ Alertas Proativos</h4>
-    <p>Acompanhe notificações sobre inconsistências, staleness e variações textuais.</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class="card">
-    <h4>💡 Insights Históricos</h4>
-    <p>Analise a evolução da coerência global, volume de auditorias e médias móveis de desempenho.</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class="card">
-    <h4>📊 Painel Executivo</h4>
-    <p>Visualize KPIs, gráficos e relatórios executivos integrados ao ambiente institucional do TJSP.</p>
-</div>
-""", unsafe_allow_html=True)
+for title, desc in cards:
+    st.markdown(f"""
+    <div class="card">
+        <h4>{title}</h4>
+        <p>{desc}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -165,7 +179,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Rodapé institucional
 # --------------------------------------------------------------
 st.markdown("""
-<div style='text-align:center; margin-top:40px; color:#666666; font-size:0.9rem;'>
+<div class="footer">
 TJSP • Secretaria de Administração e Abastecimento (SAAB) • Projeto SynapseNext – Fase Brasília<br>
 Versão institucional vNext • Desenvolvido em ambiente Python + Streamlit
 </div>
