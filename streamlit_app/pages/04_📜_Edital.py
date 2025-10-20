@@ -7,19 +7,26 @@ import streamlit as st
 import sys
 from pathlib import Path
 import json
+import datetime
 
 # ==========================================================
 # 🔧 Compatibilidade de importação segura
 # ==========================================================
 ROOT_DIR = Path(__file__).resolve().parents[2]
-VALIDATORS_DIR = ROOT_DIR / "validators"
+VALIDATORS_DIR = ROOT_DIR / "knowledge" / "validators"
+
+# Garante que o Python localize os módulos da pasta /knowledge/validators
 if str(VALIDATORS_DIR) not in sys.path:
     sys.path.append(str(VALIDATORS_DIR))
 
 try:
     from edital_validator import validar_edital
-except ModuleNotFoundError:
-    st.error("❌ Erro ao carregar o módulo 'edital_validator'. Verifique se ele está na pasta 'validators/'.")
+    import importlib.util
+    spec = importlib.util.find_spec("edital_validator")
+    if spec is None:
+        raise ImportError("Módulo edital_validator não encontrado.")
+except Exception as e:
+    st.error(f"❌ Erro ao carregar o módulo 'edital_validator': {e}")
     st.stop()
 
 # ==========================================================
@@ -32,6 +39,7 @@ st.set_page_config(
 )
 
 st.title("📜 Validador de Editais – SAAB 5.0")
+
 st.markdown("""
 Esta ferramenta auxilia as unidades do **TJSP** na verificação dos principais elementos
 que devem constar no **Edital de Licitação**, conforme a **Lei nº 14.133/2021**
@@ -80,7 +88,7 @@ if st.button("✅ Validar Edital"):
             try:
                 resultado = validar_edital(tipo, dados)
             except Exception as e:
-                st.error(f"Erro ao executar validação: {e}")
+                st.error(f"Erro ao executar a validação: {e}")
                 st.stop()
 
         resumo = resultado.get("resumo", {})
@@ -115,6 +123,12 @@ if st.button("✅ Validar Edital"):
             file_name=f"resultado_validacao_edital_{tipo}.json",
             mime="application/json"
         )
+
+        # ==================================================
+        # 🕓 Log institucional (visual)
+        # ==================================================
+        ts = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        st.sidebar.info(f"🧭 Validação executada com sucesso ({ts}) • Tipo: {tipo}")
 
 # ==========================================================
 # 🧩 Rodapé institucional
