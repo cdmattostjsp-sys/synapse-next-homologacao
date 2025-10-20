@@ -1,18 +1,31 @@
 # ==========================================================
-# SynapseNext – Fase Brasília | Passo 11F
-# Painel Executivo Institucional – TJSP / SAAB 5.0
+# 🧭 SynapseNext – Painel Executivo
+# Secretaria de Administração e Abastecimento (SAAB 5.0)
 # ==========================================================
-# Função: Exibir visualmente os resultados consolidados dos módulos:
-# governança, alertas e insights históricos, além de permitir
-# geração do relatório executivo em PDF.
+# Função: Exibir visualmente os resultados consolidados dos módulos
+# de governança, alertas e insights históricos, além de permitir
+# a geração do relatório executivo em PDF institucional.
 # ==========================================================
 
 import streamlit as st
+import sys
 from pathlib import Path
 import json
 from datetime import datetime
 import matplotlib.pyplot as plt
 import io
+
+# ==========================================================
+# 🔧 Configuração de compatibilidade de importação
+# ==========================================================
+# Garante que módulos fora de /streamlit_app/ (como /utils) sejam reconhecidos
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+# ==========================================================
+# 📦 Imports internos
+# ==========================================================
 from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
 
 # ==========================================================
@@ -53,7 +66,19 @@ st.set_page_config(
 )
 
 st.title("📊 Painel Executivo – SynapseNext")
-st.markdown("#### Consolidação Institucional • SAAB 5.0 • Tribunal de Justiça de São Paulo")
+st.markdown("""
+#### Consolidação Institucional • SAAB 5.0 • Tribunal de Justiça de São Paulo
+
+Este painel consolida os principais **indicadores de governança**, **alertas críticos**
+e **insights históricos** do ecossistema **SynapseNext (SAAB 5.0)**.
+
+Use este painel para:
+- Visualizar os resultados integrados das fases 10A a 11E;
+- Gerar o **Relatório Executivo em PDF** institucional;
+- Acompanhar métricas e gráficos consolidados da governança digital.
+
+---
+""")
 
 # ==========================================================
 # 🗂️ Estrutura de diretórios
