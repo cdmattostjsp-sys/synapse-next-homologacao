@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "version": "2.0",
+    "updated": "2025-10-20",
+    "author": "Equipe SynapseNext – SAAB 5.0",
+    "description": "Modelo semântico de validação e auditoria do Edital de Licitação, alinhado ao checklist modular (edital_checklist.yml) e à Lei nº 14.133/2021."
+  },
+
+  "estrutura": {
+    "blocos": {
+      "base": {
+        "titulo": "Itens Comuns a Todos os Editais",
+        "descricao": "Validação de requisitos gerais aplicáveis a todos os tipos de licitação.",
+        "referencia_yml": "checklist.base.items",
+        "status_possiveis": ["Atendido", "Pendente", "Não se aplica"],
+        "peso_relativo": 0.3
+      },
+      "servicos": {
+        "titulo": "Serviços Comuns e Contínuos",
+        "descricao": "Verifica conformidade dos editais voltados à contratação de serviços gerais ou continuados.",
+        "referencia_yml": "checklist.servicos.items",
+        "status_possiveis": ["Atendido", "Pendente", "Não se aplica"],
+        "peso_relativo": 0.15
+      },
+      "materiais": {
+        "titulo": "Aquisição de Materiais e Bens Permanentes",
+        "descricao": "Validação dos requisitos técnicos e logísticos de fornecimento de bens e suprimentos.",
+        "referencia_yml": "checklist.materiais.items",
+        "status_possiveis": ["Atendido", "Pendente", "Não se aplica"],
+        "peso_relativo": 0.15
+      },
+      "obras": {
+        "titulo": "Obras e Serviços de Engenharia",
+        "descricao": "Verifica o atendimento a requisitos técnicos, legais e orçamentários das obras e serviços de engenharia.",
+        "referencia_yml": "checklist.obras.items",
+        "status_possiveis": ["Atendido", "Pendente", "Não se aplica"],
+        "peso_relativo": 0.2
+      },
+      "ti": {
+        "titulo": "Tecnologia da Informação e Inovação",
+        "descricao": "Avalia a conformidade com padrões de segurança, interoperabilidade e governança de TI.",
+        "referencia_yml": "checklist.ti.items",
+        "status_possiveis": ["Atendido", "Pendente", "Não se aplica"],
+        "peso_relativo": 0.1
+      },
+      "consultoria": {
+        "titulo": "Consultorias Técnicas e Estudos Especializados",
+        "descricao": "Valida a aderência das contratações de consultoria às exigências de qualificação e metodologia.",
+        "referencia_yml": "checklist.consultoria.items",
+        "status_possiveis": ["Atendido", "Pendente", "Não se aplica"],
+        "peso_relativo": 0.1
+      }
+    }
+  },
+
+  "validacao": {
+    "modo": "semiautomatico",
+    "metodo": "validador_editais_vNext",
+    "descricao": "O processo de validação é híbrido, combinando checagem humana com IA semântica. A IA classifica automaticamente os itens como 'provavelmente atendido' ou 'pendente', cabendo à unidade validar o resultado final.",
+    "campos_resultado": ["item", "status", "comentario", "fonte"]
+  },
+
+  "relatorio": {
+    "template": "Relatorio_Edital_SynapseNext.docx",
+    "saida_padrao": "exports/relatorios/Relatorio_Edital_SynapseNext.pdf",
+    "estrutura": [
+      "Sumário Executivo",
+      "Resumo da Validação",
+      "Itens Atendidos",
+      "Itens Pendentes",
+      "Recomendações Finais"
+    ]
+  }
+}
