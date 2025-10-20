@@ -9,13 +9,18 @@ from pathlib import Path
 import json
 
 # ==========================================================
-# 🔧 Configuração de compatibilidade de importação
+# 🔧 Compatibilidade de importação segura
 # ==========================================================
 ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.append(str(ROOT_DIR))
+VALIDATORS_DIR = ROOT_DIR / "validators"
+if str(VALIDATORS_DIR) not in sys.path:
+    sys.path.append(str(VALIDATORS_DIR))
 
-from validators.edital_validator import validar_edital
+try:
+    from edital_validator import validar_edital
+except ModuleNotFoundError:
+    st.error("❌ Erro ao carregar o módulo 'edital_validator'. Verifique se ele está na pasta 'validators/'.")
+    st.stop()
 
 # ==========================================================
 # 🧩 Configuração inicial da página
@@ -72,7 +77,11 @@ if st.button("✅ Validar Edital"):
     else:
         with st.spinner("Processando validação..."):
             dados = {"texto": texto_edital}
-            resultado = validar_edital(tipo, dados)
+            try:
+                resultado = validar_edital(tipo, dados)
+            except Exception as e:
+                st.error(f"Erro ao executar validação: {e}")
+                st.stop()
 
         resumo = resultado.get("resumo", {})
         resultados = resultado.get("resultados", [])
@@ -80,7 +89,7 @@ if st.button("✅ Validar Edital"):
         # ==================================================
         # 📊 Exibição dos resultados
         # ==================================================
-        st.success("Validação concluída com sucesso!")
+        st.success("✅ Validação concluída com sucesso!")
 
         st.markdown(f"""
         **Tipo de Contratação:** {resumo.get("tipo", "").capitalize()}  
