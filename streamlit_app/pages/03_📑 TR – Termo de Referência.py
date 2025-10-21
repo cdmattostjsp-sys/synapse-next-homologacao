@@ -1,6 +1,6 @@
 # ==========================================================
-# 📑 SynapseNext – Termo de Referência (TR)
-# Secretaria de Administração e Abastecimento (SAAB 5.0)
+# 📑 SynapseNext – TR (Termo de Referência)
+# Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
 import sys
@@ -9,36 +9,48 @@ from datetime import datetime
 import streamlit as st
 
 # ==========================================================
-# 🔧 Configuração de paths e imports
+# 🔧 Ajuste de path e imports institucionais
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
+# 📦 Importa módulos funcionais
 try:
     from utils.next_pipeline import build_tr_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
     from utils.auditoria_pipeline import audit_event
-    from utils.layout_institucional import exibir_cabecalho_institucional, exibir_rodape_institucional
-    from utils.ui_style import aplicar_estilo_institucional
 except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
+# 📦 Importa novo estilo institucional unificado
+try:
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+except Exception:
+    st.warning("⚠️ Módulo ui_components não encontrado. O estilo não será aplicado.")
+    aplicar_estilo_global = lambda: None
+    exibir_cabecalho_padrao = lambda *a, **kw: None
+
 # ==========================================================
 # ⚙️ Configuração da página
 # ==========================================================
-st.set_page_config(page_title="SynapseNext – TR", layout="wide", page_icon="📑")
-aplicar_estilo_institucional()
+st.set_page_config(
+    page_title="TR – Termo de Referência",
+    layout="wide",
+    page_icon="📑"
+)
+aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional
+# 🏛️ Cabeçalho institucional padronizado
 # ==========================================================
-exibir_cabecalho_institucional(
+exibir_cabecalho_padrao(
     "TR – Termo de Referência",
-    "Módulo de elaboração, validação e exportação institucional"
+    "Módulo de elaboração assistida e controle de coerência técnica"
 )
+st.divider()
 
 # ==========================================================
 # 🧩 Formulário de entrada
@@ -135,6 +147,7 @@ else:
     st.info("Preencha o formulário e clique em **Gerar rascunho do TR** para iniciar o processo.")
 
 # ==========================================================
-# 📘 Rodapé institucional
+# 📘 Rodapé institucional simplificado
 # ==========================================================
-exibir_rodape_institucional()
+st.markdown("---")
+st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
