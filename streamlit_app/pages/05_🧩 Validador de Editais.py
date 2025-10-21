@@ -167,11 +167,7 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
             "observacoes": "Sem conteúdo.",
         }
 
-    if VALIDOR := VALIDOR  # noqa
-    :
-        pass  # apenas para manter linters quietos :)
-
-    if VALIDADOR_BASICO_OK:
+        if VALIDADOR_BASICO_OK:
         # Estrutural/checklist
         try:
             checklist = validar_edital(tipo_contratacao=tipo, conteudo=texto)
