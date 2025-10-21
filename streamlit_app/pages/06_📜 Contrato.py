@@ -1,7 +1,6 @@
-# streamlit_app/pages/Next_40_Contrato.py
 # ==========================================================
-# SynapseNext – Fase Brasília
-# Contrato → Reuso do TR → Formulário → Markdown → Exportação .docx
+# 📜 SynapseNext – Contrato Administrativo
+# Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
 import sys
@@ -11,13 +10,14 @@ import json
 import streamlit as st
 
 # ==========================================================
-# Correção de caminho robusta (local e cloud)
+# 🔧 Ajuste de path e imports institucionais
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
+# 📦 Importa módulos funcionais
 try:
     from utils.next_pipeline import build_contrato_markdown, registrar_log
     from utils.formatter_docx import markdown_to_docx
@@ -25,20 +25,36 @@ except Exception as e:
     st.error(f"❌ Erro ao importar módulos utilitários: {e}")
     st.stop()
 
-# ==========================================================
-# Configuração da página
-# ==========================================================
-st.set_page_config(page_title="SynapseNext – Contrato", layout="wide")
+# 📦 Importa novo estilo institucional unificado
+try:
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+except Exception:
+    st.warning("⚠️ Módulo ui_components não encontrado. O estilo não será aplicado.")
+    aplicar_estilo_global = lambda: None
+    exibir_cabecalho_padrao = lambda *a, **kw: None
 
-st.title("Contrato Administrativo")
-st.caption(
-    "Última etapa da Fase Interna: formalização contratual com base no Termo de Referência (TR)."
+# ==========================================================
+# ⚙️ Configuração da página
+# ==========================================================
+st.set_page_config(
+    page_title="Contrato Administrativo – SynapseNext",
+    layout="wide",
+    page_icon="📜"
 )
+aplicar_estilo_global()
 
 # ==========================================================
-# Bloco 1 — Reuso de dados do TR
+# 🏛️ Cabeçalho institucional padronizado
 # ==========================================================
+exibir_cabecalho_padrao(
+    "Contrato Administrativo",
+    "Última etapa da Fase Interna: formalização contratual com base no Termo de Referência (TR)"
+)
 st.divider()
+
+# ==========================================================
+# 1️⃣ Reaproveitamento do TR
+# ==========================================================
 st.subheader("1️⃣ Reaproveitamento do TR")
 
 base = Path(__file__).resolve().parents[2]
@@ -63,7 +79,7 @@ else:
     st.info("A pasta de logs ainda não foi criada.")
 
 # ==========================================================
-# Bloco 2 — Formulário Contrato
+# 2️⃣ Dados Contratuais
 # ==========================================================
 st.divider()
 st.subheader("2️⃣ Dados Contratuais")
@@ -74,12 +90,12 @@ with st.form("form_contrato", clear_on_submit=False):
         objeto = st.text_area(
             "Objeto do contrato",
             value=tr_data.get("objeto", "") if tr_data else "",
-            height=100,
+            height=90,
         )
         partes = st.text_area(
             "Partes contratantes",
             placeholder="Ex.: O Tribunal de Justiça do Estado de São Paulo e a empresa XYZ Ltda.",
-            height=80,
+            height=70,
         )
         valor_global = st.text_input(
             "Valor global (R$)",
@@ -96,34 +112,34 @@ with st.form("form_contrato", clear_on_submit=False):
     with col2:
         obrigacoes_contratada = st.text_area(
             "Obrigações da contratada",
-            placeholder="Liste de forma resumida as principais obrigações do fornecedor.",
-            height=120,
+            placeholder="Liste as principais obrigações do fornecedor.",
+            height=100,
         )
         obrigacoes_contratante = st.text_area(
             "Obrigações da contratante",
             placeholder="Liste as obrigações do TJSP como contratante.",
-            height=120,
+            height=100,
         )
         garantias = st.text_area(
             "Garantias e penalidades",
-            placeholder="Descreva as garantias exigidas e as penalidades aplicáveis.",
-            height=100,
+            placeholder="Descreva as garantias exigidas e penalidades aplicáveis.",
+            height=80,
         )
         fiscalizacao = st.text_area(
             "Fiscalização e acompanhamento",
             placeholder="Identifique o servidor ou unidade responsável pelo acompanhamento do contrato.",
-            height=80,
+            height=70,
         )
         assinatura = st.text_area(
             "Assinaturas / Representantes",
             placeholder="Informe nomes, cargos e funções dos signatários.",
-            height=80,
+            height=70,
         )
 
     enviado = st.form_submit_button("Gerar rascunho do Contrato")
 
 # ==========================================================
-# Bloco 3 — Geração e visualização
+# 3️⃣ Geração e Visualização
 # ==========================================================
 if enviado:
     respostas_contrato = {
@@ -141,7 +157,7 @@ if enviado:
     }
 
     md = build_contrato_markdown(respostas_contrato, tr_data)
-    save_log("CONTRATO", {"acao": "gerar_rascunho", "respostas": respostas_contrato})
+    registrar_log("CONTRATO", "gerar_rascunho")
 
     st.success("✅ Rascunho do Contrato gerado com sucesso.")
     st.divider()
@@ -149,9 +165,9 @@ if enviado:
     st.subheader("3️⃣ Preview – Rascunho em Markdown")
     st.markdown(md)
 
-    # -----------------------------------------------------
-    # Exportação .docx
-    # -----------------------------------------------------
+    # ======================================================
+    # 4️⃣ Exportação DOCX
+    # ======================================================
     st.divider()
     st.subheader("4️⃣ Exportação – `.docx`")
 
@@ -162,7 +178,8 @@ if enviado:
 
     if st.button("📄 Exportar para .docx"):
         markdown_to_docx(md, str(docx_path))
-        save_log("CONTRATO", {"acao": "exportar_docx", "arquivo": str(docx_path.relative_to(base))})
+        registrar_log("CONTRATO", "exportar_docx")
+
         with open(docx_path, "rb") as f:
             data = f.read()
         st.download_button(
@@ -176,3 +193,9 @@ if enviado:
 
 else:
     st.info("Preencha o formulário e clique em **Gerar rascunho do Contrato**.")
+
+# ==========================================================
+# 📘 Rodapé institucional simplificado
+# ==========================================================
+st.markdown("---")
+st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
