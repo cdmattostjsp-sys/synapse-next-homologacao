@@ -1,31 +1,18 @@
-# utils/layout_institucional.py
 # ==========================================================
-# 🎨 Layout Institucional Unificado – SynapseNext (sem conflito)
+# 🏛️ SynapseNext – Layout Institucional
+# Secretaria de Administração e Abastecimento (SAAB 5.0)
 # ==========================================================
 
 import streamlit as st
-from pathlib import Path
-import base64
 
-# Reusa os utilitários globais (NÃO conflita)
-from utils.ui_style import aplicar_estilo_institucional
-from utils.ui_style import rodape_institucional as _rodape_institucional
-
-
-def exibir_cabecalho_institucional(
-    titulo: str,
-    subtitulo: str,
-    *,
-    logo_rel_path: str = "assets/tjsp_logo.png",
-    logo_height_px: int = 70,
-    gap_px: int = 18,
-    text_offset_px: int = 8
-):
+def exibir_cabecalho_institucional(titulo: str, subtitulo: str, logo_path: str = "assets/logo_tjsp.png"):
     """
-    Cabeçalho institucional padrão com alinhamento fino entre logotipo e textos.
-    Não conflita com ui_style; usa apenas CSS local.
+    Exibe o cabeçalho institucional padrão do SynapseNext,
+    com logo do TJSP, título e subtítulo ajustados para alinhamento preciso.
     """
-    logo_path = Path(__file__).resolve().parents[1] / logo_rel_path
+    gap_px = 14
+    logo_height_px = 60
+    text_offset_px = 2  # ajuste vertical fino do texto
 
     st.markdown(f"""
     <style>
@@ -34,8 +21,8 @@ def exibir_cabecalho_institucional(
         align-items: center;
         justify-content: flex-start;
         gap: {gap_px}px;
-        margin-top: -4px;              /* leve compensação */
-        margin-bottom: 1.4rem;
+        margin-top: -4px; /* ligeiro ajuste superior */
+        margin-bottom: 1.2rem;
     }}
     .cabecalho-tjsp img {{
         height: {logo_height_px}px;
@@ -45,7 +32,7 @@ def exibir_cabecalho_institucional(
         display: flex;
         flex-direction: column;
         justify-content: center;
-        margin-top: {text_offset_px}px; /* microajuste do bloco de texto */
+        margin-top: {text_offset_px - 4}px; /* Subiu 4px conforme solicitado */
     }}
     .cabecalho-texto h1 {{
         font-size: 1.55rem;
@@ -58,36 +45,29 @@ def exibir_cabecalho_institucional(
         font-size: 0.98rem;
         font-weight: 500;
         color: #555;
-        margin-top: 4px;
+        margin-top: 2px; /* menor distância entre título e subtítulo */
     }}
     </style>
-    """, unsafe_allow_html=True)
 
-    if logo_path.exists():
-        with open(logo_path, "rb") as img_file:
-            logo_b64 = base64.b64encode(img_file.read()).decode("utf-8")
-        st.markdown(f"""
-        <div class="cabecalho-tjsp">
-            <img src="data:image/png;base64,{logo_b64}" alt="Logo TJSP">
-            <div class="cabecalho-texto">
-                <h1>{titulo}</h1>
-                <h2>{subtitulo}</h2>
-            </div>
+    <div class="cabecalho-tjsp">
+        <img src="{logo_path}" alt="TJSP Logo">
+        <div class="cabecalho-texto">
+            <h1>{titulo}</h1>
+            <h2>{subtitulo}</h2>
         </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div class="cabecalho-tjsp">
-            <div class="cabecalho-texto">
-                <h1>{titulo}</h1>
-                <h2>{subtitulo}</h2>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def exibir_rodape_institucional():
     """
-    Evita duplicação: delega ao rodapé já definido no ui_style.py
+    Exibe o rodapé institucional padrão.
     """
-    _rodape_institucional()
+    st.markdown("""
+    <hr style="margin-top:2.5rem; margin-bottom:1rem;">
+    <div style="text-align:center; font-size:0.85rem; color:#666;">
+        <b>SynapseNext – SAAB 5.0</b> • Tribunal de Justiça de São Paulo<br>
+        Secretaria de Administração e Abastecimento (SAAB) – Divisão de Inovação e Governança Digital<br>
+        <span style="font-size:0.75rem;">Versão institucional – Outubro/2025</span>
+    </div>
+    """, unsafe_allow_html=True)
