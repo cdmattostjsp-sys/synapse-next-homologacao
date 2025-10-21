@@ -36,43 +36,51 @@ st.set_page_config(
 aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Logo institucional fixo no topo do menu lateral
+# 🏛️ Logo institucional fixo no topo do menu lateral (ajuste final)
 # ==========================================================
+import base64
+
 logo_path = Path(__file__).resolve().parents[1] / "assets" / "tjsp_logo.png"
 
-# CSS para forçar o logo no topo e controlar o tamanho
-st.markdown(
-    """
-    <style>
-    [data-testid="stSidebar"] {
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: center;
-        padding-top: 0.8rem;
-    }
-    .sidebar-logo {
-        max-width: 90%;
-        height: auto;
-        max-height: 70px;
-        margin-bottom: 0.8rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 if logo_path.exists():
-    st.sidebar.markdown(
+    with open(logo_path, "rb") as f:
+        logo_bytes = f.read()
+    logo_b64 = base64.b64encode(logo_bytes).decode()
+
+    st.markdown(
         f"""
-        <div style="text-align:center;">
-            <img src="data:image/png;base64,{Path(logo_path).read_bytes().hex()}" class="sidebar-logo">
+        <style>
+        [data-testid="stSidebar"] {{
+            position: relative;
+        }}
+        .sidebar-header {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding-top: 0.8rem;
+            background-color: #f8f9fb;
+            z-index: 100;
+        }}
+        .sidebar-header img {{
+            max-height: 70px;
+            width: auto;
+            margin-bottom: 0.5rem;
+        }}
+        /* Garante espaçamento entre logo e menu */
+        [data-testid="stSidebarNav"] {{
+            margin-top: 85px !important;
+        }}
+        </style>
+
+        <div class="sidebar-header">
+            <img src="data:image/png;base64,{logo_b64}" alt="TJSP Logo">
+            <hr style="margin:0.4rem 1rem 0.6rem 1rem; border: 1px solid #d6d6d6;">
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
-
-st.sidebar.markdown("---")
 
 
 # ==========================================================
