@@ -1,6 +1,7 @@
 # ==========================================================
-# SynapseNext – DFD (Documento de Formalização da Demanda)
+# 📄 SynapseNext – DFD (Documento de Formalização da Demanda)
 # Fase Brasília – Passo 10A (com integração Auditoria.IA)
+# Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
 import sys
@@ -16,7 +17,7 @@ root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists()
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-# 📦 Importa os utilitários originais
+# 📦 Importa os utilitários funcionais
 try:
     from utils.next_pipeline import build_dfd_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
@@ -25,7 +26,7 @@ except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
-# 📦 Importa o layout institucional (novo)
+# 📦 Importa o layout institucional
 try:
     from utils.ui_style import aplicar_estilo_institucional
     from utils.layout_institucional import exibir_cabecalho_institucional, exibir_rodape_institucional
@@ -49,11 +50,8 @@ exibir_cabecalho_institucional(
 )
 
 # ==========================================================
-# 📘 Conteúdo funcional original (sem alterações)
+# 📘 Conteúdo funcional
 # ==========================================================
-st.title("DFD — Documento de Formalização da Demanda")
-st.caption("Preenchimento institucional, validação IA e trilha de auditoria.")
-st.divider()
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
 with st.form("form_dfd", clear_on_submit=False):
