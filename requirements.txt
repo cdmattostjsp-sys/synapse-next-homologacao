@@ -19,6 +19,7 @@ reportlab>=4.2.2
 PyYAML>=6.0.2
 regex>=2023.12.25
 tqdm>=4.66.5
+PyPDF2>=3.0.0
 
 # ---- Conversão e exportação ----
 pdfkit>=1.0.0
