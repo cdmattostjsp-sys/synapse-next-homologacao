@@ -184,33 +184,31 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_css_basico()
 
 # ==========================================================
-# 🎨 Cabeçalho institucional refinado (centralizado e alinhado)
+# 🎨 Cabeçalho institucional refinado (logo centralizado e visível)
 # ==========================================================
 from PIL import Image
 
-# Caminho do logo institucional (garante compatibilidade no deploy)
+# Caminho confiável para o logo institucional
 logo_path = Path(__file__).resolve().parents[2] / "assets" / "tjsp_logo.png"
 if not logo_path.exists():
     logo_path = Path("assets/tjsp_logo.png")
 
-# Renderização segura do logo
+# Exibição centralizada do logo
 try:
-    st.markdown(
-        f"""
-        <div style="text-align:center; margin-top:2px; margin-bottom:-6px;">
-            <img src="{logo_path.as_posix()}" width="120" style="margin-bottom:8px; border:none;">
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-except Exception:
-    st.warning(f"⚠️ Logo não encontrado em: {logo_path}")
+    logo = Image.open(logo_path)
+    col1, col2, col3 = st.columns([0.35, 0.3, 0.35])
+    with col2:
+        st.image(logo, width=120)
+except Exception as e:
+    st.warning(f"⚠️ Não foi possível carregar o logo institucional: {e}")
 
-# Título e subtítulo
+# Título e subtítulo (institucional)
 st.markdown(
     """
-    <div style="text-align:center; margin-top:0px;">
-        <h1 style="font-size:30px; font-weight:700; margin-bottom:4px;">Validador de Editais – SAAB 5.0</h1>
+    <div style="text-align:center; margin-top:-10px;">
+        <h1 style="font-size:30px; font-weight:700; margin-bottom:4px;">
+            Validador de Editais – SAAB 5.0
+        </h1>
         <h3 style="color:#555; font-weight:normal; margin-top:0px; margin-bottom:20px;">
             Secretaria de Administração e Abastecimento – Tribunal de Justiça de São Paulo
         </h3>
