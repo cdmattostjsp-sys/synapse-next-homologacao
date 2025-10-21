@@ -184,21 +184,31 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_css_basico()
 
 # ==========================================================
-# 🎨 Cabeçalho institucional refinado
+# 🎨 Cabeçalho institucional refinado (com logo garantido)
 # ==========================================================
+from PIL import Image
+
+# Caminho seguro para o logo, relativo à estrutura do projeto
+logo_path = Path(__file__).resolve().parents[2] / "assets" / "tjsp_logo.png"
+if not logo_path.exists():
+    logo_path = Path("assets/tjsp_logo.png")
+
+try:
+    logo = Image.open(logo_path)
+    st.image(logo, width=110, use_column_width=False)
+except Exception:
+    st.warning("⚠️ Logo não encontrado em: " + str(logo_path))
+
 st.markdown(
     """
-    <div style='text-align:center; margin-top: 10px; margin-bottom: -8px;'>
-        <img src='assets/tjsp_logo.png' width='115' style='margin-top:8px; margin-bottom:4px;' />
+    <div style='text-align:center; margin-top:-10px;'>
+        <h1 style='font-size:30px; margin-bottom:0px;'>Validador de Editais – SAAB 5.0</h1>
+        <h3 style='color:#555; font-weight:normal; margin-top:4px; margin-bottom:20px;'>
+            Secretaria de Administração e Abastecimento – Tribunal de Justiça de São Paulo
+        </h3>
     </div>
-    <h1 style='text-align:center; font-size:30px; margin-top:8px; margin-bottom:2px;'>
-        Validador de Editais – SAAB 5.0
-    </h1>
-    <h3 style='text-align:center; color:#555; font-weight:normal; margin-top:2px; margin-bottom:22px;'>
-        Secretaria de Administração e Abastecimento – Tribunal de Justiça de São Paulo
-    </h3>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
 # ==========================================================
