@@ -1,6 +1,6 @@
 # ==========================================================
-# SynapseNext – Fase Brasília (Passo 11C)
-# Painel de Alertas Proativos
+# ⚠️ SynapseNext – Painel de Alertas Proativos
+# Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
 import sys
@@ -8,11 +8,17 @@ from pathlib import Path
 import streamlit as st
 import json
 
+# ==========================================================
+# 🔧 Ajuste de path e imports institucionais
+# ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
+# ==========================================================
+# 📦 Importa pipeline de alertas
+# ==========================================================
 try:
     from utils.alertas_pipeline import evaluate_alerts, export_alerts_json, DEFAULTS
 except Exception as e:
@@ -20,14 +26,32 @@ except Exception as e:
     st.error(f"❌ Erro ao importar alertas_pipeline: {e}")
     st.stop()
 
-st.set_page_config(page_title="SynapseNext — Alertas Proativos", layout="wide")
+# ==========================================================
+# ⚙️ Configuração da página
+# ==========================================================
+st.set_page_config(page_title="SynapseNext — Alertas Proativos", layout="wide", page_icon="⚠️")
 
-st.title("🚨 Alertas Proativos — SynapseNext (Fase Brasília)")
-st.caption("Varredura automática com base em Auditoria Digital e Comparador.IA")
+# Importa estilo e cabeçalho global
+try:
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+except Exception:
+    aplicar_estilo_global = lambda: None
+    exibir_cabecalho_padrao = lambda *a, **kw: None
 
-# ------------------------------------------------------------------
-# Parâmetros (sidebar)
-# ------------------------------------------------------------------
+aplicar_estilo_global()
+
+# ==========================================================
+# 🏛️ Cabeçalho institucional padronizado
+# ==========================================================
+exibir_cabecalho_padrao(
+    "Alertas Proativos",
+    "Varredura automática com base na Auditoria Digital e nas métricas do Comparador.IA"
+)
+st.divider()
+
+# ==========================================================
+# 🎛️ Parâmetros (sidebar)
+# ==========================================================
 st.sidebar.header("Parâmetros de Avaliação")
 min_cg = st.sidebar.slider("Mínimo Coerência Global (%)", 50, 95, DEFAULTS["min_coerencia_global"], 1)
 min_pair = st.sidebar.slider("Mínimo Similaridade Par-a-Par (%)", 50, 95, DEFAULTS["min_pairwise"], 1)
@@ -41,19 +65,18 @@ cfg = {
     "max_wc_change_pct": wc_var,
 }
 
-# ------------------------------------------------------------------
-# Ação
-# ------------------------------------------------------------------
+# ==========================================================
+# 🧠 Execução da análise
+# ==========================================================
 if st.button("🔎 Recalcular Alertas", type="primary"):
     st.session_state["_recalc"] = True
 
 payload = evaluate_alerts(cfg) if st.session_state.get("_recalc") else evaluate_alerts(cfg)
+st.success(f"Análise concluída em **{payload.get('timestamp', '—')}**")
 
-st.success(f"Análise concluída em {payload.get('timestamp')}")
-
-# ------------------------------------------------------------------
-# Métricas
-# ------------------------------------------------------------------
+# ==========================================================
+# 📈 Métricas Resumidas
+# ==========================================================
 cols = st.columns(4)
 with cols[0]:
     st.metric("Alertas (total)", payload["totais"].get("geral", 0))
@@ -66,23 +89,20 @@ with cols[3]:
 
 st.divider()
 
-# ------------------------------------------------------------------
-# Lista de alertas
-# ------------------------------------------------------------------
+# ==========================================================
+# 📋 Lista de alertas detalhada
+# ==========================================================
 alerts = payload.get("alerts", [])
 
 if not alerts:
-    st.success("Nenhum alerta encontrado nas regras atuais. ✅")
+    st.success("✅ Nenhum alerta encontrado nas regras atuais.")
 else:
-    # Organização por severidade
     ordem = {"alto": 0, "medio": 1, "baixo": 2}
     alerts_sorted = sorted(alerts, key=lambda a: ordem.get(a.get("severidade", "baixo"), 3))
 
-    # Tabela simplificada
-    st.subheader("Lista de Alertas")
-    rows = []
-    for al in alerts_sorted:
-        rows.append({
+    st.subheader("📋 Lista de Alertas")
+    rows = [
+        {
             "Sev.": al.get("severidade"),
             "Área": al.get("area"),
             "Artefato": al.get("artefato"),
@@ -90,20 +110,26 @@ else:
             "Detalhe": al.get("detalhe"),
             "Recomendação": al.get("recomendacao"),
             "Quando": al.get("timestamp"),
-            "ID": al.get("id"),
-        })
-    st.dataframe(rows, use_container_width=True)
+        }
+        for al in alerts_sorted
+    ]
 
-    # Exportação
+    # Tabela compacta
+    st.dataframe(rows, use_container_width=True, height=300)
+
     st.divider()
-    if st.button("📤 Exportar alertas para JSON"):
+    if st.button("📤 Exportar alertas (JSON)"):
         path = export_alerts_json(payload)
         st.success(f"Alertas exportados para: `{path}`")
 
-# ------------------------------------------------------------------
-# Inspeção rápida (opcional)
-# ------------------------------------------------------------------
-with st.expander("Ver JSON completo do resultado"):
+# ==========================================================
+# 🧩 Inspeção do JSON completo (opcional)
+# ==========================================================
+with st.expander("📄 Ver JSON completo do resultado"):
     st.json(payload)
 
-st.caption("SynapseNext • SAAB 5.0 • TJSP — Fase Brasília (vNext)")
+# ==========================================================
+# 📘 Rodapé institucional simplificado
+# ==========================================================
+st.markdown("---")
+st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
