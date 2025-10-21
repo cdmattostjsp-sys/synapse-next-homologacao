@@ -17,8 +17,8 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
-# Importa o cabeçalho institucional padronizado
-from utils.ui_style import exibir_cabecalho_institucional
+# Importa o estilo e rodapé institucional
+from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
 
 VALIDADOR_BASICO_OK = True
 try:
@@ -148,21 +148,11 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
         except Exception:
             semantica = {"achados": [], "score": 0}
 
-        achados = []
-        for it in (checklist.get("achados", []) + semantica.get("achados", [])):
-            achados.append(
-                {
-                    "severidade": it.get("severidade", "Médio"),
-                    "secao": it.get("secao", "Geral"),
-                    "mensagem": it.get("mensagem", ""),
-                    "recomendacao": it.get("recomendacao", ""),
-                }
-            )
-
+        achados = checklist.get("achados", []) + semantica.get("achados", [])
         score_sem = semantica.get("score", 0)
         penalidade = sum(
-            10 if a["severidade"] == "Crítico"
-            else 5 if a["severidade"] == "Médio"
+            10 if a.get("severidade") == "Crítico"
+            else 5 if a.get("severidade") == "Médio"
             else 2
             for a in achados
         )
@@ -187,72 +177,97 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_css_basico()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional (padronizado)
+# 🏛️ Cabeçalho institucional (padrão aprovado)
 # ==========================================================
-exibir_cabecalho_institucional(
-    "Validador de Editais – SAAB 5.0",
-    "Verifique a conformidade do edital com a Lei nº 14.133/21 e normas do TJSP"
-)
+aplicar_estilo_institucional()
 
-# ==========================================================
-# 🔧 Entradas e Execução
-# ==========================================================
-tipo = st.selectbox("Selecione o tipo de contratação:", ["Serviços", "Materiais", "Obras", "TI & Software", "Consultorias"], index=0)
-modo = st.radio("Modo de exibição dos resultados:", ["Resumo", "Detalhado"], horizontal=True, index=0)
-
-st.subheader("🖊️ Insira o conteúdo do edital para validação:")
-texto = st.text_area(
-    "Cole o conteúdo (ou parte) do edital", height=220, placeholder="Ex.: O presente edital tem por objeto ...",
-    label_visibility="collapsed",
-)
-
-col_run, col_pdf = st.columns([0.25, 0.75])
-with col_run:
-    executar = st.button("▶️ Executar validação")
-
-resultados = None
-
-if executar:
-    with st.spinner("Executando validação..."):
-        resultados = executar_validacao(tipo=tipo.lower(), modo=modo.lower(), texto=texto)
-
-    st.subheader("📊 Resultados")
-    c1, c2, c3 = st.columns([0.18, 0.18, 0.64])
-    with c1:
-        st.metric("Score geral", f"{resultados['score']}")
-    with c2:
-        status_color = (
-            "🟢" if resultados["status"] == "Conforme" else
-            "🟠" if resultados["status"] == "Atenções" else
-            "🔴"
-        )
-        st.markdown(f"**Status:** {status_color} {resultados['status']}")
-    with c3:
-        st.caption(resultados.get("observacoes", ""))
-
-    if resultados["achados"]:
-        st.markdown("**Achados:**")
-        if modo.lower() == "resumo":
-            crit = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "crítico")
-            med = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "médio")
-            bai = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "baixo")
-            st.write(f"- Críticos: **{crit}**  |  Médios: **{med}**  |  Baixos: **{bai}**")
-        else:
-            import pandas as pd
-            df = pd.DataFrame(resultados["achados"])
-            st.dataframe(df[["severidade", "secao", "mensagem", "recomendacao"]], use_container_width=True, hide_index=True)
+col_logo, col_titulo = st.columns([0.12, 0.88])
+with col_logo:
+    logo_path = ROOT_DIR / "assets" / "tjsp_logo.png"
+    if logo_path.exists():
+        st.image(str(logo_path), width=90)
     else:
-        st.success("Nenhum achado relevante. Documento em conformidade.")
+        st.warning(f"⚠️ Logo não encontrado em: {logo_path}")
 
-    with col_pdf:
-        gerar = st.button("🧾 Exportar relatório em PDF")
-        if gerar:
-            with st.spinner("Gerando PDF institucional..."):
-                pdf_path = Path(ROOT_DIR / "exports" / "relatorios" / f"validacao_edital_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf")
-                pdf_path.parent.mkdir(parents=True, exist_ok=True)
-                pdf_path.write_text("Simulação de relatório gerado.")
-            st.success("Relatório gerado com sucesso.")
-            st.download_button("⬇️ Baixar relatório PDF", data=open(pdf_path, "rb").read(), file_name=pdf_path.name, mime="application/pdf")
+with col_titulo:
+    st.markdown(
+        """
+        <div style="margin-top:-12px;">
+            <h1 style="font-size:1.9rem; margin-bottom:0;">Validador de Editais – SAAB 5.0</h1>
+            <p style="font-size:1.05rem; color:#555;">Verifique a conformidade do edital com a Lei nº 14.133/21 e normas do TJSP</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+
+# ==========================================================
+# ⚙️ Interface de Validação
+# ==========================================================
+st.markdown("### 📑 Cole abaixo o texto (ou parte) do edital para análise:")
+texto_edital = st.text_area("Conteúdo do edital", height=300, placeholder="Cole aqui o conteúdo do edital...")
+
+col1, col2 = st.columns([0.5, 0.5])
+with col1:
+    tipo_contratacao = st.selectbox(
+        "Tipo de contratação:",
+        ["Serviços", "Aquisição de Materiais", "Obras e Engenharia", "Outros"],
+    )
+with col2:
+    modo_validacao = st.selectbox(
+        "Modo de validação:",
+        ["Completo (estrutural + semântico)", "Somente estrutural", "Somente semântico"],
+    )
+
+if st.button("🚀 Executar Validação", use_container_width=True):
+    with st.spinner("Executando validação, por favor aguarde..."):
+        resultado = executar_validacao(tipo_contratacao, modo_validacao, texto_edital)
+
+    st.markdown("---")
+    st.subheader("📊 Resultado da Análise")
+
+    cor_status = (
+        "✅ Conforme" if resultado["status"] == "Conforme"
+        else "⚠️ Atenções" if resultado["status"] == "Atenções"
+        else "❌ Crítico"
+    )
+    st.markdown(f"**Status Geral:** {cor_status}")
+    st.progress(resultado["score"] / 100)
+    st.write(f"**Score Geral:** {resultado['score']} / 100")
+
+    st.markdown("#### 🧾 Detalhamento dos Achados")
+    if resultado["achados"]:
+        for a in resultado["achados"]:
+            cor = (
+                "badge-crit" if a["severidade"] == "Crítico"
+                else "badge-attn" if a["severidade"] == "Médio"
+                else "badge-ok"
+            )
+            st.markdown(
+                f"<div class='{cor}'>"
+                f"<b>{a['severidade']}</b> – {a['secao']}<br>"
+                f"{a['mensagem']}<br>"
+                f"<i>{a['recomendacao']}</i>"
+                "</div><br>",
+                unsafe_allow_html=True,
+            )
+    else:
+        st.info("Nenhum problema identificado nas validações aplicadas.")
+
+    st.markdown("#### 📌 Observações")
+    st.write(resultado["observacoes"])
+
+    buffer = io.BytesIO(str(resultado).encode("utf-8"))
+    st.download_button(
+        label="💾 Baixar Resultado (.txt)",
+        data=buffer,
+        file_name=f"resultado_validacao_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+        mime="text/plain",
+    )
+
+# ----------------------------------------------------------
+# Rodapé institucional
+# ----------------------------------------------------------
+st.markdown("---")
+rodape_institucional()
