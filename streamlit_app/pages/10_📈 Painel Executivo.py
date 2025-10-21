@@ -1,10 +1,6 @@
 # ==========================================================
-# 🧭 SynapseNext – Painel Executivo
-# Secretaria de Administração e Abastecimento (SAAB 5.0)
-# ==========================================================
-# Função: Exibir visualmente os resultados consolidados dos módulos
-# de governança, alertas e insights históricos, além de permitir
-# a geração do relatório executivo em PDF institucional.
+# 📈 SynapseNext – Painel Executivo
+# Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
 import streamlit as st
@@ -13,109 +9,87 @@ from pathlib import Path
 import json
 from datetime import datetime
 import matplotlib.pyplot as plt
-import io
 
 # ==========================================================
-# 🔧 Configuração de compatibilidade de importação
+# 🔧 Ajuste de path
 # ==========================================================
-# Garante que módulos fora de /streamlit_app/ (como /utils) sejam reconhecidos
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 # ==========================================================
-# 📦 Imports internos
+# 📦 Importações internas
 # ==========================================================
-from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
+try:
+    from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
+except Exception as e:
+    st.error(f"❌ Erro ao importar módulo de relatório: {e}")
+    st.stop()
+
+try:
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+except Exception:
+    aplicar_estilo_global = lambda: None
+    exibir_cabecalho_padrao = lambda *a, **kw: None
 
 # ==========================================================
-# 🔧 Funções utilitárias
+# ⚙️ Configuração da página
 # ==========================================================
+st.set_page_config(page_title="Painel Executivo – SynapseNext", layout="wide", page_icon="📈")
+aplicar_estilo_global()
 
+# ==========================================================
+# 🏛️ Cabeçalho institucional padronizado
+# ==========================================================
+exibir_cabecalho_padrao(
+    "Painel Executivo",
+    "Consolidação Institucional – Indicadores, Alertas e Insights do ecossistema SynapseNext (SAAB 5.0)"
+)
+st.divider()
+
+# ==========================================================
+# 🗂️ Estrutura e carregamento de dados
+# ==========================================================
 def ensure_exports_structure(root_exports: Path):
-    """
-    Garante a existência da estrutura de diretórios exports/.
-    Caso encontre arquivos com o mesmo nome, remove-os e recria
-    as pastas necessárias de forma segura.
-    """
+    """Garante a estrutura de diretórios exports/"""
     subdirs = ["analises", "relatorios", "auditoria", "logs"]
     for folder in subdirs:
         target = root_exports / folder
         if target.exists() and target.is_file():
-            target.unlink()  # remove arquivo que impede criação do diretório
+            target.unlink()
         target.mkdir(parents=True, exist_ok=True)
 
-
 def carregar_json(path: Path):
-    """
-    Carrega um arquivo JSON se existir; retorna dicionário vazio caso contrário.
-    """
-    if not path.exists() or not path.is_file():
+    """Carrega um arquivo JSON se existir"""
+    if not path or not path.exists():
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# ==========================================================
-# 🧭 Interface principal
-# ==========================================================
-
-st.set_page_config(
-    page_title="Painel Executivo – SynapseNext",
-    layout="wide",
-    page_icon="📊"
-)
-
-st.title("📊 Painel Executivo – SynapseNext")
-st.markdown("""
-#### Consolidação Institucional • SAAB 5.0 • Tribunal de Justiça de São Paulo
-
-Este painel consolida os principais **indicadores de governança**, **alertas críticos**
-e **insights históricos** do ecossistema **SynapseNext (SAAB 5.0)**.
-
-Use este painel para:
-- Visualizar os resultados integrados das fases 10A a 11E;
-- Gerar o **Relatório Executivo em PDF** institucional;
-- Acompanhar métricas e gráficos consolidados da governança digital.
-
----
-""")
-
-# ==========================================================
-# 🗂️ Estrutura de diretórios
-# ==========================================================
-
-root_exports = Path(__file__).resolve().parents[2] / "exports"
+root_exports = ROOT_DIR / "exports"
 ensure_exports_structure(root_exports)
 
 analises = root_exports / "analises"
 relatorios = root_exports / "relatorios"
-
-# ==========================================================
-# 📂 Carregamento de dados
-# ==========================================================
 
 def carregar_dados():
     governanca_path = max(analises.glob("relatorio_coerencia_*.json"), default=None)
     alertas_path = max(analises.glob("alertas_*.json"), default=None)
     insights_path = max(analises.glob("insights_*.json"), default=None)
 
-    governanca = carregar_json(governanca_path) if governanca_path else {}
-    alertas = carregar_json(alertas_path) if alertas_path else {}
-    insights = carregar_json(insights_path) if insights_path else {}
-
+    governanca = carregar_json(governanca_path)
+    alertas = carregar_json(alertas_path)
+    insights = carregar_json(insights_path)
     return governanca, alertas, insights
 
 governanca, alertas, insights = carregar_dados()
 
 # ==========================================================
-# 📈 Visualização dos dados
+# 📊 Indicadores Consolidados
 # ==========================================================
-
-st.divider()
-st.subheader("Indicadores Consolidados")
+st.subheader("1️⃣ Indicadores Consolidados")
 
 col1, col2, col3 = st.columns(3)
-
 with col1:
     st.metric("Documentos Auditados", len(governanca.get("documentos", [])))
 with col2:
@@ -124,41 +98,58 @@ with col3:
     st.metric("Insights Gerados", len(insights.get("serie_temporal", [])))
 
 # ==========================================================
-# 📊 Gráfico – Distribuição de Alertas
+# 📈 Distribuição de Alertas por Severidade
 # ==========================================================
+st.divider()
+st.subheader("2️⃣ Distribuição de Alertas por Severidade")
 
 if alertas.get("totais"):
-    st.subheader("Distribuição de Alertas por Severidade")
-    fig, ax = plt.subplots()
-    ax.bar(
-        ["Alto", "Médio", "Baixo"],
-        [
-            alertas["totais"].get("alto", 0),
-            alertas["totais"].get("medio", 0),
-            alertas["totais"].get("baixo", 0)
-        ],
-        color=["#C0392B", "#F1C40F", "#27AE60"]
-    )
-    ax.set_ylabel("Quantidade")
-    ax.set_xlabel("Severidade")
-    ax.set_title("Alertas Detectados (Classificação)")
-    st.pyplot(fig)
+    fig, ax = plt.subplots(figsize=(5, 3))
+    severidades = ["Alto", "Médio", "Baixo"]
+    valores = [
+        alertas["totais"].get("alto", 0),
+        alertas["totais"].get("medio", 0),
+        alertas["totais"].get("baixo", 0),
+    ]
+    cores = ["#C0392B", "#F1C40F", "#27AE60"]
+    ax.bar(severidades, valores, color=cores)
+    ax.set_xlabel("Severidade", fontsize=9)
+    ax.set_ylabel("Quantidade", fontsize=9)
+    ax.set_title("Classificação dos Alertas Detectados", fontsize=10, pad=8)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    st.pyplot(fig, use_container_width=False)
 else:
     st.info("Nenhum alerta consolidado disponível no momento.")
 
 # ==========================================================
+# 🧭 Síntese dos Principais Dados
+# ==========================================================
+st.divider()
+st.subheader("3️⃣ Síntese dos Principais Dados")
+
+st.markdown("""
+- **Governança** → Indicadores de coerência e auditoria digital.
+- **Alertas** → Sinais de inconsistência ou comportamento anômalo.
+- **Insights** → Tendências históricas e variações percentuais.
+""")
+
+if not (governanca or alertas or insights):
+    st.warning("⚠️ Nenhum dado disponível. Gere relatórios antes de usar este painel.")
+else:
+    st.success("✅ Dados carregados com sucesso e prontos para consolidação.")
+
+# ==========================================================
 # 📘 Geração do Relatório Executivo em PDF
 # ==========================================================
-
 st.divider()
-st.subheader("📘 Relatório Executivo – Exportação em PDF")
+st.subheader("4️⃣ Relatório Executivo – Exportação em PDF")
 
-if st.button("Gerar Relatório Executivo PDF"):
+if st.button("📘 Gerar Relatório Executivo PDF"):
     if not (governanca or alertas or insights):
         st.warning("⚠️ Não há dados consolidados suficientes para gerar o relatório.")
     else:
         caminho_pdf = gerar_relatorio_executivo(governanca, alertas, insights)
-        st.success(f"✅ Relatório gerado com sucesso!\n\n📄 Caminho: `{caminho_pdf}`")
+        st.success("✅ Relatório gerado com sucesso!")
 
         with open(caminho_pdf, "rb") as f:
             st.download_button(
@@ -169,7 +160,10 @@ if st.button("Gerar Relatório Executivo PDF"):
             )
 
 # ==========================================================
-# 📅 Rodapé
+# 📅 Rodapé institucional
 # ==========================================================
-st.divider()
-st.caption(f"TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0  \nVersão institucional vNext • Gerado em {datetime.now():%d/%m/%Y %H:%M}")
+st.markdown("---")
+st.caption(
+    f"SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
+    f"Versão institucional vNext • Gerado em {datetime.now():%d/%m/%Y %H:%M}"
+)
