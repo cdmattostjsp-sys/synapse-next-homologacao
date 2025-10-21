@@ -36,12 +36,44 @@ st.set_page_config(
 aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Logo institucional fixo no menu lateral
+# 🏛️ Logo institucional fixo no topo do menu lateral
 # ==========================================================
 logo_path = Path(__file__).resolve().parents[1] / "assets" / "tjsp_logo.png"
+
+# CSS para forçar o logo no topo e controlar o tamanho
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding-top: 0.8rem;
+    }
+    .sidebar-logo {
+        max-width: 90%;
+        height: auto;
+        max-height: 70px;
+        margin-bottom: 0.8rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 if logo_path.exists():
-    st.sidebar.image(str(logo_path), use_column_width=True)
+    st.sidebar.markdown(
+        f"""
+        <div style="text-align:center;">
+            <img src="data:image/png;base64,{Path(logo_path).read_bytes().hex()}" class="sidebar-logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 st.sidebar.markdown("---")
+
 
 # ==========================================================
 # 🏛️ Cabeçalho (sem logo no corpo)
