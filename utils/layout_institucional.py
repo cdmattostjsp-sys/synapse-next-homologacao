@@ -1,5 +1,5 @@
 # ==========================================================
-# 🏛️ SynapseNext – Layout Institucional (versão final)
+# 🏛️ SynapseNext – Layout Institucional (versão definitiva)
 # Secretaria de Administração e Abastecimento (SAAB 5.0)
 # ==========================================================
 
@@ -10,10 +10,10 @@ import base64
 def _carregar_logo_base64(logo_filename: str = "tjsp_logo.png") -> str:
     """
     Converte o arquivo do logo em Base64 para exibição inline.
-    Caminho ajustado para synapse-next/assets/tjsp_logo.png
+    Caminho ajustado para /mount/src/synapse-next/assets/tjsp_logo.png
     """
-    # Caminho absoluto do repositório raiz (duas pastas acima de utils/)
-    root_dir = Path(__file__).resolve().parents[2]
+    # Caminho absoluto corrigido
+    root_dir = Path(__file__).resolve().parents[2] / "synapse-next"
     logo_path = root_dir / "assets" / logo_filename
 
     if not logo_path.exists():
@@ -34,7 +34,7 @@ def exibir_cabecalho_institucional(
     """
     logo_base64 = _carregar_logo_base64(logo_filename)
 
-    # CSS refinado para alinhamento e tipografia institucional
+    # CSS refinado e alinhado ao padrão institucional
     st.markdown("""
     <style>
     .cabecalho-tjsp {
@@ -67,13 +67,13 @@ def exibir_cabecalho_institucional(
         font-size: 0.94rem;
         font-weight: 500;
         color: #555;
-        margin: -6px 0 0 0; /* colado ao título */
+        margin: -6px 0 0 0;
         line-height: 1.1;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # Renderização do cabeçalho
+    # Renderização
     st.markdown(f"""
     <div class="cabecalho-tjsp">
         <img src="data:image/png;base64,{logo_base64}" alt="TJSP Logo">
