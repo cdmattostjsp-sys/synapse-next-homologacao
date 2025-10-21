@@ -19,8 +19,8 @@ try:
     from utils.ui_style import aplicar_estilo_institucional
     from utils.layout_institucional import exibir_cabecalho_institucional, exibir_rodape_institucional
     from utils.auditoria_pipeline import audit_event
-    from validators.edital_validator import validar_edital
-    from validators.edital_semantic_validator import validar_semantica_edital
+    from knowledge.validators.edital_validator import validar_edital
+    from knowledge.validators.edital_semantic_validator import validar_semantica_edital
 except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
