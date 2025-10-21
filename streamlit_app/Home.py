@@ -36,7 +36,7 @@ st.set_page_config(
 aplicar_estilo_institucional()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional ajustado
+# 🏛️ Cabeçalho institucional ajustado (microalinhamento)
 # ==========================================================
 logo_path = Path(__file__).resolve().parents[1] / "assets" / "tjsp_logo.png"
 
@@ -47,7 +47,7 @@ st.markdown("""
     align-items: center;
     justify-content: flex-start;
     gap: 18px;
-    margin-top: -6px;
+    margin-top: -4px;           /* leve ajuste para centralizar */
     margin-bottom: 1.4rem;
 }
 
@@ -60,7 +60,7 @@ st.markdown("""
     display: flex;
     flex-direction: column;
     justify-content: center;
-    margin-top: 4px;
+    margin-top: 8px;            /* ↓ aqui está o microajuste que desce o texto */
 }
 
 .cabecalho-texto h1 {
