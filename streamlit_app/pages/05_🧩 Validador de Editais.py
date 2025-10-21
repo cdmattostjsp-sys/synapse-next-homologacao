@@ -17,6 +17,9 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
+# Importa o cabeçalho institucional padronizado
+from utils.ui_style import exibir_cabecalho_institucional
+
 VALIDADOR_BASICO_OK = True
 try:
     from validators.edital_validator import validar_edital
@@ -184,7 +187,7 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_css_basico()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional
+# 🏛️ Cabeçalho institucional (padronizado)
 # ==========================================================
 exibir_cabecalho_institucional(
     "Validador de Editais – SAAB 5.0",
