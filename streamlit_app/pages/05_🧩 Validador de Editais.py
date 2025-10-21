@@ -184,7 +184,7 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_css_basico()
 
 # ==========================================================
-# 🎨 Cabeçalho institucional refinado (logo centralizado e visível)
+# 🎨 Cabeçalho Institucional Padrão (alinhado à esquerda)
 # ==========================================================
 from PIL import Image
 
@@ -193,29 +193,28 @@ logo_path = Path(__file__).resolve().parents[2] / "assets" / "tjsp_logo.png"
 if not logo_path.exists():
     logo_path = Path("assets/tjsp_logo.png")
 
-# Exibição centralizada do logo
-try:
-    logo = Image.open(logo_path)
-    col1, col2, col3 = st.columns([0.35, 0.3, 0.35])
-    with col2:
-        st.image(logo, width=120)
-except Exception as e:
-    st.warning(f"⚠️ Não foi possível carregar o logo institucional: {e}")
-
-# Título e subtítulo (institucional)
-st.markdown(
-    """
-    <div style="text-align:center; margin-top:-10px;">
-        <h1 style="font-size:30px; font-weight:700; margin-bottom:4px;">
-            Validador de Editais – SAAB 5.0
-        </h1>
-        <h3 style="color:#555; font-weight:normal; margin-top:0px; margin-bottom:20px;">
-            Secretaria de Administração e Abastecimento – Tribunal de Justiça de São Paulo
-        </h3>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Layout com colunas para alinhamento institucional
+col1, col2 = st.columns([0.15, 0.85])
+with col1:
+    try:
+        logo = Image.open(logo_path)
+        st.image(logo, width=95)
+    except Exception as e:
+        st.warning(f"⚠️ Não foi possível carregar o logo institucional: {e}")
+with col2:
+    st.markdown(
+        """
+        <div style="text-align:left; margin-top:0px;">
+            <h1 style="font-size:28px; font-weight:700; margin-bottom:2px;">
+                Validador de Editais – SAAB 5.0
+            </h1>
+            <h3 style="color:#555; font-weight:normal; margin-top:0px; margin-bottom:15px;">
+                Secretaria de Administração e Abastecimento – Tribunal de Justiça de São Paulo
+            </h3>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ==========================================================
 # 🔧 Entradas e Execução
