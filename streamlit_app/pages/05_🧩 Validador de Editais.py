@@ -184,7 +184,7 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_css_basico()
 
 # ==========================================================
-# 🎨 Cabeçalho Institucional Padrão (alinhado à esquerda)
+# 🎨 Cabeçalho Institucional Padrão (ajuste fino no logo)
 # ==========================================================
 from PIL import Image
 
@@ -198,13 +198,14 @@ col1, col2 = st.columns([0.15, 0.85])
 with col1:
     try:
         logo = Image.open(logo_path)
+        st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)  # ↓ margem superior ajustada
         st.image(logo, width=95)
     except Exception as e:
         st.warning(f"⚠️ Não foi possível carregar o logo institucional: {e}")
 with col2:
     st.markdown(
         """
-        <div style="text-align:left; margin-top:0px;">
+        <div style="text-align:left; margin-top:2px;">
             <h1 style="font-size:28px; font-weight:700; margin-bottom:2px;">
                 Validador de Editais – SAAB 5.0
             </h1>
