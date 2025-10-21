@@ -8,12 +8,15 @@ from pathlib import Path
 from datetime import datetime
 import streamlit as st
 
-# Ajuste de path para importações
+# ==========================================================
+# 🔧 Ajuste de path e imports institucionais
+# ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
+# 📦 Importa os utilitários originais
 try:
     from utils.next_pipeline import build_dfd_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
@@ -22,12 +25,34 @@ except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
-# Configuração da página
-st.set_page_config(page_title="SynapseNext – DFD", layout="wide")
+# 📦 Importa o layout institucional (novo)
+try:
+    from utils.ui_style import aplicar_estilo_institucional
+    from utils.layout_institucional import exibir_cabecalho_institucional, exibir_rodape_institucional
+except Exception:
+    aplicar_estilo_institucional = lambda: None
+    exibir_cabecalho_institucional = lambda *a, **kw: None
+    exibir_rodape_institucional = lambda: None
+
+# ==========================================================
+# ⚙️ Configuração da página
+# ==========================================================
+st.set_page_config(page_title="SynapseNext – DFD", layout="wide", page_icon="📄")
+aplicar_estilo_institucional()
+
+# ==========================================================
+# 🏛️ Cabeçalho institucional
+# ==========================================================
+exibir_cabecalho_institucional(
+    "DFD – Documento de Formalização da Demanda",
+    "Módulo de geração orientada, validação IA e auditoria institucional"
+)
+
+# ==========================================================
+# 📘 Conteúdo funcional original (sem alterações)
+# ==========================================================
 st.title("DFD — Documento de Formalização da Demanda")
 st.caption("Preenchimento institucional, validação IA e trilha de auditoria.")
-
-# Formulário de entrada
 st.divider()
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
@@ -110,3 +135,8 @@ if submitted:
         st.info(f"Arquivo salvo em: `exports/rascunhos/{docx_path.name}`")
 else:
     st.info("Preencha o formulário e clique em **Gerar rascunho do DFD**.")
+
+# ==========================================================
+# 📘 Rodapé institucional
+# ==========================================================
+exibir_rodape_institucional()
