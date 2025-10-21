@@ -1,5 +1,5 @@
 # ==========================================================
-# 📜 SynapseNext – Edital (Minuta Institucional)
+# 📜 SynapseNext – Minuta do Edital
 # Secretaria de Administração e Abastecimento (SAAB 5.0)
 # ==========================================================
 
@@ -29,15 +29,15 @@ except Exception as e:
 # ==========================================================
 # ⚙️ Configuração da página
 # ==========================================================
-st.set_page_config(page_title="SynapseNext – Edital", layout="wide", page_icon="📜")
+st.set_page_config(page_title="SynapseNext – Minuta do Edital", page_icon="📜", layout="wide")
 aplicar_estilo_institucional()
 
 # ==========================================================
 # 🏛️ Cabeçalho institucional
 # ==========================================================
 exibir_cabecalho_institucional(
-    "Edital – Minuta Institucional",
-    "Módulo para elaboração e validação da minuta do edital de licitação"
+    "Minuta do Edital",
+    "Módulo de elaboração, validação IA e exportação institucional"
 )
 
 # ==========================================================
@@ -62,7 +62,7 @@ with st.form("form_edital", clear_on_submit=False):
     submitted = st.form_submit_button("Gerar minuta do Edital")
 
 # ==========================================================
-# 🧾 Geração do rascunho e validação
+# 🧾 Geração e validação
 # ==========================================================
 if submitted:
     respostas = {
@@ -79,8 +79,8 @@ if submitted:
     }
 
     md = build_edital_markdown(respostas)
-    registrar_log("EDITAL", "gerar_minuta")
-    audit_event("EDITAL", "gerar_minuta", md, meta={"usuario": assinatura, "modalidade": modalidade})
+    registrar_log("MINUTA_EDITAL", "gerar_minuta")
+    audit_event("MINUTA_EDITAL", "gerar_minuta", md, meta={"usuario": assinatura, "modalidade": modalidade})
 
     st.success("✅ Minuta do edital gerada com sucesso!")
     st.divider()
@@ -93,7 +93,7 @@ if submitted:
     # ======================================================
     st.divider()
     st.subheader("3️⃣ Validação Semântica – IA TJSP")
-    with st.spinner("Executando validação semântica do edital..."):
+    with st.spinner("Executando validação semântica..."):
         resultado = run_semantic_validation(md)
 
     if "erro" in resultado and resultado["erro"]:
@@ -106,11 +106,11 @@ if submitted:
             for s in resultado["sugestoes"]:
                 st.markdown(f"- {s}")
 
-    registrar_log("EDITAL", "validacao_semantica")
-    audit_event("EDITAL", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
+    registrar_log("MINUTA_EDITAL", "validacao_semantica")
+    audit_event("MINUTA_EDITAL", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
 
     # ======================================================
-    # 📤 Exportação para DOCX
+    # 📤 Exportação DOCX
     # ======================================================
     st.divider()
     st.subheader("4️⃣ Exportação – `.docx`")
@@ -118,13 +118,13 @@ if submitted:
     base = Path(__file__).resolve().parents[2]
     rascunhos_dir = base / "exports" / "rascunhos"
     rascunhos_dir.mkdir(parents=True, exist_ok=True)
-    filename_base = f"EDITAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    filename_base = f"MINUTA_EDITAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     docx_path = rascunhos_dir / f"{filename_base}.docx"
 
     if st.button("📄 Exportar para .docx"):
         markdown_to_docx(md, str(docx_path))
-        registrar_log("EDITAL", "exportar_docx")
-        audit_event("EDITAL", "exportar_docx", md, meta={"arquivo": docx_path.name})
+        registrar_log("MINUTA_EDITAL", "exportar_docx")
+        audit_event("MINUTA_EDITAL", "exportar_docx", md, meta={"arquivo": docx_path.name})
 
         with open(docx_path, "rb") as f:
             data = f.read()
