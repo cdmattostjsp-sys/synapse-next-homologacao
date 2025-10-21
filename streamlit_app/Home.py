@@ -7,7 +7,6 @@
 import streamlit as st
 from pathlib import Path
 import sys
-import base64
 
 # ==========================================================
 # 🔧 Correção de caminho para permitir importações globais
@@ -17,9 +16,10 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 # ==========================================================
-# 📦 Importa o estilo institucional global
+# 📦 Importa estilos institucionais
 # ==========================================================
-from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
+from utils.ui_components import aplicar_estilo_global
+from utils.ui_style import rodape_institucional
 
 # ==========================================================
 # ⚙️ Configurações da Página
@@ -31,81 +31,28 @@ st.set_page_config(
 )
 
 # ==========================================================
-# 🎨 Aplicar estilo institucional global
+# 🎨 Aplicar estilo global padronizado
 # ==========================================================
-aplicar_estilo_institucional()
+aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional ajustado (microalinhamento)
+# 🏛️ Logo institucional fixo no menu lateral
 # ==========================================================
 logo_path = Path(__file__).resolve().parents[1] / "assets" / "tjsp_logo.png"
-
-st.markdown("""
-<style>
-.cabecalho-tjsp {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 18px;
-    margin-top: -4px;           /* leve ajuste para centralizar */
-    margin-bottom: 1.4rem;
-}
-
-.cabecalho-tjsp img {
-    height: 70px;
-    margin-top: 0px;
-}
-
-.cabecalho-texto {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    margin-top: 8px;            /* ↓ aqui está o microajuste que desce o texto */
-}
-
-.cabecalho-texto h1 {
-    font-size: 1.55rem;
-    font-weight: 700;
-    color: #2b2b2b;
-    margin: 0;
-    padding: 0;
-    line-height: 1.3;
-}
-
-.cabecalho-texto h2 {
-    font-size: 0.98rem;
-    font-weight: 500;
-    color: #555;
-    margin-top: 4px;
-}
-</style>
-""", unsafe_allow_html=True)
-
 if logo_path.exists():
-    with open(logo_path, "rb") as img_file:
-        logo_b64 = base64.b64encode(img_file.read()).decode("utf-8")
-
-    st.markdown(f"""
-    <div class="cabecalho-tjsp">
-        <img src="data:image/png;base64,{logo_b64}" alt="Logo TJSP">
-        <div class="cabecalho-texto">
-            <h1>SynapseNext – SAAB 5.0</h1>
-            <h2>Ambiente Institucional de Automação da Fase Interna de Licitação</h2>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div class="cabecalho-tjsp">
-        <div class="cabecalho-texto">
-            <h1>SynapseNext – SAAB 5.0</h1>
-            <h2>Ambiente Institucional de Automação da Fase Interna de Licitação</h2>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.sidebar.image(str(logo_path), use_column_width=True)
+st.sidebar.markdown("---")
 
 # ==========================================================
-# 🧭 Apresentação institucional (texto original mantido)
+# 🏛️ Cabeçalho (sem logo no corpo)
+# ==========================================================
+st.markdown("""
+<div class="titulo-principal">SynapseNext – SAAB 5.0</div>
+<div class="subtitulo">Ambiente Institucional de Automação da Fase Interna de Licitação</div>
+""", unsafe_allow_html=True)
+
+# ==========================================================
+# 🧭 Apresentação institucional
 # ==========================================================
 st.markdown("""
 O **SynapseNext** é um ecossistema digital desenvolvido pela **Secretaria de Administração e Abastecimento (SAAB)** do Tribunal de Justiça de São Paulo, 
@@ -119,7 +66,7 @@ Ele conecta módulos inteligentes e pipelines de governança que abrangem todo o
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # ==========================================================
-# 🧩 Funcionalidades principais
+# 🧩 Funcionalidades Principais
 # ==========================================================
 st.markdown("""
 ### 🌿 Funcionalidades Principais
