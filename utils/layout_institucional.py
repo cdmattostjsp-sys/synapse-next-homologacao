@@ -1,6 +1,6 @@
 # ==========================================================
-# 🏛️ SynapseNext – Layout Institucional (ajuste fino visual)
-# Secretaria de Administração e Abastecimento (SAAB 5.0)
+# 🏛️ SynapseNext – Layout Institucional (versão refinada)
+# Correção de overflow e corte do título
 # ==========================================================
 
 import streamlit as st
@@ -28,8 +28,8 @@ def exibir_cabecalho_institucional(
     logo_filename: str = "tjsp_logo.png"
 ):
     """
-    Exibe o cabeçalho institucional com logo TJSP embutido em Base64
-    e espaçamento ajustado milimetricamente.
+    Exibe o cabeçalho institucional com alinhamento refinado.
+    Evita corte superior e mantém estética TJSP.
     """
     logo_base64 = _carregar_logo_base64(logo_filename)
 
@@ -40,11 +40,11 @@ def exibir_cabecalho_institucional(
         align-items: center;
         justify-content: flex-start;
         gap: 14px;
-        margin-top: -2px; /* 🔽 Reduz 1–2mm o espaçamento superior */
-        margin-bottom: 0.5rem;
+        margin-top: 5px;      /* 🟢 Recuo suave: evita corte do título */
+        margin-bottom: 0.4rem;
     }
     .cabecalho-tjsp img {
-        height: 58px;
+        height: 56px;         /* ligeiramente menor para equilíbrio */
         margin-top: 0;
     }
     .cabecalho-texto {
@@ -54,20 +54,18 @@ def exibir_cabecalho_institucional(
         margin-top: 0;
     }
     .cabecalho-texto h1 {
-        font-size: 1.52rem;
+        font-size: 1.46rem;   /* 🔽 Reduzido levemente */
         font-weight: 700;
         color: #222;
         margin: 0;
-        line-height: 1.1;
+        line-height: 1.15;
         padding: 0;
-        position: relative;
-        top: 1px; /* 🔽 move o título ligeiramente para baixo */
     }
     .cabecalho-texto h2 {
-        font-size: 0.94rem;
+        font-size: 0.90rem;   /* 🔽 Subtítulo ajustado */
         font-weight: 500;
         color: #555;
-        margin: -6px 0 0 0;
+        margin: 2px 0 0 0;
         line-height: 1.1;
     }
     </style>
@@ -85,7 +83,7 @@ def exibir_cabecalho_institucional(
 
 
 def exibir_rodape_institucional():
-    """Exibe o rodapé institucional padrão."""
+    """Rodapé institucional padrão."""
     st.markdown("""
     <hr style="margin-top:2rem; margin-bottom:1rem;">
     <div style="text-align:center; font-size:0.85rem; color:#666;">
