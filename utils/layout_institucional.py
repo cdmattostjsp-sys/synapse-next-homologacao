@@ -1,5 +1,5 @@
 # ==========================================================
-# 🏛️ SynapseNext – Layout Institucional (versão definitiva)
+# 🏛️ SynapseNext – Layout Institucional (ajuste fino visual)
 # Secretaria de Administração e Abastecimento (SAAB 5.0)
 # ==========================================================
 
@@ -12,7 +12,6 @@ def _carregar_logo_base64(logo_filename: str = "tjsp_logo.png") -> str:
     Converte o arquivo do logo em Base64 para exibição inline.
     Caminho ajustado para /mount/src/synapse-next/assets/tjsp_logo.png
     """
-    # Caminho absoluto corrigido
     root_dir = Path(__file__).resolve().parents[2] / "synapse-next"
     logo_path = root_dir / "assets" / logo_filename
 
@@ -34,7 +33,6 @@ def exibir_cabecalho_institucional(
     """
     logo_base64 = _carregar_logo_base64(logo_filename)
 
-    # CSS refinado e alinhado ao padrão institucional
     st.markdown("""
     <style>
     .cabecalho-tjsp {
@@ -42,7 +40,7 @@ def exibir_cabecalho_institucional(
         align-items: center;
         justify-content: flex-start;
         gap: 14px;
-        margin-top: 0px;
+        margin-top: -2px; /* 🔽 Reduz 1–2mm o espaçamento superior */
         margin-bottom: 0.5rem;
     }
     .cabecalho-tjsp img {
@@ -62,6 +60,8 @@ def exibir_cabecalho_institucional(
         margin: 0;
         line-height: 1.1;
         padding: 0;
+        position: relative;
+        top: 1px; /* 🔽 move o título ligeiramente para baixo */
     }
     .cabecalho-texto h2 {
         font-size: 0.94rem;
@@ -73,7 +73,6 @@ def exibir_cabecalho_institucional(
     </style>
     """, unsafe_allow_html=True)
 
-    # Renderização
     st.markdown(f"""
     <div class="cabecalho-tjsp">
         <img src="data:image/png;base64,{logo_base64}" alt="TJSP Logo">
@@ -86,9 +85,7 @@ def exibir_cabecalho_institucional(
 
 
 def exibir_rodape_institucional():
-    """
-    Exibe o rodapé institucional padrão.
-    """
+    """Exibe o rodapé institucional padrão."""
     st.markdown("""
     <hr style="margin-top:2rem; margin-bottom:1rem;">
     <div style="text-align:center; font-size:0.85rem; color:#666;">
