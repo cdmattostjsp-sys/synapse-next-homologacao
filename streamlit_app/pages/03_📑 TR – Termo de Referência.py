@@ -1,6 +1,6 @@
 # ==========================================================
-# SynapseNext – TR (Termo de Referência)
-# Fase Brasília – Passo 10A (com integração Auditoria.IA)
+# 📑 SynapseNext – Termo de Referência (TR)
+# Secretaria de Administração e Abastecimento (SAAB 5.0)
 # ==========================================================
 
 import sys
@@ -8,7 +8,9 @@ from pathlib import Path
 from datetime import datetime
 import streamlit as st
 
-# Ajuste de path
+# ==========================================================
+# 🔧 Configuração de paths e imports
+# ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
@@ -18,30 +20,45 @@ try:
     from utils.next_pipeline import build_tr_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
     from utils.auditoria_pipeline import audit_event
+    from utils.layout_institucional import exibir_cabecalho_institucional, exibir_rodape_institucional
+    from utils.ui_style import aplicar_estilo_institucional
 except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
-# Configuração da página
-st.set_page_config(page_title="SynapseNext – TR", layout="wide")
-st.title("TR — Termo de Referência")
-st.caption("Elaboração institucional, validação IA e trilha de auditoria digital.")
+# ==========================================================
+# ⚙️ Configuração da página
+# ==========================================================
+st.set_page_config(page_title="SynapseNext – TR", layout="wide", page_icon="📑")
+aplicar_estilo_institucional()
 
-# Formulário
-st.divider()
+# ==========================================================
+# 🏛️ Cabeçalho institucional
+# ==========================================================
+exibir_cabecalho_institucional(
+    "TR – Termo de Referência",
+    "Módulo de elaboração, validação e exportação institucional"
+)
+
+# ==========================================================
+# 🧩 Formulário de entrada
+# ==========================================================
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
 with st.form("form_tr", clear_on_submit=False):
     objeto = st.text_area("Objeto da contratação")
     justificativa = st.text_area("Justificativa da contratação")
-    fundamentacao = st.text_area("Fundamentação legal")
-    descricao = st.text_area("Descrição detalhada do objeto")
-    obrigacoes = st.text_area("Obrigações das partes")
-    prazos = st.text_area("Prazos e condições")
-    criterios = st.text_area("Critérios de aceitação")
-    custos = st.text_area("Estimativa de custos")
+    fundamentacao = st.text_area("Fundamentação legal e normativa")
+    descricao = st.text_area("Descrição detalhada do objeto e metodologia de execução")
+    obrigacoes = st.text_area("Obrigações da Administração e do contratado")
+    prazos = st.text_area("Prazos e condições de execução")
+    criterios = st.text_area("Critérios de aceitação e avaliação")
+    custos = st.text_area("Estimativa de custos e fonte de recursos")
     submitted = st.form_submit_button("Gerar rascunho do TR")
 
+# ==========================================================
+# 🧾 Geração do rascunho e validação
+# ==========================================================
 if submitted:
     respostas = {
         "data": datetime.now().strftime("%d/%m/%Y"),
@@ -61,18 +78,20 @@ if submitted:
 
     st.success("✅ Rascunho gerado com sucesso!")
     st.divider()
+
     st.subheader("2️⃣ Rascunho – Preview")
     st.markdown(md)
 
-    # Validação IA
+    # ======================================================
+    # 🔍 Validação semântica
+    # ======================================================
     st.divider()
     st.subheader("3️⃣ Validação Semântica – IA TJSP")
-
     with st.spinner("Executando análise semântica..."):
         resultado = run_semantic_validation(md)
 
     if "erro" in resultado and resultado["erro"]:
-        st.error(f"⚠️ Erro ao validar: {resultado['erro']}")
+        st.error(f"⚠️ Erro na validação: {resultado['erro']}")
     else:
         st.markdown(f"**🪶 Resumo:** {resultado.get('resumo', '')}")
         st.markdown(f"**📊 Pontuação:** {resultado.get('pontuacao', 0)}%")
@@ -84,7 +103,9 @@ if submitted:
     registrar_log("TR", "validacao_semantica")
     audit_event("TR", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
 
-    # Exportação DOCX
+    # ======================================================
+    # 📤 Exportação para DOCX
+    # ======================================================
     st.divider()
     st.subheader("4️⃣ Exportação – `.docx`")
 
@@ -109,5 +130,11 @@ if submitted:
             use_container_width=True,
         )
         st.info(f"Arquivo salvo em: `exports/rascunhos/{docx_path.name}`")
+
 else:
-    st.info("Preencha o formulário e clique em **Gerar rascunho do TR**.")
+    st.info("Preencha o formulário e clique em **Gerar rascunho do TR** para iniciar o processo.")
+
+# ==========================================================
+# 📘 Rodapé institucional
+# ==========================================================
+exibir_rodape_institucional()
