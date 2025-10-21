@@ -13,9 +13,9 @@ from PIL import Image
 # ----------------------------------------------------------
 # Compatibilidade de import (acessa /utils e /knowledge no repo)
 # ----------------------------------------------------------
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.append(str(ROOT_DIR))
+root_dir = Path(__file__).resolve().parents[2]
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
 
 # Importa o estilo e rodapé institucional
 from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
@@ -35,31 +35,34 @@ st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide"
 aplicar_estilo_institucional()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional (restaurado e corrigido)
+# 🏛️ Cabeçalho institucional (ajuste fino, padrão aprovado)
 # ==========================================================
-col_logo, col_titulo = st.columns([0.12, 0.88])
-with col_logo:
-    logo_path = ROOT_DIR / "assets" / "tjsp_logo.png"
+try:
+    logo_path = root_dir / "assets" / "tjsp_logo.png"
     if logo_path.exists():
-        st.image(str(logo_path), width=90)
+        logo = Image.open(logo_path)
+        col_logo, col_titulo = st.columns([0.12, 0.88])
+        with col_logo:
+            st.image(logo, width=90)
+        with col_titulo:
+            st.markdown(
+                """
+                <div style="margin-top:-6px;">
+                    <h1 style="font-size:1.8rem; margin-bottom:0;">Validador de Editais – SAAB 5.0</h1>
+                    <p style="font-size:1.0rem; color:#555;">Verifique a conformidade do edital com a Lei nº 14.133/21 e normas do TJSP</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
     else:
         st.warning(f"⚠️ Logo não encontrado em: {logo_path}")
+except Exception as e:
+    st.error(f"Erro ao carregar o cabeçalho: {e}")
 
-with col_titulo:
-    st.markdown(
-        """
-        <div style="margin-top:-4px;">
-            <h1 style="font-size:1.7rem; margin-bottom:0;">Validador de Editais – SAAB 5.0</h1>
-            <p style="font-size:1.0rem; color:#555;">Verifique a conformidade do edital com a Lei nº 14.133/21 e normas do TJSP</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-st.markdown("---")
+st.divider()
 
 # ==========================================================
-# ⚙️ Interface de Validação (original estável)
+# ⚙️ Interface de Validação
 # ==========================================================
 st.markdown("### 📑 Cole abaixo o texto (ou parte) do edital para análise:")
 texto_edital = st.text_area("Conteúdo do edital", height=300, placeholder="Cole aqui o conteúdo do edital...")
@@ -154,6 +157,9 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
 
     return validar_fallback(tipo, texto)
 
+# ==========================================================
+# 🚀 Execução da Validação
+# ==========================================================
 if st.button("🚀 Executar Validação", use_container_width=True):
     with st.spinner("Executando validação, por favor aguarde..."):
         resultado = executar_validacao(tipo_contratacao, modo_validacao, texto_edital)
