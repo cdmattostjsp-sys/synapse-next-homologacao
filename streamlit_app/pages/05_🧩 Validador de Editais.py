@@ -22,55 +22,32 @@ if str(ROOT_DIR) not in sys.path:
 # Tenta usar os validadores "oficiais". Se não existirem, usa fallback.
 VALIDADOR_BASICO_OK = True
 try:
-    # Checklist (estrutural)
-    from validators.edital_validator import validar_edital  # seu validador legado/novo
-
-    # Semântica (IA/heurística)
-    from knowledge.validators.edital_semantic_validator import (
-        validar_semantica_edital,
-    )
+    from validators.edital_validator import validar_edital
+    from knowledge.validators.edital_semantic_validator import validar_semantica_edital
 except Exception:
     VALIDADOR_BASICO_OK = False
 
+# ----------------------------------------------------------
+# Import do cabeçalho institucional
+# ----------------------------------------------------------
+try:
+    from utils.ui_components import exibir_cabecalho_institucional
+except Exception:
+    exibir_cabecalho_institucional = None
 
 # ----------------------------------------------------------
 # Utilitários locais
 # ----------------------------------------------------------
-def carregar_logo() -> Image.Image | None:
-    """
-    Carrega o logotipo institucional (se existir).
-    Busca primeiro em ./assets; se não achar, busca na raiz do projeto.
-    """
-    candidatos = [
-        ROOT_DIR / "assets" / "tjsp_logo.png",
-        Path.cwd() / "assets" / "tjsp_logo.png",
-    ]
-    for c in candidatos:
-        if c.exists():
-            try:
-                return Image.open(c)
-            except Exception:
-                pass
-    return None
-
-
 def aplicar_css_basico():
-    """
-    Ajustes visuais padronizados: tipografia, espaçamento e botão acessível.
-    """
     st.markdown(
         """
         <style>
-        /* Títulos menores e com melhor espaçamento */
         h1, .stMarkdown h1 { font-size: 1.9rem !important; }
         h2, .stMarkdown h2 { font-size: 1.4rem !important; margin-top: 0.6rem !important; }
         h3, .stMarkdown h3 { font-size: 1.2rem !important; }
-
-        /* Espaços mais contidos */
         .block-container { padding-top: 1.4rem; }
         .stMarkdown p { line-height: 1.45; }
 
-        /* Botões acessíveis */
         .stButton > button {
             background-color: #003366 !important;
             color: #ffffff !important;
@@ -84,7 +61,6 @@ def aplicar_css_basico():
             color: #ffffff !important;
         }
 
-        /* Badges simples */
         .badge-ok {
             background: #e6f7ec; color: #1f7a3f; padding: 2px 8px; border-radius: 10px;
             border: 1px solid #bde5c8; font-size: 0.85rem;
@@ -104,14 +80,8 @@ def aplicar_css_basico():
 
 
 def validar_fallback(tipo: str, texto: str) -> dict:
-    """
-    Fallback de validação quando não há módulos oficiais.
-    Aplica algumas regras simples e retorna estrutura padronizada.
-    """
     achados = []
     texto_lower = texto.lower()
-
-    # Regras simples de demonstração
     regras = [
         ("Objeto definido", "objeto", "incluir uma seção clara sobre o objeto da contratação"),
         ("Prazo de execução", "prazo", "informar prazos de execução e vigência"),
@@ -128,11 +98,8 @@ def validar_fallback(tipo: str, texto: str) -> dict:
                     "recomendacao": f"Sugestão: {dica}.",
                 }
             )
-
-    # score simples: mais faltas → menor score
     score = max(0, 100 - len(achados) * 18)
     status = "Conforme" if score >= 80 else "Atenções" if score >= 60 else "Crítico"
-
     return {
         "tipo": tipo,
         "score": score,
@@ -143,14 +110,6 @@ def validar_fallback(tipo: str, texto: str) -> dict:
 
 
 def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
-    """
-    Executa a validação usando os módulos oficiais. Se não existirem, usa fallback.
-    Retorna um dicionário com:
-      - score (0-100)
-      - status ("Conforme", "Atenções", "Crítico")
-      - achados: lista de dicts {severidade, secao, mensagem, recomendacao}
-      - observacoes (string)
-    """
     if not texto.strip():
         return {
             "tipo": tipo,
@@ -168,19 +127,15 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
         }
 
     if VALIDADOR_BASICO_OK:
-        # Estrutural/checklist
         try:
             checklist = validar_edital(tipo_contratacao=tipo, conteudo=texto)
         except Exception:
             checklist = {"achados": []}
-
-        # Semântica
         try:
             semantica = validar_semantica_edital(tipo_contratacao=tipo, conteudo=texto, modo=modo)
         except Exception:
             semantica = {"achados": [], "score": 0}
 
-        # Unificação
         achados = []
         for it in (checklist.get("achados", []) + semantica.get("achados", [])):
             achados.append(
@@ -192,9 +147,10 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
                 }
             )
 
-        # Score/Status
         score_sem = semantica.get("score", 0)
-        penalidade = sum(10 if a["severidade"] == "Crítico" else 5 if a["severidade"] == "Médio" else 2 for a in achados)
+        penalidade = sum(
+            10 if a["severidade"] == "Crítico" else 5 if a["severidade"] == "Médio" else 2 for a in achados
+        )
         score = max(0, min(100, score_sem - penalidade // 2))
         status = "Conforme" if score >= 80 else "Atenções" if score >= 60 else "Crítico"
 
@@ -206,7 +162,6 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
             "observacoes": "Validação executada com módulos oficiais.",
         }
 
-    # Fallback
     return validar_fallback(tipo, texto)
 
 
@@ -219,10 +174,6 @@ def badge_status(status: str) -> str:
 
 
 def exportar_pdf_relatorio(dados: dict, texto_teste: str) -> Path:
-    """
-    Gera um relatório PDF simples com resultados.
-    Saída: exports/relatorios/validacao_edital_YYYYMMDD_HHMM.pdf
-    """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
@@ -240,24 +191,14 @@ def exportar_pdf_relatorio(dados: dict, texto_teste: str) -> Path:
     styles.add(ParagraphStyle(name="Body", fontSize=10, leading=13))
     story = []
 
-    logo = carregar_logo()
-    if logo:
-        buf = io.BytesIO()
-        logo.save(buf, format="PNG")
-        buf.seek(0)
-        story.append(RLImage(buf, width=120, height=60))
-        story.append(Spacer(1, 6))
-
     story.append(Paragraph("Relatório de Validação de Edital – SAAB 5.0", styles["H1"]))
     story.append(Paragraph(datetime.now().strftime("%d/%m/%Y %H:%M"), styles["Body"]))
     story.append(Spacer(1, 8))
-
     story.append(Paragraph(f"Tipo de contratação: <b>{dados['tipo'].title()}</b>", styles["Body"]))
     story.append(Paragraph(f"Score geral: <b>{dados['score']}</b>", styles["Body"]))
     story.append(Paragraph(f"Status: <b>{dados['status']}</b>", styles["Body"]))
     story.append(Spacer(1, 8))
 
-    # Tabela de achados
     if dados["achados"]:
         table_data = [["Severidade", "Seção", "Mensagem", "Recomendação"]]
         for a in dados["achados"]:
@@ -284,7 +225,6 @@ def exportar_pdf_relatorio(dados: dict, texto_teste: str) -> Path:
     story.append(Paragraph(dados.get("observacoes", "-"), styles["Body"]))
     story.append(Spacer(1, 8))
 
-    # Opcional: trecho do texto analisado
     if texto_teste.strip():
         story.append(Paragraph("Amostra do conteúdo analisado:", styles["H2"]))
         preview = texto_teste.strip()[:1200].replace("\n", "<br/>")
@@ -300,18 +240,14 @@ def exportar_pdf_relatorio(dados: dict, texto_teste: str) -> Path:
 st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide", page_icon="🧠")
 aplicar_css_basico()
 
-# Cabeçalho
-cols = st.columns([0.15, 0.85])
-with cols[0]:
-    logo = carregar_logo()
-    if logo:
-        st.image(logo, width=110)
-with cols[1]:
-    st.title("Validador de Editais – SAAB 5.0")
-    st.markdown(
-        "Verifique a conformidade do edital com a **Lei nº 14.133/21** e diretrizes do TJSP. "
-        "Cole abaixo o conteúdo (ou parte representativa) do edital e execute a validação."
+# Cabeçalho institucional unificado
+if exibir_cabecalho_institucional:
+    exibir_cabecalho_institucional(
+        "Validador de Editais – SAAB 5.0",
+        "Módulo de validação semântica, checklist e exportação institucional em PDF",
     )
+else:
+    st.title("Validador de Editais – SAAB 5.0")
 
 st.divider()
 
@@ -342,7 +278,6 @@ if executar:
     with st.spinner("Executando validação..."):
         resultados = executar_validacao(tipo=tipo.lower(), modo=modo.lower(), texto=texto)
 
-    # Painel de resultados
     st.subheader("📊 Resultados")
     c1, c2, c3 = st.columns([0.18, 0.18, 0.64])
     with c1:
@@ -352,7 +287,6 @@ if executar:
     with c3:
         st.caption(resultados.get("observacoes", ""))
 
-    # Achados
     if resultados["achados"]:
         st.markdown("**Achados:**")
         if modo.lower() == "resumo":
@@ -362,7 +296,6 @@ if executar:
             st.write(f"- Críticos: **{crit}**  |  Médios: **{med}**  |  Baixos: **{bai}**")
         else:
             import pandas as pd
-
             df = pd.DataFrame(resultados["achados"])
             st.dataframe(
                 df[["severidade", "secao", "mensagem", "recomendacao"]],
@@ -372,7 +305,6 @@ if executar:
     else:
         st.success("Nenhum achado relevante. Documento em conformidade.")
 
-    # Exportar PDF
     with col_pdf:
         gerar = st.button("🧾 Exportar relatório em PDF")
         if gerar:
@@ -386,8 +318,5 @@ if executar:
                 mime="application/pdf",
             )
 
-# Rodapé institucional
 st.markdown("---")
-st.caption(
-    "SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)"
-)
+st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
