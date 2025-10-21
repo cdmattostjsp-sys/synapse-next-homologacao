@@ -167,7 +167,8 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
             "observacoes": "Sem conteúdo.",
         }
 
-        if VALIDADOR_BASICO_OK:
+    # Caso os validadores oficiais estejam disponíveis:
+    if VALIDADOR_BASICO_OK:
         # Estrutural/checklist
         try:
             checklist = validar_edital(tipo_contratacao=tipo, conteudo=texto)
@@ -180,10 +181,9 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
         except Exception:
             semantica = {"achados": [], "score": 0}
 
-        # Unificação
+        # Unificação de achados
         achados = []
         for it in (checklist.get("achados", []) + semantica.get("achados", [])):
-            # Garantir chaves padronizadas
             achados.append(
                 {
                     "severidade": it.get("severidade", "Médio"),
@@ -193,9 +193,14 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
                 }
             )
 
-        # Score/Status
+        # Cálculo do score final
         score_sem = semantica.get("score", 0)
-        penalidade = sum(10 if a["severidade"] == "Crítico" else 5 if a["severidade"] == "Médio" else 2 for a in achados)
+        penalidade = sum(
+            10 if a["severidade"] == "Crítico"
+            else 5 if a["severidade"] == "Médio"
+            else 2
+            for a in achados
+        )
         score = max(0, min(100, score_sem - penalidade // 2))
         status = "Conforme" if score >= 80 else "Atenções" if score >= 60 else "Crítico"
 
@@ -207,7 +212,7 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
             "observacoes": "Validação executada com módulos oficiais.",
         }
 
-    # Fallback
+    # Fallback (caso os validadores oficiais não estejam disponíveis)
     return validar_fallback(tipo, texto)
 
 
