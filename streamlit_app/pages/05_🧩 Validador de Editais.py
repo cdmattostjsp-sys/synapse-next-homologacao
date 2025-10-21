@@ -1,4 +1,4 @@
-# streamlit_app/pages/Validador de Editais.py
+# streamlit_app/pages/05_🧩 Validador de Editais.py
 # ==========================================================
 # Validar Editais – SAAB 5.0 (TJSP)
 # Página com validação semântica + checklist e exportação PDF
@@ -167,10 +167,6 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
             "observacoes": "Sem conteúdo.",
         }
 
-    if VALIDOR := VALIDOR  # noqa
-    :
-        pass  # apenas para manter linters quietos :)
-
     if VALIDADOR_BASICO_OK:
         # Estrutural/checklist
         try:
@@ -187,7 +183,6 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
         # Unificação
         achados = []
         for it in (checklist.get("achados", []) + semantica.get("achados", [])):
-            # Garantir chaves padronizadas
             achados.append(
                 {
                     "severidade": it.get("severidade", "Médio"),
@@ -321,12 +316,18 @@ with cols[1]:
 st.divider()
 
 # Entradas
-tipo = st.selectbox("Selecione o tipo de contratação:", ["Serviços", "Materiais", "Obras", "TI & Software", "Consultorias"], index=0)
+tipo = st.selectbox(
+    "Selecione o tipo de contratação:",
+    ["Serviços", "Materiais", "Obras", "TI & Software", "Consultorias"],
+    index=0,
+)
 modo = st.radio("Modo de exibição dos resultados:", ["Resumo", "Detalhado"], horizontal=True, index=0)
 
 st.subheader("🖊️ Insira o conteúdo do edital para validação:")
 texto = st.text_area(
-    "Cole o conteúdo (ou parte) do edital", height=220, placeholder="Ex.: O presente edital tem por objeto ...",
+    "Cole o conteúdo (ou parte) do edital",
+    height=220,
+    placeholder="Ex.: O presente edital tem por objeto ...",
     label_visibility="collapsed",
 )
 
@@ -355,13 +356,10 @@ if executar:
     if resultados["achados"]:
         st.markdown("**Achados:**")
         if modo.lower() == "resumo":
-            # agrupar por severidade
             crit = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "crítico")
             med = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "médio")
             bai = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "baixo")
-            st.write(
-                f"- Críticos: **{crit}**  |  Médios: **{med}**  |  Baixos: **{bai}**"
-            )
+            st.write(f"- Críticos: **{crit}**  |  Médios: **{med}**  |  Baixos: **{bai}**")
         else:
             import pandas as pd
 
@@ -390,4 +388,6 @@ if executar:
 
 # Rodapé institucional
 st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+st.caption(
+    "SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)"
+)
