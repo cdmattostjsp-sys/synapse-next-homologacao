@@ -29,66 +29,53 @@ except Exception:
 
 
 # ----------------------------------------------------------
-# Utilitários locais
+# UI / Página
 # ----------------------------------------------------------
-def carregar_logo() -> Image.Image | None:
-    candidatos = [
-        ROOT_DIR / "assets" / "tjsp_logo.png",
-        Path.cwd() / "assets" / "tjsp_logo.png",
-    ]
-    for c in candidatos:
-        if c.exists():
-            try:
-                return Image.open(c)
-            except Exception:
-                pass
-    return None
+st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide", page_icon="🧩")
+aplicar_estilo_institucional()
 
+# ==========================================================
+# 🏛️ Cabeçalho institucional (restaurado e corrigido)
+# ==========================================================
+col_logo, col_titulo = st.columns([0.12, 0.88])
+with col_logo:
+    logo_path = ROOT_DIR / "assets" / "tjsp_logo.png"
+    if logo_path.exists():
+        st.image(str(logo_path), width=90)
+    else:
+        st.warning(f"⚠️ Logo não encontrado em: {logo_path}")
 
-def aplicar_css_basico():
+with col_titulo:
     st.markdown(
         """
-        <style>
-        h1, .stMarkdown h1 { font-size: 1.9rem !important; }
-        h2, .stMarkdown h2 { font-size: 1.4rem !important; margin-top: 0.6rem !important; }
-        h3, .stMarkdown h3 { font-size: 1.2rem !important; }
-        .block-container { padding-top: 1.4rem; }
-        .stMarkdown p { line-height: 1.45; }
-
-        .stButton > button {
-            background-color: #003366 !important;
-            color: #ffffff !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            padding: 0.55rem 1.25rem !important;
-            border: none !important;
-        }
-        .stButton > button:hover {
-            background-color: #002a55 !important;
-            color: #ffffff !important;
-        }
-
-        .badge-ok {
-            background: #e6f7ec; color: #1f7a3f; padding: 2px 8px; border-radius: 10px;
-            border: 1px solid #bde5c8; font-size: 0.85rem;
-        }
-        .badge-attn {
-            background: #fff7e6; color: #925d0b; padding: 2px 8px; border-radius: 10px;
-            border: 1px solid #ffe1ac; font-size: 0.85rem;
-        }
-        .badge-crit {
-            background: #fdecea; color: #a61b1b; padding: 2px 8px; border-radius: 10px;
-            border: 1px solid #f5b5b0; font-size: 0.85rem;
-        }
-        </style>
+        <div style="margin-top:-4px;">
+            <h1 style="font-size:1.7rem; margin-bottom:0;">Validador de Editais – SAAB 5.0</h1>
+            <p style="font-size:1.0rem; color:#555;">Verifique a conformidade do edital com a Lei nº 14.133/21 e normas do TJSP</p>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
+st.markdown("---")
 
-# ----------------------------------------------------------
-# Funções de validação
-# ----------------------------------------------------------
+# ==========================================================
+# ⚙️ Interface de Validação (original estável)
+# ==========================================================
+st.markdown("### 📑 Cole abaixo o texto (ou parte) do edital para análise:")
+texto_edital = st.text_area("Conteúdo do edital", height=300, placeholder="Cole aqui o conteúdo do edital...")
+
+col1, col2 = st.columns([0.5, 0.5])
+with col1:
+    tipo_contratacao = st.selectbox(
+        "Tipo de contratação:",
+        ["Serviços", "Aquisição de Materiais", "Obras e Engenharia", "Outros"],
+    )
+with col2:
+    modo_validacao = st.selectbox(
+        "Modo de validação:",
+        ["Completo (estrutural + semântico)", "Somente estrutural", "Somente semântico"],
+    )
+
 def validar_fallback(tipo: str, texto: str) -> dict:
     achados = []
     texto_lower = texto.lower()
@@ -108,7 +95,6 @@ def validar_fallback(tipo: str, texto: str) -> dict:
                     "recomendacao": f"Sugestão: {dica}.",
                 }
             )
-
     score = max(0, 100 - len(achados) * 18)
     status = "Conforme" if score >= 80 else "Atenções" if score >= 60 else "Crítico"
     return {
@@ -118,7 +104,6 @@ def validar_fallback(tipo: str, texto: str) -> dict:
         "achados": achados,
         "observacoes": "Validação básica aplicada (módulos oficiais indisponíveis).",
     }
-
 
 def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
     if not texto.strip():
@@ -169,57 +154,6 @@ def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
 
     return validar_fallback(tipo, texto)
 
-
-# ----------------------------------------------------------
-# UI / Página
-# ----------------------------------------------------------
-st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide", page_icon="🧩")
-aplicar_css_basico()
-
-# ==========================================================
-# 🏛️ Cabeçalho institucional (padrão aprovado)
-# ==========================================================
-aplicar_estilo_institucional()
-
-col_logo, col_titulo = st.columns([0.12, 0.88])
-with col_logo:
-    logo_path = ROOT_DIR / "assets" / "tjsp_logo.png"
-    if logo_path.exists():
-        st.image(str(logo_path), width=90)
-    else:
-        st.warning(f"⚠️ Logo não encontrado em: {logo_path}")
-
-with col_titulo:
-    st.markdown(
-        """
-        <div style="margin-top:-12px;">
-            <h1 style="font-size:1.9rem; margin-bottom:0;">Validador de Editais – SAAB 5.0</h1>
-            <p style="font-size:1.05rem; color:#555;">Verifique a conformidade do edital com a Lei nº 14.133/21 e normas do TJSP</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-st.markdown("---")
-
-# ==========================================================
-# ⚙️ Interface de Validação
-# ==========================================================
-st.markdown("### 📑 Cole abaixo o texto (ou parte) do edital para análise:")
-texto_edital = st.text_area("Conteúdo do edital", height=300, placeholder="Cole aqui o conteúdo do edital...")
-
-col1, col2 = st.columns([0.5, 0.5])
-with col1:
-    tipo_contratacao = st.selectbox(
-        "Tipo de contratação:",
-        ["Serviços", "Aquisição de Materiais", "Obras e Engenharia", "Outros"],
-    )
-with col2:
-    modo_validacao = st.selectbox(
-        "Modo de validação:",
-        ["Completo (estrutural + semântico)", "Somente estrutural", "Somente semântico"],
-    )
-
 if st.button("🚀 Executar Validação", use_container_width=True):
     with st.spinner("Executando validação, por favor aguarde..."):
         resultado = executar_validacao(tipo_contratacao, modo_validacao, texto_edital)
@@ -239,18 +173,11 @@ if st.button("🚀 Executar Validação", use_container_width=True):
     st.markdown("#### 🧾 Detalhamento dos Achados")
     if resultado["achados"]:
         for a in resultado["achados"]:
-            cor = (
-                "badge-crit" if a["severidade"] == "Crítico"
-                else "badge-attn" if a["severidade"] == "Médio"
-                else "badge-ok"
-            )
             st.markdown(
-                f"<div class='{cor}'>"
-                f"<b>{a['severidade']}</b> – {a['secao']}<br>"
-                f"{a['mensagem']}<br>"
-                f"<i>{a['recomendacao']}</i>"
-                "</div><br>",
-                unsafe_allow_html=True,
+                f"**{a['severidade']} – {a['secao']}**  \n"
+                f"{a['mensagem']}  \n"
+                f"💡 {a['recomendacao']}  \n"
+                "---"
             )
     else:
         st.info("Nenhum problema identificado nas validações aplicadas.")
