@@ -1,6 +1,6 @@
 # ==========================================================
 # 📜 SynapseNext – Minuta do Edital
-# Secretaria de Administração e Abastecimento (SAAB 5.0)
+# Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
 import sys
@@ -9,41 +9,53 @@ from datetime import datetime
 import streamlit as st
 
 # ==========================================================
-# 🔧 Configuração de paths e imports
+# 🔧 Ajuste de path e imports institucionais
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
+# 📦 Importa módulos funcionais
 try:
     from utils.next_pipeline import build_edital_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
     from utils.auditoria_pipeline import audit_event
-    from utils.layout_institucional import exibir_cabecalho_institucional, exibir_rodape_institucional
-    from utils.ui_style import aplicar_estilo_institucional
 except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
+# 📦 Importa novo estilo institucional unificado
+try:
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+except Exception:
+    st.warning("⚠️ Módulo ui_components não encontrado. O estilo não será aplicado.")
+    aplicar_estilo_global = lambda: None
+    exibir_cabecalho_padrao = lambda *a, **kw: None
+
 # ==========================================================
 # ⚙️ Configuração da página
 # ==========================================================
-st.set_page_config(page_title="SynapseNext – Minuta do Edital", page_icon="📜", layout="wide")
-aplicar_estilo_institucional()
+st.set_page_config(
+    page_title="Edital – Minuta do Edital",
+    layout="wide",
+    page_icon="📜"
+)
+aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional
+# 🏛️ Cabeçalho institucional padronizado
 # ==========================================================
-exibir_cabecalho_institucional(
-    "Minuta do Edital",
-    "Módulo de elaboração, validação IA e exportação institucional"
+exibir_cabecalho_padrao(
+    "Edital – Minuta do Edital",
+    "Módulo de padronização e conferência institucional"
 )
+st.divider()
 
 # ==========================================================
 # 🧩 Formulário de entrada
 # ==========================================================
-st.subheader("1️⃣ Entrada – Formulário Institucional")
+st.subheader("1️⃣ Entrada – Formulário institucional")
 
 with st.form("form_edital", clear_on_submit=False):
     modalidade = st.selectbox(
@@ -62,7 +74,7 @@ with st.form("form_edital", clear_on_submit=False):
     submitted = st.form_submit_button("Gerar minuta do Edital")
 
 # ==========================================================
-# 🧾 Geração e validação
+# 🧾 Geração da minuta e validação IA
 # ==========================================================
 if submitted:
     respostas = {
@@ -79,10 +91,10 @@ if submitted:
     }
 
     md = build_edital_markdown(respostas)
-    registrar_log("MINUTA_EDITAL", "gerar_minuta")
-    audit_event("MINUTA_EDITAL", "gerar_minuta", md, meta={"usuario": assinatura, "modalidade": modalidade})
+    registrar_log("EDITAL", "gerar_minuta")
+    audit_event("EDITAL", "gerar_minuta", md, meta={"usuario": assinatura, "modalidade": modalidade})
 
-    st.success("✅ Minuta do edital gerada com sucesso!")
+    st.success("✅ Minuta do Edital gerada com sucesso!")
     st.divider()
 
     st.subheader("2️⃣ Minuta – Pré-visualização")
@@ -106,8 +118,8 @@ if submitted:
             for s in resultado["sugestoes"]:
                 st.markdown(f"- {s}")
 
-    registrar_log("MINUTA_EDITAL", "validacao_semantica")
-    audit_event("MINUTA_EDITAL", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
+    registrar_log("EDITAL", "validacao_semantica")
+    audit_event("EDITAL", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
 
     # ======================================================
     # 📤 Exportação DOCX
@@ -118,13 +130,13 @@ if submitted:
     base = Path(__file__).resolve().parents[2]
     rascunhos_dir = base / "exports" / "rascunhos"
     rascunhos_dir.mkdir(parents=True, exist_ok=True)
-    filename_base = f"MINUTA_EDITAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    filename_base = f"EDITAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     docx_path = rascunhos_dir / f"{filename_base}.docx"
 
     if st.button("📄 Exportar para .docx"):
         markdown_to_docx(md, str(docx_path))
-        registrar_log("MINUTA_EDITAL", "exportar_docx")
-        audit_event("MINUTA_EDITAL", "exportar_docx", md, meta={"arquivo": docx_path.name})
+        registrar_log("EDITAL", "exportar_docx")
+        audit_event("EDITAL", "exportar_docx", md, meta={"arquivo": docx_path.name})
 
         with open(docx_path, "rb") as f:
             data = f.read()
@@ -141,6 +153,7 @@ else:
     st.info("Preencha o formulário e clique em **Gerar minuta do Edital** para iniciar o processo.")
 
 # ==========================================================
-# 📘 Rodapé institucional
+# 📘 Rodapé institucional simplificado
 # ==========================================================
-exibir_rodape_institucional()
+st.markdown("---")
+st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
