@@ -1,124 +1,72 @@
 import streamlit as st
-import os
-import base64
-import tempfile
+from PyPDF2 import PdfReader
 import docx
-import fitz  # PyMuPDF
-import re
 import json
-from pathlib import Path
-from openai import OpenAI
+import tempfile
+from utils.integration_insumos import process_insumo_text
 
-# ==========================================================
-# ⚙️ Configuração inicial
-# ==========================================================
 st.set_page_config(page_title="🔧 Insumos", layout="wide")
-st.title("🔧 Insumos – Central de Documentos Base")
-st.caption("Upload de documentos de apoio e extração semântica automática para artefatos institucionais.")
 
-# ==========================================================
-# 📦 Conexão com OpenAI
-# ==========================================================
-client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+st.title("🔧 Gestão de Insumos para Artefatos")
+st.caption("Envie documentos base (DFD, ETP, TR, etc.) para pré-processamento e integração automática")
 
-# ==========================================================
-# 📂 Funções utilitárias
-# ==========================================================
-def extract_text_from_docx(file):
-    doc = docx.Document(file)
-    return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
-
-def extract_text_from_pdf(file):
-    text = ""
-    with fitz.open(file) as pdf:
-        for page in pdf:
-            text += page.get_text()
-    return text
-
-def extract_sections(text):
-    """
-    Divide o texto em seções numeradas (1. Título ... 2. Próximo título ...)
-    Captura multilinhas até o próximo número.
-    """
-    sections = re.split(r"\n\s*\d+\.\s*(?=[A-ZÁÉÍÓÚ])", text)
-    result = {}
-    for sec in sections:
-        if not sec.strip():
-            continue
-        header_match = re.match(r"([A-Za-zÁÉÍÓÚâêôçãõ\s\-]+)\n", sec)
-        if header_match:
-            title = header_match.group(1).strip()
-            content = sec[len(title):].strip()
-            result[title] = content
-    return result
-
-def analyze_with_ai(text):
-    prompt = f"""
-Você é um analista técnico encarregado de extrair informações institucionais de um Documento de Formalização da Demanda (DFD).
-Retorne um JSON com os seguintes campos se forem encontrados:
-
-- unidade
-- responsavel
-- objeto
-- justificativa
-- quantidade
-- urgencia
-- riscos
-- alinhamento
-
-Texto de referência:
-{text[:7000]}
-"""
-    response = client.chat.completions.create(
-        model=st.secrets["openai"]["model"],
-        messages=[{"role": "system", "content": "Você é um extrator de informações técnicas."},
-                  {"role": "user", "content": prompt}]
-    )
+# Funções utilitárias
+def extract_text_from_docx(file_path: str) -> str:
     try:
-        data = json.loads(response.choices[0].message.content)
+        doc = docx.Document(file_path)
+        return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
     except Exception:
-        data = {"resposta_bruta": response.choices[0].message.content}
-    return data
+        return ""
 
-# ==========================================================
-# 🧾 Upload e processamento
-# ==========================================================
-with st.form("upload_form"):
-    artefato = st.selectbox("Selecione o artefato de destino", ["DFD", "TR", "Edital", "Contrato"])
-    uploaded_file = st.file_uploader("Envie um documento (.docx ou .pdf)", type=["docx", "pdf"])
-    descricao = st.text_input("Descrição do arquivo")
-    anotante = st.text_input("Nome do responsável pelo envio")
-    submitted = st.form_submit_button("📤 Enviar e processar")
+def extract_text_from_pdf(file_path: str) -> str:
+    """Lê PDFs com PyPDF2 (já incluído no requirements.txt)"""
+    try:
+        text = []
+        with open(file_path, "rb") as f:
+            reader = PdfReader(f)
+            for page in reader.pages:
+                text.append(page.extract_text() or "")
+        return "\n".join(text)
+    except Exception:
+        return ""
 
-if submitted and uploaded_file:
-    with st.spinner("Processando o documento..."):
-        suffix = Path(uploaded_file.name).suffix.lower()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(uploaded_file.read())
-            tmp_path = tmp.name
+# Interface principal
+st.subheader("📤 Upload de Documento")
+st.markdown("Selecione o tipo de artefato e envie o documento correspondente.")
 
-        text = extract_text_from_docx(tmp_path) if suffix == ".docx" else extract_text_from_pdf(tmp_path)
-        sections = extract_sections(text)
-        ai_result = analyze_with_ai(text)
+col1, col2, col3 = st.columns(3)
+artefato = col1.selectbox("Tipo de artefato", ["DFD", "ETP", "TR", "Edital", "Contrato"])
+descricao = col2.text_input("Descrição do arquivo (opcional)")
+autor = col3.text_input("Responsável pelo envio", value="")
 
-        st.session_state["last_insumo"] = {
-            "artefato": artefato,
-            "nome": uploaded_file.name,
-            "descricao": descricao,
-            "anotante": anotante,
-            "conteudo": text,
-            "secoes": sections,
-            "campos_ai": ai_result,
-        }
+uploaded_file = st.file_uploader("Envie o arquivo (.docx ou .pdf)", type=["docx", "pdf"])
 
-        st.success(f"Insumo '{uploaded_file.name}' registrado e processado para o artefato {artefato}.")
-        st.info("📎 O documento estará disponível automaticamente ao abrir a página do artefato correspondente.")
+if uploaded_file:
+    suffix = uploaded_file.name.split(".")[-1].lower()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
+        tmp.write(uploaded_file.read())
+        tmp_path = tmp.name
 
+    text = extract_text_from_docx(tmp_path) if suffix == "docx" else extract_text_from_pdf(tmp_path)
+    campos_ai = process_insumo_text(text, artefato)
+
+    # Armazenamento em sessão
+    st.session_state["last_insumo"] = {
+        "nome": uploaded_file.name,
+        "artefato": artefato,
+        "descricao": descricao,
+        "autor": autor,
+        "conteudo": text,
+        "campos_ai": campos_ai,
+    }
+
+    st.success(f"✅ Insumo '{uploaded_file.name}' registrado e processado para o artefato **{artefato}**.")
+    st.json(campos_ai)
+    st.info("O documento estará automaticamente disponível ao abrir a página do artefato correspondente.")
+
+# Exibição do último insumo ativo
 if "last_insumo" in st.session_state:
     insumo = st.session_state["last_insumo"]
     st.divider()
-    st.subheader("📊 Resultado do processamento")
-    st.json(insumo["campos_ai"])
-    st.write("🗂️ Último insumo ativo:", f"{insumo['nome']} – artefato {insumo['artefato']}")
-    with st.expander("Prévia do conteúdo legível"):
-        st.text(insumo["conteudo"][:2000])
+    st.caption(f"🗂️ Último insumo ativo: {insumo['nome']} – artefato {insumo['artefato']}")
+    st.text_area("Prévia do conteúdo legível", insumo["conteudo"][:2000], height=200)
