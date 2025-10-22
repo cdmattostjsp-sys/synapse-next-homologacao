@@ -1,20 +1,15 @@
-# ==========================================================
-# 🔧 Insumos.py — Upload e Integração de Artefatos
-# SynapseNext – Secretaria de Administração e Abastecimento
-# ==========================================================
-
-import sys, os
-from pathlib import Path
-
-# 🔍 Garante que a pasta utils seja encontrada mesmo fora de /pages
-base_path = Path(__file__).resolve().parents[1]
-sys.path.append(str(base_path / "utils"))
-
 import streamlit as st
-from integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 import docx2txt
+
+# ✅ imports agora pelo pacote utils
+from utils.integration_insumos import (
+    salvar_insumo,
+    listar_insumos,
+    process_insumo_text,
+)
 
 st.set_page_config(page_title="🔧 Insumos", layout="wide")
 
@@ -70,7 +65,7 @@ if arquivo and st.button("📤 Enviar insumo"):
             if arquivo.name.lower().endswith(".pdf"):
                 import fitz  # PyMuPDF
                 pdf = fitz.open(stream=arquivo.read(), filetype="pdf")
-                texto_extraido = "".join([page.get_text() for page in pdf])
+                texto_extraido = "".join(page.get_text() for page in pdf)
             elif arquivo.name.lower().endswith(".docx"):
                 arquivo.seek(0)
                 texto_extraido = docx2txt.process(BytesIO(arquivo.read()))
@@ -82,13 +77,31 @@ if arquivo and st.button("📤 Enviar insumo"):
         # ==========================================================
         # 🤖 Processamento semântico com IA
         # ==========================================================
+        campos_ai = {}
         if texto_extraido.strip():
             st.info("IA processando o insumo e identificando campos relevantes...")
             dados_inferidos = process_insumo_text(texto_extraido, artefato)
             st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
             st.json(dados_inferidos)
+            # guarda só dict plausível como "campos_ai"
+            if isinstance(dados_inferidos, dict):
+                campos_ai = dados_inferidos
         else:
             st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
+
+        # ==========================================================
+        # 🧠 Persistência para páginas seguintes (DFD/TR)
+        # ==========================================================
+        st.session_state["last_insumo"] = {
+            "nome": arquivo.name,
+            "artefato": artefato,
+            "conteudo": (texto_extraido or "")[:100000],  # evita gigantismo
+            "campos_ai": campos_ai,
+            "usuario": usuario,
+            "descricao": descricao,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        st.info("📎 Insumo ativo armazenado na sessão e disponível para o DFD/TR.")
 
 # ==========================================================
 # 🗂️ Histórico de uploads
