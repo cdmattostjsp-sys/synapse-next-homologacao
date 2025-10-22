@@ -1,13 +1,13 @@
 import os
-import json
 import fitz  # PyMuPDF
 import docx2txt
 import streamlit as st
 from openai import OpenAI
 
-# =========================================================
-# 🔐 Função de inicialização segura do cliente OpenAI
-# =========================================================
+
+# ==========================================================
+# 🧠 Função de inicialização híbrida do cliente OpenAI
+# ==========================================================
 def get_openai_client():
     """
     Inicializa o cliente OpenAI de forma compatível com múltiplos formatos de secrets.
@@ -30,159 +30,128 @@ def get_openai_client():
         if isinstance(secrets.get("openai"), dict)
         else None
     )
-    model = model or secrets.get("openai.model") or "gpt-4o"
+    model = model or secrets.get("openai.model") or "gpt-4o-mini"
 
     if not api_key:
-        raise ValueError("⚠️ A chave OpenAI não foi encontrada em st.secrets.")
-
-    client = OpenAI(api_key=api_key)
-    return client, model
-
-
-# =========================================================
-# 📥 Funções auxiliares de upload e listagem
-# =========================================================
-def salvar_insumo(arquivo, pasta_destino="uploads"):
-    """
-    Salva o arquivo enviado pelo usuário na pasta de uploads.
-    """
-    os.makedirs(pasta_destino, exist_ok=True)
-    caminho = os.path.join(pasta_destino, arquivo.name)
-    with open(caminho, "wb") as f:
-        f.write(arquivo.getbuffer())
-    return caminho
-
-
-def listar_insumos(pasta_destino="uploads"):
-    """
-    Lista os arquivos de insumos salvos localmente.
-    """
-    if not os.path.exists(pasta_destino):
-        return []
-    return [f for f in os.listdir(pasta_destino) if not f.startswith(".")]
-
-
-# =========================================================
-# 📄 Extração de texto
-# =========================================================
-def extrair_texto(caminho_arquivo):
-    """
-    Lê e extrai texto de arquivos PDF, DOCX ou TXT.
-    """
-    ext = os.path.splitext(caminho_arquivo)[1].lower()
-    texto = ""
-
-    if ext == ".pdf":
-        with fitz.open(caminho_arquivo) as pdf:
-            for pagina in pdf:
-                texto += pagina.get_text("text") + "\n"
-    elif ext == ".docx":
-        texto = docx2txt.process(caminho_arquivo)
-    elif ext == ".txt":
-        with open(caminho_arquivo, "r", encoding="utf-8") as f:
-            texto = f.read()
-    else:
-        raise ValueError("Formato de arquivo não suportado. Use PDF, DOCX ou TXT.")
-
-    return texto.strip()
-
-
-# =========================================================
-# 🧠 Processamento via IA
-# =========================================================
-def process_insumo_text(conteudo_texto):
-    """
-    Envia o conteúdo do insumo para a IA e retorna campos estruturados (campos_ai).
-    Se a IA devolver texto natural, faz parsing heurístico.
-    """
-    client, model = get_openai_client()
-
-    prompt = f"""
-    Extraia do texto abaixo as informações necessárias para o preenchimento
-    do Documento de Formalização da Demanda (DFD) no formato JSON,
-    com as chaves:
-    unidade, responsavel, objeto, justificativa, quantidade, urgencia, riscos, alinhamento.
-    
-    Retorne SOMENTE o JSON, sem explicações adicionais.
-
-    Texto:
-    {conteudo_texto[:7000]}
-    """
+        st.warning("⚠️ A chave OpenAI não foi encontrada. Verifique o painel de Secrets.")
+        return None, model
 
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um assistente técnico especializado em gestão pública e contratação governamental."
-                },
-                {"role": "user", "content": prompt}
-            ],
-            # GPT-5 não aceita temperature ≠ 1
-            **({"temperature": 0.2} if not model.startswith("gpt-5") else {})
-        )
+        client = OpenAI(api_key=api_key)
+        return client, model
+    except Exception as e:
+        st.error(f"Erro ao inicializar o cliente OpenAI: {e}")
+        return None, model
 
-        content = response.choices[0].message.content.strip()
 
-        # tenta decodificar o retorno da IA como JSON
-        try:
-            campos = json.loads(content)
-        except json.JSONDecodeError:
-            # fallback simples: extrai pares "chave: valor" do texto
-            campos = {}
-            for line in content.splitlines():
-                if ":" in line:
-                    k, v = line.split(":", 1)
-                    campos[k.strip().lower()] = v.strip()
+# ==========================================================
+# 📂 Função: salvar insumo enviado
+# ==========================================================
+def salvar_insumo(file, artefato):
+    """Salva o arquivo enviado e retorna o caminho."""
+    if not file:
+        return None
 
-        # normaliza estrutura esperada
-        for campo in [
-            "unidade",
-            "responsavel",
-            "objeto",
-            "justificativa",
-            "quantidade",
-            "urgencia",
-            "riscos",
-            "alinhamento",
-        ]:
-            campos.setdefault(campo, "")
+    upload_dir = f"./uploads/{artefato}"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, file.name)
 
-        return campos
+    with open(file_path, "wb") as f:
+        f.write(file.getbuffer())
+
+    return file_path
+
+
+# ==========================================================
+# 📄 Função: extrair texto de documentos
+# ==========================================================
+def extrair_texto(caminho_arquivo):
+    """Lê e extrai texto de PDF, DOCX ou TXT."""
+    try:
+        if caminho_arquivo.endswith(".pdf"):
+            texto = ""
+            with fitz.open(caminho_arquivo) as doc:
+                for pagina in doc:
+                    texto += pagina.get_text()
+            return texto
+
+        elif caminho_arquivo.endswith(".docx"):
+            return docx2txt.process(caminho_arquivo)
+
+        elif caminho_arquivo.endswith(".txt"):
+            with open(caminho_arquivo, "r", encoding="utf-8") as f:
+                return f.read()
+
+        else:
+            return "Formato de arquivo não suportado."
 
     except Exception as e:
+        return f"Erro ao extrair texto: {e}"
+
+
+# ==========================================================
+# 🤖 Função: processar insumo via IA
+# ==========================================================
+def process_insumo_text(texto):
+    """Analisa o texto do insumo via IA e retorna campos estruturados."""
+    client, model = get_openai_client()
+
+    if not client:
         return {
-            "erro": f"Falha na chamada à IA: {e}",
+            "erro": "⚠️ A chave OpenAI não foi encontrada ou é inválida.",
             "campos_ai": {},
             "observacao": "Upload e histórico continuam funcionando normalmente.",
         }
 
-
-# =========================================================
-# 🧭 Função principal de processamento de insumo
-# =========================================================
-def processar_insumo(caminho_arquivo):
-    """
-    Orquestra a leitura, extração e inferência de dados via IA.
-    """
     try:
-        texto = extrair_texto(caminho_arquivo)
-        campos_ai = process_insumo_text(texto)
+        prompt = f"""
+        Você é um assistente técnico do Tribunal de Justiça de São Paulo.
+        Extraia do texto abaixo as informações relevantes para preencher um Documento de Formalização da Demanda (DFD).
+        Retorne um JSON estruturado com os seguintes campos:
+        {{
+            "unidade_solicitante": "",
+            "responsavel": "",
+            "objeto": "",
+            "justificativa": "",
+            "quantidade": "",
+            "urgencia": "",
+            "riscos": "",
+            "alinhamento_planejamento": ""
+        }}
+        Texto-base:
+        {texto}
+        """
 
-        resultado = {
-            "arquivo": os.path.basename(caminho_arquivo),
-            "texto_extraido": texto[:4000] + ("..." if len(texto) > 4000 else ""),
-            "campos_ai": campos_ai,
-        }
+        resposta = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Você é um assistente que organiza informações de contratações públicas."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+        )
 
-        # salva no session_state
-        st.session_state["last_insumo"] = resultado
-        return resultado
+        conteudo = resposta.choices[0].message.content.strip()
+        return {"campos_ai": conteudo, "erro": None}
 
     except Exception as e:
         return {
-            "erro": f"❌ Erro no processamento do insumo: {e}",
+            "erro": f"Erro ao processar o texto via IA: {e}",
             "campos_ai": {},
-            "observacao": "Verifique o formato do arquivo e tente novamente.",
+            "observacao": "Verifique se há créditos disponíveis na conta OpenAI.",
         }
+
+
+# ==========================================================
+# 📋 Função: listar insumos existentes
+# ==========================================================
+def listar_insumos():
+    """Lista arquivos de insumos já enviados."""
+    uploads_dir = "./uploads"
+    if not os.path.exists(uploads_dir):
+        return []
+    arquivos = []
+    for root, _, files in os.walk(uploads_dir):
+        for file in files:
+            arquivos.append(os.path.join(root, file))
+    return arquivos
