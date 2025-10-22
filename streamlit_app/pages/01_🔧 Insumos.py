@@ -76,7 +76,10 @@ if arquivo and st.button("📤 Enviar insumo"):
         # ==========================================================
         # 💾 Registro do upload (corrigido)
         # ==========================================================
-        resultado = {"mensagem": f"Insumo '{arquivo.name}' salvo com sucesso em {salvar_insumo(arquivo)}"}
+        resultado = {
+            "mensagem": f"Insumo '{arquivo.name}' salvo com sucesso em {salvar_insumo(arquivo, 'Insumos')}"
+        }
+
         st.success(resultado["mensagem"])
 
         # ==========================================================
