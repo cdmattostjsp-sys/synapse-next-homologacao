@@ -74,9 +74,9 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT, etc.)", type=["
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
         # ==========================================================
-        # 💾 Registro do upload
+        # 💾 Registro do upload (corrigido)
         # ==========================================================
-       resultado = {"mensagem": f"Insumo '{arquivo.name}' salvo com sucesso em {salvar_insumo(arquivo)}"}
+        resultado = {"mensagem": f"Insumo '{arquivo.name}' salvo com sucesso em {salvar_insumo(arquivo)}"}
         st.success(resultado["mensagem"])
 
         # ==========================================================
@@ -103,7 +103,7 @@ if arquivo and st.button("📤 Enviar insumo"):
         if texto_extraido.strip():
             st.info("IA processando o insumo e identificando campos relevantes...")
             try:
-                dados_inferidos = process_insumo_text(texto_extraido, artefato)
+                dados_inferidos = process_insumo_text(texto_extraido)
                 st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
                 st.json(dados_inferidos)
                 if isinstance(dados_inferidos, dict):
