@@ -1,11 +1,25 @@
+# ==========================================================
+# 🔧 Insumos.py — Upload e Integração de Artefatos
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==========================================================
+
 import streamlit as st
 from datetime import datetime
 from io import BytesIO
+import sys, os
 from pathlib import Path
 import docx2txt
 
-# ✅ imports agora pelo pacote utils
-from utils.integration_insumos import (
+# ==========================================================
+# 🔍 Correção de path (compatível com Streamlit Cloud e local)
+# ==========================================================
+base_path = Path(__file__).resolve().parents[1]
+utils_path = base_path / "utils"
+if str(utils_path) not in sys.path:
+    sys.path.append(str(utils_path))
+
+# 🔍 Imports funcionais independentemente do ambiente
+from integration_insumos import (
     salvar_insumo,
     listar_insumos,
     process_insumo_text,
@@ -53,7 +67,9 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT, etc.)", type=["
 
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
-        # Registro do upload
+        # ==========================================================
+        # 💾 Registro do upload
+        # ==========================================================
         resultado = salvar_insumo(artefato, arquivo, usuario, descricao)
         st.success(resultado["mensagem"])
 
@@ -83,7 +99,6 @@ if arquivo and st.button("📤 Enviar insumo"):
             dados_inferidos = process_insumo_text(texto_extraido, artefato)
             st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
             st.json(dados_inferidos)
-            # guarda só dict plausível como "campos_ai"
             if isinstance(dados_inferidos, dict):
                 campos_ai = dados_inferidos
         else:
@@ -95,12 +110,13 @@ if arquivo and st.button("📤 Enviar insumo"):
         st.session_state["last_insumo"] = {
             "nome": arquivo.name,
             "artefato": artefato,
-            "conteudo": (texto_extraido or "")[:100000],  # evita gigantismo
+            "conteudo": (texto_extraido or "")[:100000],
             "campos_ai": campos_ai,
             "usuario": usuario,
             "descricao": descricao,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
+
         st.info("📎 Insumo ativo armazenado na sessão e disponível para o DFD/TR.")
 
 # ==========================================================
