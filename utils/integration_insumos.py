@@ -73,3 +73,68 @@ def listar_insumos(artefato: str) -> list:
     if not destino_dir.exists():
         return []
     return [f.name for f in destino_dir.iterdir() if f.is_file()]
+
+# ==========================================================
+# 🧠 Processamento semântico via OpenAI (integração com SynapseNext)
+# ==========================================================
+import re
+from openai import OpenAI
+import streamlit as st
+
+client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+
+def process_insumo_text(text: str, artefato: str = "DFD") -> dict:
+    """
+    Analisa o conteúdo textual de um documento e retorna campos inferidos por IA.
+    Utiliza seções numeradas (1. Objeto, 2. Justificativa, etc.) e inferência semântica.
+    """
+    # Divide o texto em seções numeradas multilinha
+    sections = re.split(r"\n\s*\d+\.\s*(?=[A-ZÁÉÍÓÚ])", text)
+    parsed = {}
+    for sec in sections:
+        if not sec.strip():
+            continue
+        match = re.match(r"([A-Za-zÁÉÍÓÚâêôçãõ\s\-]+)\n", sec)
+        if match:
+            title = match.group(1).strip()
+            content = sec[len(title):].strip()
+            parsed[title] = content
+
+    joined_text = "\n".join([f"{k}: {v}" for k, v in parsed.items()])
+
+    prompt = f"""
+Você é um analista técnico especializado em documentos administrativos do setor público.
+Extraia os principais campos de um artefato do tipo {artefato}, no formato JSON:
+
+{{
+  "unidade": "",
+  "responsavel": "",
+  "objeto": "",
+  "justificativa": "",
+  "quantidade": "",
+  "urgencia": "",
+  "riscos": "",
+  "alinhamento": ""
+}}
+
+Texto base:
+{joined_text[:8000]}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=st.secrets["openai"]["model"],
+            messages=[
+                {"role": "system", "content": "Você é um extrator de informações técnicas para processos administrativos públicos."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        content = response.choices[0].message.content
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return {"resultado_bruto": content}
+    except Exception as e:
+        return {"erro": str(e)}
+
+
