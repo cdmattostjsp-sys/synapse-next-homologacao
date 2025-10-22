@@ -1,247 +1,124 @@
-# ==========================================================
-# 🔧 SynapseNext – Insumos Institucionais (Fase 2: parsing + integração DFD)
-# SAAB 5.0 – TJSP
-# ==========================================================
-
-import sys
-import re
-from io import BytesIO
-from pathlib import Path
 import streamlit as st
+import os
+import base64
+import tempfile
+import docx
+import fitz  # PyMuPDF
+import re
+import json
+from pathlib import Path
+from openai import OpenAI
 
 # ==========================================================
-# ⚙️ Config da página (deve ser o 1º comando Streamlit)
+# ⚙️ Configuração inicial
 # ==========================================================
-st.set_page_config(
-    page_title="SynapseNext – Insumos Institucionais",
-    layout="wide",
-    page_icon="🔧",
-)
+st.set_page_config(page_title="🔧 Insumos", layout="wide")
+st.title("🔧 Insumos – Central de Documentos Base")
+st.caption("Upload de documentos de apoio e extração semântica automática para artefatos institucionais.")
 
 # ==========================================================
-# 🔧 Paths
+# 📦 Conexão com OpenAI
 # ==========================================================
-current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
+client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 # ==========================================================
-# 📦 Estilo institucional
+# 📂 Funções utilitárias
 # ==========================================================
-try:
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except Exception:
-    aplicar_estilo_global = lambda: None
-    exibir_cabecalho_padrao = lambda *a, **kw: None
+def extract_text_from_docx(file):
+    doc = docx.Document(file)
+    return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
 
-aplicar_estilo_global()
+def extract_text_from_pdf(file):
+    text = ""
+    with fitz.open(file) as pdf:
+        for page in pdf:
+            text += page.get_text()
+    return text
 
-# ==========================================================
-# 📚 Imports para parsing (opcionais)
-# ==========================================================
-try:
-    from PyPDF2 import PdfReader
-except Exception:
-    PdfReader = None
-
-try:
-    from docx import Document as DocxDocument
-except Exception:
-    DocxDocument = None
-
-# ==========================================================
-# 🧠 Funções utilitárias – Parsing e Extração de Campos
-# ==========================================================
-def _extract_text_from_pdf(file_bytes: bytes) -> str:
-    """Extrai texto de PDF (melhor esforço)."""
-    if PdfReader is None:
-        return ""
-    try:
-        reader = PdfReader(BytesIO(file_bytes))
-        texts = []
-        for page in reader.pages:
-            try:
-                t = page.extract_text() or ""
-            except Exception:
-                t = ""
-            texts.append(t)
-        return "\n".join(texts)
-    except Exception:
-        return ""
-
-def _extract_text_from_docx(file_bytes: bytes) -> str:
-    """Extrai texto de DOCX."""
-    if DocxDocument is None:
-        return ""
-    try:
-        doc = DocxDocument(BytesIO(file_bytes))
-        return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-    except Exception:
-        return ""
-
-def _extract_text_generic(uploaded_file) -> str:
-    """Extrai texto legível de PDF, DOCX ou TXT."""
-    name = uploaded_file.name.lower()
-    raw = uploaded_file.getvalue()  # bytes
-
-    if name.endswith(".pdf"):
-        txt = _extract_text_from_pdf(raw)
-        if not txt:
-            # fallback brando: evita caracteres quebrados
-            try:
-                return raw.decode("utf-8", errors="ignore")
-            except Exception:
-                return ""
-        return txt
-
-    if name.endswith(".docx"):
-        txt = _extract_text_from_docx(raw)
-        if not txt:
-            try:
-                return raw.decode("utf-8", errors="ignore")
-            except Exception:
-                return ""
-        return txt
-
-    # .txt (ou outros)
-    try:
-        return raw.decode("utf-8", errors="ignore")
-    except Exception:
-        return ""
-
-def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", s or "").strip()
-
-def _capture_after(label_variants, text):
-    """Localiza valor após rótulos (ex.: 'Unidade solicitante:', 'Unidade:')."""
-    for lab in label_variants:
-        # pega até o fim da linha
-        pattern = rf"{lab}\s*[:\-–]\s*(.+)"
-        m = re.search(pattern, text, flags=re.IGNORECASE)
-        if m:
-            return _norm(m.group(1).split("\n")[0])
-    return ""
-
-def _extract_fields_for_dfd(text: str) -> dict:
+def extract_sections(text):
     """
-    Heurística simples para preencher campos do DFD a partir do texto do insumo.
-    Ajustamos para termos comuns em documentos institucionais.
+    Divide o texto em seções numeradas (1. Título ... 2. Próximo título ...)
+    Captura multilinhas até o próximo número.
     """
-    t = text or ""
-    # rótulos possíveis (inclui variações comuns)
-    unidade = _capture_after(
-        ["unidade solicitante", "unidade", "setor demandante", "órgão solicitante"], t
-    )
-    responsavel = _capture_after(
-        ["responsável", "responsavel", "ponto focal", "contato"], t
-    )
-    objeto = _capture_after(
-        ["objeto", "objeto da contratação", "escopo"], t
-    )
-    justificativa = _capture_after(
-        ["justificativa", "motivação", "motivacao", "fundamentação", "fundamentacao"], t
-    )
-    quantidade = _capture_after(
-        ["quantidade", "quantitativo", "itens previstos"], t
-    )
-    urgencia = _capture_after(
-        ["urgência", "urgencia", "prioridade"], t
-    )
-    riscos = _capture_after(
-        ["riscos", "riscos identificados", "riscos/mitigações"], t
-    )
-    alinhamento = _capture_after(
-        ["alinhamento estratégico", "alinhamento", "estratégia institucional"], t
-    )
+    sections = re.split(r"\n\s*\d+\.\s*(?=[A-ZÁÉÍÓÚ])", text)
+    result = {}
+    for sec in sections:
+        if not sec.strip():
+            continue
+        header_match = re.match(r"([A-Za-zÁÉÍÓÚâêôçãõ\s\-]+)\n", sec)
+        if header_match:
+            title = header_match.group(1).strip()
+            content = sec[len(title):].strip()
+            result[title] = content
+    return result
 
-    # Fallbacks leves: se "objeto" e "justificativa" vierem vazios, usar sumário
-    if not objeto:
-        objeto = _norm(t[:400])
-    if not justificativa and len(t) > 800:
-        justificativa = _norm(t[400:900])
+def analyze_with_ai(text):
+    prompt = f"""
+Você é um analista técnico encarregado de extrair informações institucionais de um Documento de Formalização da Demanda (DFD).
+Retorne um JSON com os seguintes campos se forem encontrados:
 
-    return {
-        "unidade": unidade,
-        "responsavel": responsavel,
-        "objeto": objeto,
-        "justificativa": justificativa,
-        "quantidade": quantidade,
-        "urgencia": urgencia,
-        "riscos": riscos,
-        "alinhamento": alinhamento,
-    }
+- unidade
+- responsavel
+- objeto
+- justificativa
+- quantidade
+- urgencia
+- riscos
+- alinhamento
+
+Texto de referência:
+{text[:7000]}
+"""
+    response = client.chat.completions.create(
+        model=st.secrets["openai"]["model"],
+        messages=[{"role": "system", "content": "Você é um extrator de informações técnicas."},
+                  {"role": "user", "content": prompt}]
+    )
+    try:
+        data = json.loads(response.choices[0].message.content)
+    except Exception:
+        data = {"resposta_bruta": response.choices[0].message.content}
+    return data
 
 # ==========================================================
-# 🏛️ Cabeçalho
+# 🧾 Upload e processamento
 # ==========================================================
-exibir_cabecalho_padrao(
-    "Insumos Institucionais",
-    "Upload com leitura automática e integração para pré-preenchimento do DFD"
-)
-st.divider()
+with st.form("upload_form"):
+    artefato = st.selectbox("Selecione o artefato de destino", ["DFD", "TR", "Edital", "Contrato"])
+    uploaded_file = st.file_uploader("Envie um documento (.docx ou .pdf)", type=["docx", "pdf"])
+    descricao = st.text_input("Descrição do arquivo")
+    anotante = st.text_input("Nome do responsável pelo envio")
+    submitted = st.form_submit_button("📤 Enviar e processar")
 
-# ==========================================================
-# 1) Seleção do artefato
-# ==========================================================
-st.subheader("1️⃣ Selecione o artefato de destino")
+if submitted and uploaded_file:
+    with st.spinner("Processando o documento..."):
+        suffix = Path(uploaded_file.name).suffix.lower()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(uploaded_file.read())
+            tmp_path = tmp.name
 
-artefato = st.selectbox(
-    "Artefato relacionado ao insumo:",
-    ["DFD", "ETP", "TR", "Edital", "Contrato"],
-    help="Selecione o artefato para o qual o documento servirá de insumo."
-)
+        text = extract_text_from_docx(tmp_path) if suffix == ".docx" else extract_text_from_pdf(tmp_path)
+        sections = extract_sections(text)
+        ai_result = analyze_with_ai(text)
 
-# ==========================================================
-# 2) Upload + Parsing + Registro de sessão
-# ==========================================================
-st.subheader("2️⃣ Enviar Documento e Extrair Conteúdo")
+        st.session_state["last_insumo"] = {
+            "artefato": artefato,
+            "nome": uploaded_file.name,
+            "descricao": descricao,
+            "anotante": anotante,
+            "conteudo": text,
+            "secoes": sections,
+            "campos_ai": ai_result,
+        }
 
-uploaded_file = st.file_uploader(
-    "Selecione o arquivo (PDF, DOCX ou TXT)",
-    type=["pdf", "docx", "txt"]
-)
+        st.success(f"Insumo '{uploaded_file.name}' registrado e processado para o artefato {artefato}.")
+        st.info("📎 O documento estará disponível automaticamente ao abrir a página do artefato correspondente.")
 
-descricao = st.text_input("Descrição breve do arquivo:")
-usuario = st.text_input("Nome do remetente:", value="Anônimo")
-
-col_a, col_b = st.columns([1,1])
-
-with col_a:
-    parse_now = st.button("🧠 Enviar, Ler e Registrar", type="primary", use_container_width=True)
-
-with col_b:
-    st.caption("O conteúdo será lido e os campos do DFD serão inferidos automaticamente (melhor esforço).")
-
-if uploaded_file and parse_now:
-    # 1) extrai texto
-    texto = _extract_text_generic(uploaded_file)
-    # 2) extrai campos do DFD (mesmo que o artefato não seja DFD, mantemos pronto)
-    campos_dfd = _extract_fields_for_dfd(texto)
-
-    # 3) armazena sessão
-    st.session_state["insumo_atual"] = {
-        "nome_arquivo": uploaded_file.name,
-        "conteudo": texto or "",
-        "artefato": artefato,
-        "descricao": _norm(descricao),
-        "usuario": _norm(usuario),
-        "campos_dfd": campos_dfd,  # <- chave nova com campos inferidos
-    }
-
-    st.success(f"✅ Insumo '{uploaded_file.name}' registrado e processado.")
-    with st.expander("🔎 Campos inferidos para DFD", expanded=True):
-        st.json(campos_dfd)
-
-st.divider()
-
-# ==========================================================
-# 3) Visualização do insumo ativo
-# ==========================================================
-if "insumo_atual" in st.session_state:
-    ins = st.session_state["insumo_atual"]
-    st.markdown(f"**🗂️ Último insumo ativo:** `{ins['nome_arquivo']}` – artefato `{ins['artefato']}`")
-    with st.expander("Prévia do conteúdo bruto (legível)", expanded=False):
-        st.text(ins["conteudo"][:3000] or "—")
-else:
-    st.info("Nenhum insumo ativo nesta sessão. Faça upload acima para iniciar.")
+if "last_insumo" in st.session_state:
+    insumo = st.session_state["last_insumo"]
+    st.divider()
+    st.subheader("📊 Resultado do processamento")
+    st.json(insumo["campos_ai"])
+    st.write("🗂️ Último insumo ativo:", f"{insumo['nome']} – artefato {insumo['artefato']}")
+    with st.expander("Prévia do conteúdo legível"):
+        st.text(insumo["conteudo"][:2000])
