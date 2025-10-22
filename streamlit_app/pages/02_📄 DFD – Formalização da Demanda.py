@@ -9,14 +9,16 @@ from datetime import datetime
 import streamlit as st
 
 # ==========================================================
-# 🔧 Ajuste de path e imports institucionais
+# 🔧 Ajuste de path
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-# 📦 Importa módulos funcionais
+# ==========================================================
+# 📦 Imports
+# ==========================================================
 try:
     from utils.next_pipeline import build_dfd_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
@@ -25,11 +27,9 @@ except Exception as e:
     st.error(f"Erro ao importar módulos utilitários: {e}")
     st.stop()
 
-# 📦 Importa novo estilo institucional unificado
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except Exception:
-    st.warning("⚠️ Módulo ui_components não encontrado. O estilo não será aplicado.")
     aplicar_estilo_global = lambda: None
     exibir_cabecalho_padrao = lambda *a, **kw: None
 
@@ -44,7 +44,7 @@ st.set_page_config(
 aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Cabeçalho institucional padronizado
+# 🏛️ Cabeçalho
 # ==========================================================
 exibir_cabecalho_padrao(
     "DFD – Documento de Formalização da Demanda",
@@ -53,7 +53,18 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 📘 Conteúdo funcional
+# 🔗 Integração com INSUMOS
+# ==========================================================
+if "insumo_atual" in st.session_state:
+    ins = st.session_state["insumo_atual"]
+    st.success(f"📎 Insumo ativo detectado: `{ins['nome_arquivo']}` (Artefato: {ins['artefato']})")
+    st.text_area("Prévia do insumo", ins["conteudo"][:1000], height=200)
+else:
+    st.warning("Nenhum insumo ativo encontrado. Faça upload em '🔧 Insumos' antes de iniciar o DFD.")
+st.divider()
+
+# ==========================================================
+# 🧾 Formulário institucional
 # ==========================================================
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
@@ -83,7 +94,7 @@ if submitted:
 
     md = build_dfd_markdown(respostas)
     registrar_log("DFD", "gerar_rascunho")
-    audit_event("DFD", "gerar_rascunho", md, meta={"usuario": "Sistema", "versao": "Fase Brasília"})
+    audit_event("DFD", "gerar_rascunho", md)
 
     st.success("✅ Rascunho gerado com sucesso!")
     st.divider()
@@ -109,7 +120,7 @@ if submitted:
                 st.markdown(f"- {s}")
 
     registrar_log("DFD", "validacao_semantica")
-    audit_event("DFD", "validacao_semantica", md, meta={"pontuacao": resultado.get("pontuacao", 0)})
+    audit_event("DFD", "validacao_semantica", md)
 
     # ======================================================
     # 📤 Exportação DOCX
@@ -142,7 +153,7 @@ else:
     st.info("Preencha o formulário e clique em **Gerar rascunho do DFD**.")
 
 # ==========================================================
-# 📘 Rodapé institucional simplificado
+# 📘 Rodapé
 # ==========================================================
 st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+st.caption("SynapseNext – SAAB 5.0 • Integração INSUMOS–DFD ativa • Fase de homologação.")
