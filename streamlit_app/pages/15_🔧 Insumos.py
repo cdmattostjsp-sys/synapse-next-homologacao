@@ -8,6 +8,15 @@ from pathlib import Path
 import streamlit as st
 
 # ==========================================================
+# ⚙️ Configuração da página (deve ser o primeiro comando Streamlit)
+# ==========================================================
+st.set_page_config(
+    page_title="SynapseNext – Insumos Institucionais",
+    layout="wide",
+    page_icon="🔧"
+)
+
+# ==========================================================
 # 🔧 Setup de caminho
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
@@ -15,6 +24,9 @@ root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists()
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
+# ==========================================================
+# 📦 Imports institucionais
+# ==========================================================
 try:
     from utils.integration_insumos import salvar_insumo, listar_insumos
 except Exception as e:
@@ -27,12 +39,10 @@ except Exception:
     aplicar_estilo_global = lambda: None
     exibir_cabecalho_padrao = lambda *a, **kw: None
 
+# ==========================================================
+# 🎨 Aplicar estilo global
+# ==========================================================
 aplicar_estilo_global()
-
-# ==========================================================
-# ⚙️ Configuração da página
-# ==========================================================
-st.set_page_config(page_title="SynapseNext – Insumos Institucionais", layout="wide", page_icon="🔧")
 
 # ==========================================================
 # 🏛️ Cabeçalho institucional padronizado
@@ -68,8 +78,16 @@ descricao = st.text_input("Descrição breve do arquivo:")
 usuario = st.text_input("Nome do remetente:", value="Anônimo")
 
 if uploaded_file and st.button("📤 Enviar Arquivo", type="primary", use_container_width=True):
-    resultado = salvar_insumo(artefato, uploaded_file, usuario=usuario, descricao=descricao)
-    st.success(resultado["mensagem"])
+    try:
+        resultado = salvar_insumo(
+            artefato,
+            uploaded_file,
+            usuario=usuario.strip() or "Anônimo",
+            descricao=descricao.strip()
+        )
+        st.success(resultado["mensagem"])
+    except Exception as e:
+        st.error(f"❌ Erro ao salvar arquivo: {e}")
 
 st.divider()
 
@@ -78,13 +96,16 @@ st.divider()
 # ==========================================================
 st.subheader("3️⃣ Arquivos armazenados")
 
-arquivos = listar_insumos(artefato)
-if arquivos:
-    st.markdown(f"**Arquivos encontrados em `{artefato}`:**")
-    for nome in arquivos:
-        st.markdown(f"- 📎 {nome}")
-else:
-    st.info("Nenhum arquivo encontrado para este artefato.")
+try:
+    arquivos = listar_insumos(artefato)
+    if arquivos:
+        st.markdown(f"**Arquivos encontrados em `{artefato}`:**")
+        for nome in arquivos:
+            st.markdown(f"- 📎 {nome}")
+    else:
+        st.info("Nenhum arquivo encontrado para este artefato.")
+except Exception as e:
+    st.error(f"Erro ao listar arquivos: {e}")
 
 st.divider()
 
