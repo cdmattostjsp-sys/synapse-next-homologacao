@@ -138,7 +138,7 @@ artefato_hist = st.selectbox("Filtrar por artefato", ["Todos", "DFD", "ETP", "TR
 
 if artefato_hist == "Todos":
     for tipo in ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]:
-        arquivos = listar_insumos(tipo)
+        arquivos = listar_insumos()
         if arquivos:
             st.markdown(f"#### 📘 {tipo} ({len(arquivos)} arquivos)")
             st.write(arquivos)
