@@ -6,20 +6,26 @@
 import streamlit as st
 from datetime import datetime
 from io import BytesIO
-import sys, os
+import sys
 from pathlib import Path
 import docx2txt
 
 # ==========================================================
-# 🔍 Correção de path (compatível com Streamlit Cloud e local)
+# 🔧 Correção de path (utils está fora da pasta /streamlit_app)
 # ==========================================================
-base_path = Path(__file__).resolve().parents[1]
-utils_path = base_path / "utils"
-if str(utils_path) not in sys.path:
-    sys.path.append(str(utils_path))
+current_dir = Path(__file__).resolve()
+root_dir = current_dir.parents[2]        # sobe dois níveis: pages → streamlit_app → raiz
+utils_dir = root_dir / "utils"
 
-# 🔍 Imports funcionais independentemente do ambiente
-from integration_insumos import (
+# adiciona diretórios ao sys.path se ainda não estiverem presentes
+for path in [root_dir, utils_dir]:
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+# ==========================================================
+# 🔍 Imports (módulo utilitário e IA)
+# ==========================================================
+from utils.integration_insumos import (
     salvar_insumo,
     listar_insumos,
     process_insumo_text,
@@ -96,11 +102,14 @@ if arquivo and st.button("📤 Enviar insumo"):
         campos_ai = {}
         if texto_extraido.strip():
             st.info("IA processando o insumo e identificando campos relevantes...")
-            dados_inferidos = process_insumo_text(texto_extraido, artefato)
-            st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
-            st.json(dados_inferidos)
-            if isinstance(dados_inferidos, dict):
-                campos_ai = dados_inferidos
+            try:
+                dados_inferidos = process_insumo_text(texto_extraido, artefato)
+                st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
+                st.json(dados_inferidos)
+                if isinstance(dados_inferidos, dict):
+                    campos_ai = dados_inferidos
+            except Exception as e:
+                st.error(f"Erro no processamento IA: {e}")
         else:
             st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
 
