@@ -1,6 +1,7 @@
 # ==========================================================
 # 📄 SynapseNext – DFD (Documento de Formalização da Demanda)
-# Secretaria de Administração e Abastecimento – SAAB 5.0
+# Fase 2: pré-preenchimento automático com base em INSUMOS
+# SAAB 5.0 – TJSP
 # ==========================================================
 
 import sys
@@ -9,16 +10,22 @@ from datetime import datetime
 import streamlit as st
 
 # ==========================================================
-# 🔧 Ajuste de path
+# ⚙️ Config da página (1º comando Streamlit)
+# ==========================================================
+st.set_page_config(
+    page_title="DFD – Documento de Formalização da Demanda",
+    layout="wide",
+    page_icon="📄"
+)
+
+# ==========================================================
+# 🔧 Paths e imports
 # ==========================================================
 current_dir = Path(__file__).resolve().parents[0]
 root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-# ==========================================================
-# 📦 Imports
-# ==========================================================
 try:
     from utils.next_pipeline import build_dfd_markdown, registrar_log, run_semantic_validation
     from utils.formatter_docx import markdown_to_docx
@@ -33,14 +40,6 @@ except Exception:
     aplicar_estilo_global = lambda: None
     exibir_cabecalho_padrao = lambda *a, **kw: None
 
-# ==========================================================
-# ⚙️ Configuração da página
-# ==========================================================
-st.set_page_config(
-    page_title="DFD – Documento de Formalização da Demanda",
-    layout="wide",
-    page_icon="📄"
-)
 aplicar_estilo_global()
 
 # ==========================================================
@@ -48,55 +47,60 @@ aplicar_estilo_global()
 # ==========================================================
 exibir_cabecalho_padrao(
     "DFD – Documento de Formalização da Demanda",
-    "Módulo de geração orientada, validação IA e auditoria institucional"
+    "Pré-preenchimento automático a partir de insumos + validação IA"
 )
 st.divider()
 
 # ==========================================================
-# 🔗 Integração com INSUMOS
+# 🔗 Integração com INSUMOS: detectar e oferecer preenchimento
 # ==========================================================
+defaults = {}
 if "insumo_atual" in st.session_state:
     ins = st.session_state["insumo_atual"]
     st.success(f"📎 Insumo ativo detectado: `{ins['nome_arquivo']}` (Artefato: {ins['artefato']})")
-    st.text_area("Prévia do insumo", ins["conteudo"][:1000], height=200)
+    with st.expander("Prévia do insumo (texto legível)", expanded=False):
+        st.text(ins.get("conteudo", "")[:1500])
+    defaults = ins.get("campos_dfd", {}) or {}
 else:
-    st.warning("Nenhum insumo ativo encontrado. Faça upload em '🔧 Insumos' antes de iniciar o DFD.")
+    st.warning("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou voltar na aba **🔧 Insumos** para enviar um documento.")
+
 st.divider()
 
 # ==========================================================
-# 🧾 Formulário institucional
+# 🧾 Formulário institucional (pré-preenchido se houver defaults)
 # ==========================================================
 st.subheader("1️⃣ Entrada – Formulário institucional")
 
 with st.form("form_dfd", clear_on_submit=False):
-    unidade = st.text_input("Unidade solicitante")
-    responsavel = st.text_input("Responsável pela demanda")
-    objeto = st.text_area("Objeto da contratação")
-    justificativa = st.text_area("Justificativa da necessidade")
-    quantidade = st.text_area("Quantidade e escopo")
-    urgencia = st.text_area("Grau de urgência")
-    riscos = st.text_area("Riscos identificados")
-    alinhamento = st.text_area("Alinhamento estratégico")
-    submitted = st.form_submit_button("Gerar rascunho do DFD")
+    unidade = st.text_input("Unidade solicitante", value=defaults.get("unidade", ""))
+    responsavel = st.text_input("Responsável pela demanda", value=defaults.get("responsavel", ""))
+    objeto = st.text_area("Objeto da contratação", value=defaults.get("objeto", ""), height=120)
+    justificativa = st.text_area("Justificativa da necessidade", value=defaults.get("justificativa", ""), height=140)
+    quantidade = st.text_area("Quantidade e escopo", value=defaults.get("quantidade", ""), height=100)
+    urgencia = st.text_area("Grau de urgência", value=defaults.get("urgencia", ""), height=100)
+    riscos = st.text_area("Riscos identificados", value=defaults.get("riscos", ""), height=100)
+    alinhamento = st.text_area("Alinhamento estratégico", value=defaults.get("alinhamento", ""), height=100)
+
+    submitted = st.form_submit_button("Gerar rascunho do DFD", type="primary")
 
 if submitted:
     respostas = {
         "data": datetime.now().strftime("%d/%m/%Y"),
-        "unidade": unidade.strip(),
-        "responsavel": responsavel.strip(),
-        "objeto": objeto.strip(),
-        "justificativa": justificativa.strip(),
-        "quantidade": quantidade.strip(),
-        "urgencia": urgencia.strip(),
-        "riscos": riscos.strip(),
-        "alinhamento": alinhamento.strip(),
+        "unidade": (unidade or "").strip(),
+        "responsavel": (responsavel or "").strip(),
+        "objeto": (objeto or "").strip(),
+        "justificativa": (justificativa or "").strip(),
+        "quantidade": (quantidade or "").strip(),
+        "urgencia": (urgencia or "").strip(),
+        "riscos": (riscos or "").strip(),
+        "alinhamento": (alinhamento or "").strip(),
     }
 
     md = build_dfd_markdown(respostas)
     registrar_log("DFD", "gerar_rascunho")
     audit_event("DFD", "gerar_rascunho", md)
 
-    st.success("✅ Rascunho gerado com sucesso!")
+    st.success("✅ Rascunho gerado com sucesso.")
     st.divider()
     st.subheader("2️⃣ Rascunho – Preview")
     st.markdown(md)
@@ -156,4 +160,4 @@ else:
 # 📘 Rodapé
 # ==========================================================
 st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Integração INSUMOS–DFD ativa • Fase de homologação.")
+st.caption("SynapseNext – SAAB 5.0 • Integração INSUMOS → DFD com leitura semântica (Fase 2).")
