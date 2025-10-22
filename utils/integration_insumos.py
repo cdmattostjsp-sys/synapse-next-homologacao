@@ -1,8 +1,9 @@
 import sys, os
 from pathlib import Path
 
-# Garante que a pasta 'utils' seja encontrada pelo Python, mesmo fora do diretório 'pages'
-sys.path.append(str(Path(__file__).resolve().parents[1] / "utils"))
+# Garante que o diretório utils seja localizado
+base_path = Path(__file__).resolve().parents[1]
+sys.path.append(str(base_path / "utils"))
 
 # ==========================================================
 # 📁 integration_insumos.py
