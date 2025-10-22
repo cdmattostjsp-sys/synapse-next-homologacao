@@ -1,44 +1,30 @@
-import sys, os
-from pathlib import Path
-
-# Garante que o diretório utils seja localizado
-base_path = Path(__file__).resolve().parents[1]
-sys.path.append(str(base_path / "utils"))
-
 # ==========================================================
 # 📁 integration_insumos.py
 # SynapseNext – Módulo de Upload e Controle de Insumos Institucionais
 # Secretaria de Administração e Abastecimento – SAAB 5.0
 # ==========================================================
 
+import json
+import re
 from datetime import datetime
 from pathlib import Path
-import json
 
+# ==========================================================
+# 💾 Função: salvar_insumo
+# ==========================================================
 def salvar_insumo(artefato: str, arquivo, usuario: str = "anônimo", descricao: str = "") -> dict:
     """
     Salva um arquivo de insumo dentro da pasta 'uploads/<artefato>/'
     e registra o evento no log de integrações.
-    
-    Parâmetros:
-        artefato (str): Nome do artefato (ex.: DFD, ETP, TR, Edital, Contrato)
-        arquivo (UploadedFile): Arquivo carregado via Streamlit
-        usuario (str): Nome do usuário remetente
-        descricao (str): Descrição ou contexto do envio
-    
-    Retorna:
-        dict: Mensagem e caminho do arquivo salvo
     """
     base = Path(__file__).resolve().parents[1]
     destino_dir = base / "uploads" / artefato
     destino_dir.mkdir(parents=True, exist_ok=True)
 
-    # Salvar o arquivo no diretório correspondente
     save_path = destino_dir / arquivo.name
     with open(save_path, "wb") as f:
         f.write(arquivo.getbuffer())
 
-    # Gerar log do envio
     log_entry = {
         "artefato": artefato,
         "arquivo": arquivo.name,
@@ -70,7 +56,9 @@ def salvar_insumo(artefato: str, arquivo, usuario: str = "anônimo", descricao: 
         "path": str(save_path)
     }
 
-
+# ==========================================================
+# 📂 Função: listar_insumos
+# ==========================================================
 def listar_insumos(artefato: str) -> list:
     """
     Retorna uma lista de arquivos armazenados para o artefato informado.
@@ -82,21 +70,49 @@ def listar_insumos(artefato: str) -> list:
     return [f.name for f in destino_dir.iterdir() if f.is_file()]
 
 # ==========================================================
-# 🧠 Processamento semântico via OpenAI (integração com SynapseNext)
+# 🧠 Integração IA (OpenAI) — inicialização segura e sob demanda
 # ==========================================================
-import re
-from openai import OpenAI
-import streamlit as st
+def get_openai_client():
+    """
+    Inicializa o cliente OpenAI de forma segura e sob demanda.
+    Evita KeyError durante o carregamento do módulo no Streamlit Cloud.
+    """
+    try:
+        import streamlit as st
+        from openai import OpenAI
+    except Exception as e:
+        raise RuntimeError(f"Erro ao importar dependências de IA: {e}")
 
-client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+    # Acesso seguro aos segredos
+    secrets = st.secrets.get("openai", {})
+    api_key = secrets.get("api_key")
+    model = secrets.get("model", "gpt-4o-mini")
 
+    if not api_key:
+        raise ValueError(
+            "⚠️ A chave OpenAI não foi encontrada em st.secrets['openai']['api_key'].\n"
+            "Verifique se ela está configurada corretamente no painel do Streamlit Cloud."
+        )
+
+    try:
+        client = OpenAI(api_key=api_key)
+        return client, model
+    except Exception as e:
+        raise RuntimeError(f"Erro ao inicializar o cliente OpenAI: {e}")
+
+# ==========================================================
+# 🤖 Função: process_insumo_text
+# ==========================================================
 def process_insumo_text(text: str, artefato: str = "DFD") -> dict:
     """
     Analisa o conteúdo textual de um documento e retorna campos inferidos por IA.
-    Utiliza seções numeradas (1. Objeto, 2. Justificativa, etc.) e inferência semântica.
+    Compatível com Streamlit Cloud mesmo sem chave OpenAI configurada.
     """
-    # Divide o texto em seções numeradas multilinha
-    sections = re.split(r"\n\s*\d+\.\s*(?=[A-ZÁÉÍÓÚ])", text)
+
+    # ----------------------------
+    # 🔍 Parsing básico do texto
+    # ----------------------------
+    sections = re.split(r"\n\s*\d+\.\s*(?=[A-ZÁÉÍÓÚ])", text or "")
     parsed = {}
     for sec in sections:
         if not sec.strip():
@@ -107,11 +123,27 @@ def process_insumo_text(text: str, artefato: str = "DFD") -> dict:
             content = sec[len(title):].strip()
             parsed[title] = content
 
-    joined_text = "\n".join([f"{k}: {v}" for k, v in parsed.items()])
+    joined_text = "\n".join([f"{k}: {v}" for k, v in parsed.items()]) or text
 
+    # ----------------------------
+    # 🤖 Inicialização da IA
+    # ----------------------------
+    try:
+        client, model = get_openai_client()
+    except Exception as e:
+        # Não interrompe a página se a IA falhar ou chave não existir
+        return {
+            "erro": str(e),
+            "campos_ai": {},
+            "observacao": "Upload e histórico continuam funcionando normalmente."
+        }
+
+    # ----------------------------
+    # 🧩 Prompt de análise semântica
+    # ----------------------------
     prompt = f"""
 Você é um analista técnico especializado em documentos administrativos do setor público.
-Extraia os principais campos de um artefato do tipo {artefato}, no formato JSON:
+Extraia os principais campos de um artefato do tipo {artefato}, retornando um JSON com as chaves:
 
 {{
   "unidade": "",
@@ -128,20 +160,24 @@ Texto base:
 {joined_text[:8000]}
 """
 
+    # ----------------------------
+    # 🧠 Chamada ao modelo OpenAI
+    # ----------------------------
     try:
         response = client.chat.completions.create(
-            model=st.secrets["openai"]["model"],
+            model=model,
             messages=[
                 {"role": "system", "content": "Você é um extrator de informações técnicas para processos administrativos públicos."},
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            temperature=0.2
         )
         content = response.choices[0].message.content
+
         try:
             return json.loads(content)
         except json.JSONDecodeError:
             return {"resultado_bruto": content}
+
     except Exception as e:
-        return {"erro": str(e)}
-
-
+        return {"erro": f"Falha na chamada à IA: {e}"}
