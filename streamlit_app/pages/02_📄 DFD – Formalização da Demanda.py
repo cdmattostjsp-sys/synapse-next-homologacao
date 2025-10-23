@@ -111,42 +111,52 @@ if submitted:
     st.json(dfd_data)
     st.session_state["last_dfd"] = dfd_data
 
-    # ---------- Exportação para DOCX ----------
-    if st.button("📤 Exportar DFD para Word (DOCX)"):
-        doc = Document()
-        # Título
-        title = doc.add_heading("Documento de Formalização da Demanda (DFD)", level=1)
-        # Ajuste simples de fonte do documento (opcional)
-        for p in doc.paragraphs:
-            for run in p.runs:
-                run.font.size = Pt(11)
+# ==========================================================
+# 📤 Exportação do último DFD (mesmo após reload)
+# ==========================================================
+if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
+    st.divider()
+    st.subheader("📤 Exportação de Documento")
+    st.info("Você pode baixar o último DFD gerado em formato Word editável.")
 
-        # Corpo
-        def add_field(label, value):
-            para = doc.add_paragraph()
-            run1 = para.add_run(f"{label}: ")
-            run1.bold = True
-            run2 = para.add_run(value or "—")
+    dfd_data = st.session_state["last_dfd"]
 
-        add_field("Unidade solicitante", dfd_data["unidade_solicitante"])
-        add_field("Responsável", dfd_data["responsavel"])
-        add_field("Objeto", dfd_data["objeto"])
-        add_field("Justificativa", dfd_data["justificativa"])
-        add_field("Quantidade / Escopo", dfd_data["quantidade"])
-        add_field("Urgência", dfd_data["urgencia"])
-        add_field("Riscos", dfd_data["riscos"])
-        add_field("Alinhamento estratégico", dfd_data["alinhamento_planejamento"])
+    # Geração do arquivo DOCX
+    from io import BytesIO
+    from docx import Document
+    from docx.shared import Pt
 
-        buffer = BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
+    doc = Document()
+    title = doc.add_heading("Documento de Formalização da Demanda (DFD)", level=1)
+    for p in doc.paragraphs:
+        for run in p.runs:
+            run.font.size = Pt(11)
 
-        st.download_button(
-            label="💾 Baixar DFD_rascunho.docx",
-            data=buffer,
-            file_name="DFD_rascunho.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+    def add_field(label, value):
+        para = doc.add_paragraph()
+        run1 = para.add_run(f"{label}: ")
+        run1.bold = True
+        run2 = para.add_run(value or "—")
+
+    add_field("Unidade solicitante", dfd_data["unidade_solicitante"])
+    add_field("Responsável", dfd_data["responsavel"])
+    add_field("Objeto", dfd_data["objeto"])
+    add_field("Justificativa", dfd_data["justificativa"])
+    add_field("Quantidade / Escopo", dfd_data["quantidade"])
+    add_field("Urgência", dfd_data["urgencia"])
+    add_field("Riscos", dfd_data["riscos"])
+    add_field("Alinhamento estratégico", dfd_data["alinhamento_planejamento"])
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    st.download_button(
+        label="💾 Baixar DFD_rascunho.docx",
+        data=buffer,
+        file_name="DFD_rascunho.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 # ==========================================================
 # 📊 Observações Técnicas
