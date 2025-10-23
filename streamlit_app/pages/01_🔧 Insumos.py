@@ -27,20 +27,6 @@ st.set_page_config(page_title="🔧 Insumos", layout="wide", page_icon="🔧")
 aplicar_estilo_global()
 
 # ==========================================================
-# 🔍 Teste de leitura do Secrets
-# ==========================================================
-import streamlit as st
-
-# Tenta ler o bloco [openai] e as variáveis globais
-teste_openai = {
-    "bloco_openai": st.secrets.get("openai", {}),
-    "OPENAI_API_KEY": st.secrets.get("OPENAI_API_KEY", None),
-    "OPENAI_MODEL": st.secrets.get("OPENAI_MODEL", None),
-}
-
-st.write("🧪 Diagnóstico de Secrets:", teste_openai)
-
-# ==========================================================
 # 🏛️ Cabeçalho institucional padronizado
 # ==========================================================
 exibir_cabecalho_padrao(
@@ -48,6 +34,16 @@ exibir_cabecalho_padrao(
     "Integração inteligente entre artefatos e dados do SynapseNext"
 )
 st.divider()
+
+# ==========================================================
+# 🧪 Diagnóstico simples (opcional)
+# ==========================================================
+try:
+    api_key_ok = bool(st.secrets.get("openai", {}).get("api_key") or st.secrets.get("OPENAI_API_KEY"))
+    if not api_key_ok:
+        st.warning("⚠️ A chave da OpenAI não foi detectada. Verifique o painel *Secrets* antes de prosseguir.")
+except Exception:
+    st.warning("⚠️ Não foi possível validar a chave da OpenAI.")
 
 # ==========================================================
 # 📘 Descrição funcional
@@ -75,14 +71,16 @@ with col2:
 with col3:
     usuario = st.text_input("Nome do remetente", placeholder="Ex: Carlos Mattos")
 
-arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT, etc.)", type=["docx", "pdf", "txt"])
+arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["docx", "pdf", "txt"])
 
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
         caminho_salvo = salvar_insumo(arquivo, artefato)
         st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
 
+        # ==========================================================
         # 🔍 Extração de texto
+        # ==========================================================
         texto_extraido = ""
         try:
             nome = arquivo.name.lower()
@@ -98,7 +96,9 @@ if arquivo and st.button("📤 Enviar insumo"):
         except Exception as e:
             st.error(f"Erro ao extrair texto do arquivo: {e}")
 
+        # ==========================================================
         # 🤖 Processamento IA
+        # ==========================================================
         campos_ai = {}
         if texto_extraido.strip():
             st.info("IA processando o insumo e identificando campos relevantes...")
@@ -113,6 +113,9 @@ if arquivo and st.button("📤 Enviar insumo"):
         else:
             st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
 
+        # ==========================================================
+        # 💾 Registro em sessão
+        # ==========================================================
         st.session_state["last_insumo"] = {
             "nome": arquivo.name,
             "artefato": artefato,
