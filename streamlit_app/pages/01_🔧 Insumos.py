@@ -36,16 +36,6 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 🧪 Diagnóstico simples (opcional)
-# ==========================================================
-try:
-    api_key_ok = bool(st.secrets.get("openai", {}).get("api_key") or st.secrets.get("OPENAI_API_KEY"))
-    if not api_key_ok:
-        st.warning("⚠️ A chave da OpenAI não foi detectada. Verifique o painel *Secrets* antes de prosseguir.")
-except Exception:
-    st.warning("⚠️ Não foi possível validar a chave da OpenAI.")
-
-# ==========================================================
 # 📘 Descrição funcional
 # ==========================================================
 st.markdown(
@@ -71,7 +61,7 @@ with col2:
 with col3:
     usuario = st.text_input("Nome do remetente", placeholder="Ex: Carlos Mattos")
 
-arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["docx", "pdf", "txt"])
+arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT, etc.)", type=["docx", "pdf", "txt"])
 
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
