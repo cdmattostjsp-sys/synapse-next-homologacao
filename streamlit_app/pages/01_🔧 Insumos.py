@@ -1,5 +1,6 @@
 # ==============================
-# pages/01_🔧 Insumos.py (corrigido)
+# pages/01_🔧 Insumos.py
+# SynapseNext – SAAB / TJSP
 # ==============================
 
 import streamlit as st
@@ -10,23 +11,28 @@ from io import BytesIO
 from pathlib import Path
 import sys
 import docx2txt
+import fitz  # PyMuPDF
 
 # ==========================================================
-# 🔧 Correção de path (suporta execução em diferentes layouts de pasta)
+# 🔍 Importação resiliente do módulo utils.integration_insumos
 # ==========================================================
 current_dir = Path(__file__).resolve()
-# Tenta localizar /utils a partir de diferentes profundidades
-candidatos_utils = [current_dir.parent.parent / "utils", current_dir.parent / "utils", Path.cwd() / "utils"]
-for cand in candidatos_utils:
-    if cand.exists() and str(cand) not in sys.path:
-        sys.path.insert(0, str(cand))
+utils_dir = current_dir.parent.parent / "utils"
+
+# garante que a pasta utils está no sys.path
+if str(utils_dir) not in sys.path:
+    sys.path.insert(0, str(utils_dir))
 
 try:
+    # importa diretamente da pasta utils
     from integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
-except Exception:
-    # Fallback quando projeto estiver estruturado como pacote utils.integration_insumos
-    sys.path.insert(0, str((current_dir.parent.parent)))
-    from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text  # type: ignore
+except ModuleNotFoundError:
+    # fallback: import como pacote (caso execute fora da pasta streamlit_app)
+    try:
+        from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+    except ModuleNotFoundError as e:
+        st.error(f"❌ Não foi possível importar integration_insumos: {e}")
+        st.stop()
 
 # ==========================================================
 # 🏛️ Cabeçalho
@@ -68,14 +74,13 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT, etc.)", type=["
 
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
-        # 💾 Salvar no diretório do artefato selecionado (corrigido)
+        # 💾 Salvar no diretório do artefato selecionado
         caminho_salvo = salvar_insumo(arquivo, artefato)
         st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
 
         # 🔍 Extração de texto (usa buffer para evitar exaustão do stream)
         texto_extraido = ""
         try:
-            import fitz  # PyMuPDF
             nome = arquivo.name.lower()
             arquivo.seek(0)
             dados = arquivo.read()
