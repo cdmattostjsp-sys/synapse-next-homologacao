@@ -4,17 +4,19 @@
 # ==============================
 
 import os
+import re
+import json
 import fitz  # PyMuPDF
 import docx2txt
 import streamlit as st
 from openai import OpenAI
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 # ==========================================================
 # 🧠 Inicialização resiliente do cliente OpenAI
 # ==========================================================
 
-def get_openai_client():
+def get_openai_client() -> Tuple[Optional[OpenAI], Optional[str]]:
     """Inicializa o cliente OpenAI de forma resiliente e segura."""
     secrets = st.secrets
     api_key = None
@@ -27,7 +29,6 @@ def get_openai_client():
 
     # Caso seja uma string (formato incorreto, mas lido como texto)
     elif isinstance(openai_block, str) and "api_key" in openai_block:
-        import re
         match = re.search(r"api_key['\"]*:\s*['\"]([^'\"]+)['\"]", openai_block)
         if match:
             api_key = match.group(1)
@@ -108,38 +109,72 @@ def extrair_texto(caminho_arquivo: str) -> str:
 
 
 # ==========================================================
+# 🔧 Utilitário: normalização de JSON
+# ==========================================================
+
+_CODEFENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE | re.MULTILINE)
+
+def _coerce_json(obj: Any) -> Dict[str, Any]:
+    """
+    Converte conteúdo textual em dicionário JSON.
+    - Remove cercas de código (```json ... ```).
+    - Retorna {} em caso de erro.
+    """
+    if isinstance(obj, dict):
+        return obj
+    if not isinstance(obj, str):
+        return {}
+
+    cleaned = _CODEFENCE_RE.sub("", obj).strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        return {}
+
+
+# ==========================================================
 # 🤖 Processamento IA
 # ==========================================================
 
 def process_insumo_text(texto: str) -> Dict[str, Any]:
-    """Analisa o texto via IA e retorna um dicionário com os campos estruturados (ou erro)."""
+    """
+    Analisa o texto via IA e retorna:
+    {
+        "campos_ai": { ...campos estruturados... },
+        "erro": None|str,
+        "raw": "<json como string>"
+    }
+    """
     client, model = get_openai_client()
 
     if not client:
         return {
             "erro": "⚠️ A chave OpenAI não foi encontrada ou é inválida.",
             "campos_ai": {},
+            "raw": "",
             "observacao": "Upload e histórico continuam funcionando normalmente.",
         }
 
     try:
         prompt = f"""
-        Você é um assistente técnico do Tribunal de Justiça de São Paulo.
-        Extraia do texto abaixo as informações relevantes para preencher um Documento de Formalização da Demanda (DFD).
-        Retorne um JSON estritamente válido com os campos:
-        {{
-            "unidade_solicitante": "",
-            "responsavel": "",
-            "objeto": "",
-            "justificativa": "",
-            "quantidade": "",
-            "urgencia": "",
-            "riscos": "",
-            "alinhamento_planejamento": ""
-        }}
-        Texto-base:
-        {texto}
-        """
+Você é um assistente técnico do Tribunal de Justiça de São Paulo.
+Extraia do texto abaixo as informações relevantes para preencher um Documento de Formalização da Demanda (DFD).
+Retorne **apenas** um JSON estritamente válido, com as chaves exatamente assim:
+
+{{
+  "unidade_solicitante": "",
+  "responsavel": "",
+  "objeto": "",
+  "justificativa": "",
+  "quantidade": "",
+  "urgencia": "",
+  "riscos": "",
+  "alinhamento_planejamento": ""
+}}
+
+# Texto-base:
+{texto}
+        """.strip()
 
         resposta = client.chat.completions.create(
             model=model,
@@ -153,13 +188,29 @@ def process_insumo_text(texto: str) -> Dict[str, Any]:
             temperature=0.0,
         )
 
-        conteudo = resposta.choices[0].message.content.strip()
-        return {"campos_ai": conteudo, "erro": None}
+        conteudo = (resposta.choices[0].message.content or "").strip()
+        campos_dict = _coerce_json(conteudo)
+
+        # Garante chaves esperadas mesmo que ausentes
+        for k in [
+            "unidade_solicitante",
+            "responsavel",
+            "objeto",
+            "justificativa",
+            "quantidade",
+            "urgencia",
+            "riscos",
+            "alinhamento_planejamento",
+        ]:
+            campos_dict.setdefault(k, "")
+
+        return {"campos_ai": campos_dict, "erro": None, "raw": conteudo}
 
     except Exception as e:
         return {
             "erro": f"Erro ao processar o texto via IA: {e}",
             "campos_ai": {},
+            "raw": "",
             "observacao": "Verifique créditos da conta OpenAI e o modelo em st.secrets.",
         }
 
