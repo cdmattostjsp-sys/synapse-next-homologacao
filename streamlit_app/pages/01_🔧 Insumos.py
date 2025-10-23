@@ -27,6 +27,20 @@ st.set_page_config(page_title="🔧 Insumos", layout="wide", page_icon="🔧")
 aplicar_estilo_global()
 
 # ==========================================================
+# 🔍 Teste de leitura do Secrets
+# ==========================================================
+import streamlit as st
+
+# Tenta ler o bloco [openai] e as variáveis globais
+teste_openai = {
+    "bloco_openai": st.secrets.get("openai", {}),
+    "OPENAI_API_KEY": st.secrets.get("OPENAI_API_KEY", None),
+    "OPENAI_MODEL": st.secrets.get("OPENAI_MODEL", None),
+}
+
+st.write("🧪 Diagnóstico de Secrets:", teste_openai)
+
+# ==========================================================
 # 🏛️ Cabeçalho institucional padronizado
 # ==========================================================
 exibir_cabecalho_padrao(
