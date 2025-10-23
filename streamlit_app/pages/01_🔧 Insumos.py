@@ -12,12 +12,12 @@ import sys, os, docx2txt, fitz  # PyMuPDF
 # 🔍 Importação compatível com a estrutura SynapseNext
 # ==========================================================
 try:
-    from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+    from utils.integration_insumos import salvar_insumo, listar_insumos, processar_insumo
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except ModuleNotFoundError:
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     sys.path.insert(0, base_dir)
-    from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+    from utils.integration_insumos import salvar_insumo, listar_insumos, processar_insumo
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
@@ -72,10 +72,9 @@ if arquivo and st.button("📤 Enviar insumo"):
         st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
 
         # --------------------------------------------------
-        # 🔍 Extração de texto
+        # 🔍 Extração de texto (resumo local)
         # --------------------------------------------------
-        texto_extraido = ""  # inicializa fora do try, garantindo existência
-
+        texto_extraido = ""
         try:
             nome = arquivo.name.lower()
             arquivo.seek(0)
@@ -93,23 +92,16 @@ if arquivo and st.button("📤 Enviar insumo"):
 
         except Exception as e:
             st.error(f"Erro ao extrair texto do arquivo: {e}")
-            texto_extraido = ""  # reforça a segurança
+            texto_extraido = ""
 
         # --------------------------------------------------
-        # 🤖 Processamento IA
+        # 🤖 Processamento IA e parser institucional
         # --------------------------------------------------
         campos_ai = {}
         if texto_extraido.strip():
-            st.info("IA processando o insumo e identificando campos relevantes...")
             try:
-                dados_inferidos = process_insumo_text(texto_extraido)
-                st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
-                st.json(dados_inferidos)
-
-                # 🔧 Ajuste – salvar apenas o dicionário puro dos campos inferidos
-                if isinstance(dados_inferidos, dict):
-                    campos_ai = dados_inferidos.get("campos_ai", {})
-
+                st.info("IA processando o insumo e identificando campos relevantes...")
+                campos_ai = processar_insumo(arquivo, artefato)
             except Exception as e:
                 st.error(f"Erro no processamento IA: {e}")
         else:
@@ -122,13 +114,13 @@ if arquivo and st.button("📤 Enviar insumo"):
             "nome": arquivo.name,
             "artefato": artefato,
             "conteudo": (texto_extraido or "")[:100000],
-            "campos_ai": campos_ai,   # agora salva somente o dicionário puro
+            "campos_ai": campos_ai or {},
             "usuario": usuario,
             "descricao": descricao,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        st.info("📎 Insumo ativo armazenado na sessão e disponível para o DFD/TR.")
+        st.info("📎 Insumo ativo armazenado na sessão e disponível para o DFD, ETP, TR e Edital.")
 
 # ==========================================================
 # 🗂️ Histórico de uploads
@@ -140,10 +132,10 @@ artefato_hist = st.selectbox("Filtrar por artefato", ["Todos", "DFD", "ETP", "TR
 
 if artefato_hist == "Todos":
     for tipo in ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]:
-        arquivos = listar_insumos(tipo)
-        st.markdown(f"#### 📘 {tipo} ({len(arquivos)} arquivos)")
+        arquivos = listar_insumos()
+        st.markdown(f"#### 📘 {tipo}")
         st.write(arquivos or "— sem arquivos —")
 else:
-    arquivos = listar_insumos(artefato_hist)
-    st.markdown(f"#### 📘 {artefato_hist} ({len(arquivos)} arquivos)")
+    arquivos = listar_insumos()
+    st.markdown(f"#### 📘 {artefato_hist}")
     st.write(arquivos or "Nenhum insumo encontrado para o artefato selecionado.")
