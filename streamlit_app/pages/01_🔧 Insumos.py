@@ -71,20 +71,26 @@ if arquivo and st.button("📤 Enviar insumo"):
         # ==========================================================
         # 🔍 Extração de texto
         # ==========================================================
-        texto_extraido = ""
+        texto_extraido = ""  # inicializa fora do try, garantindo existência
+
         try:
             nome = arquivo.name.lower()
             arquivo.seek(0)
             dados = arquivo.read()
+
             if nome.endswith(".pdf"):
                 pdf = fitz.open(stream=dados, filetype="pdf")
                 texto_extraido = "".join(p.get_text() for p in pdf)
+
             elif nome.endswith(".docx"):
                 texto_extraido = docx2txt.process(BytesIO(dados))
+
             elif nome.endswith(".txt"):
                 texto_extraido = dados.decode("utf-8", errors="ignore")
+
         except Exception as e:
             st.error(f"Erro ao extrair texto do arquivo: {e}")
+            texto_extraido = ""  # reforça a segurança
 
 # ==========================================================
 # 🤖 Processamento IA
