@@ -14,27 +14,42 @@ from typing import Dict, Any, List, Optional
 # 🧠 Inicialização resiliente do cliente OpenAI
 # ==========================================================
 
-secrets = st.secrets
-api_key = None
+def get_openai_client() -> tuple[Optional[OpenAI], str]:
+    """Inicializa o cliente OpenAI de forma resiliente e compatível com múltiplos formatos de secrets."""
+    secrets = st.secrets
+    api_key = None
 
-openai_block = secrets.get("openai")
+    openai_block = secrets.get("openai")
 
-# Se for um dicionário (formato correto)
-if isinstance(openai_block, dict):
-    api_key = openai_block.get("api_key")
+    # Caso 1 — formato TOML correto ([openai])
+    if isinstance(openai_block, dict):
+        api_key = openai_block.get("api_key")
 
-# Se for uma string (formato incorreto, mas lido como texto)
-elif isinstance(openai_block, str) and "api_key" in openai_block:
-    import re
-    match = re.search(r"api_key['\"]*:\s*['\"]([^'\"]+)['\"]", openai_block)
-    if match:
-        api_key = match.group(1)
+    # Caso 2 — formato incorreto (string convertida indevidamente)
+    elif isinstance(openai_block, str) and "api_key" in openai_block:
+        import re
+        match = re.search(r"api_key['\"]*:\s*['\"]([^'\"]+)['\"]", openai_block)
+        if match:
+            api_key = match.group(1)
 
-# Fallbacks alternativos
-api_key = api_key or secrets.get("openai.api_key") or secrets.get("OPENAI_API_KEY")
+    # Caso 3 — variáveis globais
+    api_key = api_key or secrets.get("openai.api_key") or secrets.get("OPENAI_API_KEY")
+    model = (secrets.get("openai", {}).get("model")
+             if isinstance(secrets.get("openai"), dict)
+             else None) or secrets.get("OPENAI_MODEL", "gpt-4o")
 
-if not api_key:
-    raise ValueError("A chave OpenAI não foi encontrada. Verifique o painel de Secrets.")
+    # Se a chave não estiver disponível, apenas alerta — não quebra o app
+    if not api_key:
+        st.warning("⚠️ A chave OpenAI não foi encontrada. O processamento IA está temporariamente desativado.")
+        return None, model
+
+    try:
+        client = OpenAI(api_key=api_key)
+        return client, model
+    except Exception as e:
+        st.error(f"Erro ao inicializar cliente OpenAI: {e}")
+        return None, model
+
 
 # ==========================================================
 # 📂 Salvar insumo
@@ -50,7 +65,6 @@ def salvar_insumo(file, artefato: str) -> Optional[str]:
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, file.name)
 
-    # file may be a SpooledTemporaryFile; use getbuffer when available
     try:
         data = file.getbuffer()
     except Exception:
