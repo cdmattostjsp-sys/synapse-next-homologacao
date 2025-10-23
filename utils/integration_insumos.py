@@ -6,242 +6,178 @@
 import os
 import re
 import json
-import fitz  # PyMuPDF
-import docx2txt
 import streamlit as st
+from PyPDF2 import PdfReader
+from docx import Document
+from io import BytesIO
 from openai import OpenAI
-from typing import Dict, Any, List, Optional, Tuple
 
-# ==========================================================
-# 🧠 Inicialização resiliente do cliente OpenAI
-# ==========================================================
+# Inicializa o cliente OpenAI
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-def get_openai_client() -> Tuple[Optional[OpenAI], Optional[str]]:
-    """Inicializa o cliente OpenAI de forma resiliente e segura."""
-    secrets = st.secrets
-    api_key = None
-
-    openai_block = secrets.get("openai")
-
-    # Caso [openai] seja um dicionário (formato correto)
-    if isinstance(openai_block, dict):
-        api_key = openai_block.get("api_key")
-
-    # Caso seja uma string (formato incorreto, mas lido como texto)
-    elif isinstance(openai_block, str) and "api_key" in openai_block:
-        match = re.search(r"api_key['\"]*:\s*['\"]([^'\"]+)['\"]", openai_block)
-        if match:
-            api_key = match.group(1)
-
-    # Fallbacks alternativos
-    api_key = api_key or secrets.get("openai.api_key") or secrets.get("OPENAI_API_KEY")
-    model = (
-        secrets.get("openai", {}).get("model")
-        if isinstance(secrets.get("openai"), dict)
-        else secrets.get("OPENAI_MODEL", "gpt-4o")
-    )
-
-    if not api_key:
-        st.warning("⚠️ A chave OpenAI não foi encontrada. Verifique o painel de *Secrets* antes de usar o processamento IA.")
-        return None, None
+# ---------------------------
+# 📘 Função: Extrair texto bruto do arquivo
+# ---------------------------
+def extrair_texto_arquivo(uploaded_file):
+    """Extrai texto puro de arquivos PDF, DOCX e TXT."""
+    nome = uploaded_file.name.lower()
+    texto = ""
 
     try:
-        client = OpenAI(api_key=api_key)
-        return client, model
+        if nome.endswith(".pdf"):
+            pdf_reader = PdfReader(uploaded_file)
+            for page in pdf_reader.pages:
+                texto += page.extract_text() + "\n"
+
+        elif nome.endswith(".docx"):
+            doc = Document(uploaded_file)
+            for para in doc.paragraphs:
+                texto += para.text + "\n"
+
+        elif nome.endswith(".txt"):
+            texto = uploaded_file.read().decode("utf-8", errors="ignore")
+
+        else:
+            st.warning("⚠️ Formato de arquivo não suportado. Use PDF, DOCX ou TXT.")
+            return ""
+
+        texto = re.sub(r"\s+", " ", texto).strip()
+        return texto
+
     except Exception as e:
-        st.error(f"❌ Erro ao inicializar o cliente OpenAI: {e}")
-        return None, None
+        st.error(f"Erro ao extrair texto: {e}")
+        return ""
 
 
-# ==========================================================
-# 📂 Salvar insumo
-# ==========================================================
+# ---------------------------
+# 🧠 Função: Analisar texto com IA
+# ---------------------------
+def analisar_insumo(texto, artefato):
+    """
+    Realiza a análise semântica do texto conforme o artefato selecionado.
+    """
+    if not texto:
+        return {}
 
-def salvar_insumo(file, artefato: str) -> Optional[str]:
-    """Salva o arquivo enviado na pasta ./uploads/<artefato> e retorna o caminho."""
-    if not file:
+    prompt = f"""
+    Você é um assistente técnico do Tribunal de Justiça de São Paulo.
+    Analise o texto abaixo e extraia informações relevantes para o artefato "{artefato}".
+    Devolva um JSON com os campos inferidos.
+
+    Texto:
+    {texto[:8000]}
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": "Você é um especialista em gestão pública e contratações."},
+                      {"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        conteudo = response.choices[0].message.content
+
+        match = re.search(r"\{.*\}", conteudo, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        else:
+            return {"resultado_ai": conteudo}
+
+    except Exception as e:
+        st.error(f"Erro ao processar IA: {e}")
+        return {}
+
+
+# ---------------------------
+# 🧩 Função: Parser Institucional aprimorado
+# ---------------------------
+def parser_institucional(texto):
+    """
+    Extrai campos específicos de documentos administrativos e licitatórios
+    com base em padrões comuns de editais, DFDs e TRs.
+    """
+
+    campos = {}
+
+    # Lista de padrões chave-valor
+    padroes = {
+        "modalidade": r"(?i)modalidade\s*[:\-–]\s*([^\n\r\.]+)",
+        "regime_execucao": r"(?i)regime\s+de\s+execu[cç][aã]o\s*[:\-–]\s*([^\n\r\.]+)",
+        "criterio_julgamento": r"(?i)crit[eé]rio\s+de\s+julgamento\s*[:\-–]\s*([^\n\r\.]+)",
+        "prazo_execucao": r"(?i)prazo\s+(?:de\s+execu[cç][aã]o|vig[eê]ncia)\s*[:\-–]\s*([^\n\r\.]+)",
+        "forma_pagamento": r"(?i)forma\s+de\s+pagamento\s*[:\-–]\s*([^\n\r\.]+)",
+        "penalidades": r"(?i)penalidades?\s*[:\-–]\s*([^\n\r\.]+)",
+        "base_legal": r"(?i)(lei\s*n[ºo]?\s*\d{4,5}\s*/?\s*\d{4})",
+        "objeto": r"(?i)objeto\s*[:\-–]\s*(.+?)(?=\n[A-Z0-9]+\s*[:\-–]|\Z)"
+    }
+
+    for campo, regex in padroes.items():
+        match = re.search(regex, texto, re.DOTALL)
+        if match:
+            valor = match.group(1).strip()
+            valor = re.sub(r"\s+", " ", valor)
+            campos[campo] = valor
+
+    # Fallback semântico básico
+    if "modalidade" not in campos and "pregão" in texto.lower():
+        campos["modalidade"] = "Pregão Eletrônico"
+    if "regime_execucao" not in campos and "empreitada" in texto.lower():
+        campos["regime_execucao"] = "Empreitada por preço unitário"
+    if "criterio_julgamento" not in campos and "menor preço" in texto.lower():
+        campos["criterio_julgamento"] = "Menor preço global"
+    if "base_legal" not in campos and "14.133" in texto:
+        campos["base_legal"] = "Lei nº 14.133/2021"
+
+    return campos
+
+
+# ---------------------------
+# 💾 Função principal de processamento
+# ---------------------------
+def processar_insumo(uploaded_file, artefato):
+    """Processa o insumo e retorna o dicionário consolidado."""
+    texto_extraido = extrair_texto_arquivo(uploaded_file)
+
+    if not texto_extraido:
         return None
 
-    artefato = (artefato or "Diversos").upper()
-    upload_dir = os.path.join("./uploads", artefato)
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, file.name)
+    st.success(f"📘 Documento '{uploaded_file.name}' processado com sucesso.")
+    st.write("IA processando o insumo e identificando campos relevantes...")
 
-    # file pode ser SpooledTemporaryFile; usar getbuffer quando disponível
-    try:
-        data = file.getbuffer()
-    except Exception:
-        file.seek(0)
-        data = file.read()
+    resultado_ai = analisar_insumo(texto_extraido, artefato)
+    campos_extrator = parser_institucional(texto_extraido)
 
-    with open(file_path, "wb") as f:
-        f.write(data)
+    # Combina resultados (IA + Regex)
+    campos_combinados = {**resultado_ai, **campos_extrator}
 
-    return file_path
-
-
-# ==========================================================
-# 📄 Extração de texto
-# ==========================================================
-
-def extrair_texto(caminho_arquivo: str) -> str:
-    """Extrai texto de PDF, DOCX ou TXT. Retorna string (ou mensagem de erro)."""
-    try:
-        lower = caminho_arquivo.lower()
-        if lower.endswith(".pdf"):
-            texto = []
-            with fitz.open(caminho_arquivo) as doc:
-                for pagina in doc:
-                    texto.append(pagina.get_text())
-            return "".join(texto)
-
-        if lower.endswith(".docx"):
-            return docx2txt.process(caminho_arquivo)
-
-        if lower.endswith(".txt"):
-            with open(caminho_arquivo, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read()
-
-        return "Formato de arquivo não suportado."
-
-    except Exception as e:
-        return f"Erro ao extrair texto: {e}"
-
-
-# ==========================================================
-# 🔧 Utilitário: normalização de JSON
-# ==========================================================
-
-_CODEFENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE | re.MULTILINE)
-
-def _coerce_json(obj: Any) -> Dict[str, Any]:
-    """
-    Converte conteúdo textual em dicionário JSON.
-    - Remove cercas de código (```json ... ```).
-    - Retorna {} em caso de erro.
-    """
-    if isinstance(obj, dict):
-        return obj
-    if not isinstance(obj, str):
-        return {}
-
-    cleaned = _CODEFENCE_RE.sub("", obj).strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        return {}
-
-
-# ==========================================================
-# 🤖 Processamento IA
-# ==========================================================
-
-def process_insumo_text(texto: str) -> Dict[str, Any]:
-    """
-    Analisa o texto via IA e retorna:
-    {
-        "campos_ai": { ...campos estruturados... },
-        "erro": None|str,
-        "raw": "<json como string>"
+    # Guarda no estado da sessão
+    st.session_state["last_insumo"] = {
+        "nome_arquivo": uploaded_file.name,
+        "artefato": artefato,
+        "texto": texto_extraido,
+        "campos_ai": campos_combinados
     }
-    """
-    client, model = get_openai_client()
 
-    if not client:
-        return {
-            "erro": "⚠️ A chave OpenAI não foi encontrada ou é inválida.",
-            "campos_ai": {},
-            "raw": "",
-            "observacao": "Upload e histórico continuam funcionando normalmente.",
-        }
+    st.success(f"📄 Insumo '{uploaded_file.name}' registrado e processado com sucesso.")
+    st.json(campos_combinados)
 
-    try:
-        prompt = f"""
-Você é um assistente técnico do Tribunal de Justiça de São Paulo.
-Extraia do texto abaixo as informações relevantes para preencher um Documento de Formalização da Demanda (DFD).
-Retorne **apenas** um JSON estritamente válido, com as chaves exatamente assim:
-
-{{
-  "unidade_solicitante": "",
-  "responsavel": "",
-  "objeto": "",
-  "justificativa": "",
-  "quantidade": "",
-  "urgencia": "",
-  "riscos": "",
-  "alinhamento_planejamento": ""
-}}
-
-# Texto-base:
-{texto}
-        """.strip()
-
-        resposta = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Você organiza informações de contratações públicas e SEMPRE devolve JSON válido.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.0,
-        )
-
-        conteudo = (resposta.choices[0].message.content or "").strip()
-        campos_dict = _coerce_json(conteudo)
-
-        # Garante chaves esperadas mesmo que ausentes
-        for k in [
-            "unidade_solicitante",
-            "responsavel",
-            "objeto",
-            "justificativa",
-            "quantidade",
-            "urgencia",
-            "riscos",
-            "alinhamento_planejamento",
-        ]:
-            campos_dict.setdefault(k, "")
-
-        return {"campos_ai": campos_dict, "erro": None, "raw": conteudo}
-
-    except Exception as e:
-        return {
-            "erro": f"Erro ao processar o texto via IA: {e}",
-            "campos_ai": {},
-            "raw": "",
-            "observacao": "Verifique créditos da conta OpenAI e o modelo em st.secrets.",
-        }
+    return campos_combinados
 
 
-# ==========================================================
-# 📋 Listagem de insumos
-# ==========================================================
+# ---------------------------
+# 📜 Funções auxiliares de integração
+# ---------------------------
+def salvar_insumo(uploaded_file, artefato):
+    pasta = "insumos_processados"
+    os.makedirs(pasta, exist_ok=True)
+    caminho = os.path.join(pasta, uploaded_file.name)
+    with open(caminho, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    return caminho
 
-def listar_insumos(artefato: Optional[str] = None) -> List[str]:
-    """
-    Lista arquivos de insumos já enviados.
-    - Sem parâmetro: lista todos.
-    - Com artefato: lista apenas ./uploads/<ARTEFATO>
-    """
-    base = "./uploads"
-    if not os.path.exists(base):
+
+def listar_insumos():
+    pasta = "insumos_processados"
+    if not os.path.exists(pasta):
         return []
-
-    if artefato and artefato.upper() != "TODOS":
-        pasta = os.path.join(base, artefato.upper())
-        if not os.path.exists(pasta):
-            return []
-        return [
-            os.path.join(pasta, f)
-            for f in os.listdir(pasta)
-            if os.path.isfile(os.path.join(pasta, f))
-        ]
-
-    # Lista recursiva
-    arquivos: List[str] = []
-    for root, _, files in os.walk(base):
-        for file in files:
-            arquivos.append(os.path.join(root, file))
-    return arquivos
+    return [f for f in os.listdir(pasta) if os.path.isfile(os.path.join(pasta, f))]
