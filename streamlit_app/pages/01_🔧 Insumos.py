@@ -1,37 +1,32 @@
-# ==========================================================
-# 🔧 Insumos.py — Upload e Integração de Artefatos
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# ==========================================================
+# ==============================
+# pages/01_🔧 Insumos.py (corrigido)
+# ==============================
 
 import streamlit as st
+st.set_page_config(page_title="🔧 Insumos", layout="wide")
+
 from datetime import datetime
 from io import BytesIO
-import sys
 from pathlib import Path
+import sys
 import docx2txt
 
 # ==========================================================
-# 🔧 Correção de path (utils está fora da pasta /streamlit_app)
+# 🔧 Correção de path (suporta execução em diferentes layouts de pasta)
 # ==========================================================
 current_dir = Path(__file__).resolve()
-root_dir = current_dir.parents[2]        # sobe dois níveis: pages → streamlit_app → raiz
-utils_dir = root_dir / "utils"
+# Tenta localizar /utils a partir de diferentes profundidades
+candidatos_utils = [current_dir.parent.parent / "utils", current_dir.parent / "utils", Path.cwd() / "utils"]
+for cand in candidatos_utils:
+    if cand.exists() and str(cand) not in sys.path:
+        sys.path.insert(0, str(cand))
 
-# adiciona diretórios ao sys.path se ainda não estiverem presentes
-for path in [root_dir, utils_dir]:
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
-
-# ==========================================================
-# 🔍 Imports (módulo utilitário e IA)
-# ==========================================================
-from utils.integration_insumos import (
-    salvar_insumo,
-    listar_insumos,
-    process_insumo_text,
-)
-
-st.set_page_config(page_title="🔧 Insumos", layout="wide")
+try:
+    from integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+except Exception:
+    # Fallback quando projeto estiver estruturado como pacote utils.integration_insumos
+    sys.path.insert(0, str((current_dir.parent.parent)))
+    from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text  # type: ignore
 
 # ==========================================================
 # 🏛️ Cabeçalho
@@ -43,7 +38,7 @@ st.markdown(
         <p style='font-size:1.05rem; color:#444;'>Integração inteligente entre artefatos e dados do SynapseNext</p>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 st.markdown(
@@ -73,35 +68,31 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT, etc.)", type=["
 
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
-        # ==========================================================
-        # 💾 Registro do upload (corrigido)
-        # ==========================================================
-        resultado = {
-            "mensagem": f"Insumo '{arquivo.name}' salvo com sucesso em {salvar_insumo(arquivo, 'Insumos')}"
-        }
+        # 💾 Salvar no diretório do artefato selecionado (corrigido)
+        caminho_salvo = salvar_insumo(arquivo, artefato)
+        st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
 
-        st.success(resultado["mensagem"])
-
-        # ==========================================================
-        # 🔍 Extração de texto do documento
-        # ==========================================================
+        # 🔍 Extração de texto (usa buffer para evitar exaustão do stream)
         texto_extraido = ""
         try:
-            if arquivo.name.lower().endswith(".pdf"):
-                import fitz  # PyMuPDF
-                pdf = fitz.open(stream=arquivo.read(), filetype="pdf")
+            import fitz  # PyMuPDF
+            nome = arquivo.name.lower()
+            arquivo.seek(0)
+            dados = arquivo.read()
+
+            if nome.endswith(".pdf"):
+                pdf = fitz.open(stream=dados, filetype="pdf")
                 texto_extraido = "".join(page.get_text() for page in pdf)
-            elif arquivo.name.lower().endswith(".docx"):
-                arquivo.seek(0)
-                texto_extraido = docx2txt.process(BytesIO(arquivo.read()))
-            elif arquivo.name.lower().endswith(".txt"):
-                texto_extraido = arquivo.read().decode("utf-8", errors="ignore")
+
+            elif nome.endswith(".docx"):
+                texto_extraido = docx2txt.process(BytesIO(dados))
+
+            elif nome.endswith(".txt"):
+                texto_extraido = dados.decode("utf-8", errors="ignore")
         except Exception as e:
             st.error(f"Erro ao extrair texto do arquivo: {e}")
 
-        # ==========================================================
         # 🤖 Processamento semântico com IA
-        # ==========================================================
         campos_ai = {}
         if texto_extraido.strip():
             st.info("IA processando o insumo e identificando campos relevantes...")
@@ -116,9 +107,7 @@ if arquivo and st.button("📤 Enviar insumo"):
         else:
             st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
 
-        # ==========================================================
         # 🧠 Persistência para páginas seguintes (DFD/TR)
-        # ==========================================================
         st.session_state["last_insumo"] = {
             "nome": arquivo.name,
             "artefato": artefato,
@@ -140,15 +129,18 @@ st.subheader("🗂️ Histórico de Insumos Enviados")
 artefato_hist = st.selectbox("Filtrar por artefato", ["Todos", "DFD", "ETP", "TR", "EDITAL", "CONTRATO"])
 
 if artefato_hist == "Todos":
+    # agrupa por pasta de artefato
     for tipo in ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]:
-        arquivos = listar_insumos()
+        arquivos = listar_insumos(tipo)
+        st.markdown(f"#### 📘 {tipo} ({len(arquivos)} arquivos)")
         if arquivos:
-            st.markdown(f"#### 📘 {tipo} ({len(arquivos)} arquivos)")
             st.write(arquivos)
+        else:
+            st.caption("— sem arquivos —")
 else:
     arquivos = listar_insumos(artefato_hist)
+    st.markdown(f"#### 📘 {artefato_hist} ({len(arquivos)} arquivos)")
     if arquivos:
-        st.markdown(f"#### 📘 {artefato_hist} ({len(arquivos)} arquivos)")
         st.write(arquivos)
     else:
         st.info("Nenhum insumo encontrado para o artefato selecionado.")
