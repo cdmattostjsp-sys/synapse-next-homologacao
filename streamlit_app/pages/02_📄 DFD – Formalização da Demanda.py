@@ -5,20 +5,19 @@ import streamlit as st
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==========================================================
 
-st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide")
+st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide", page_icon="📄")
+
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+aplicar_estilo_global()
 
 # ==========================================================
-# 🏛️ Cabeçalho
+# 🏛️ Cabeçalho institucional padronizado
 # ==========================================================
-st.markdown(
-    """
-    <div style='padding: 1.2rem 0; text-align: center;'>
-        <h1 style='color:#800000; margin-bottom:0.3rem;'>📄 Documento de Formalização da Demanda (DFD)</h1>
-        <p style='font-size:1.05rem; color:#444;'>Pré-preenchimento automático a partir de insumos + validação IA</p>
-    </div>
-    """,
-    unsafe_allow_html=True
+exibir_cabecalho_padrao(
+    "📄 Documento de Formalização da Demanda (DFD)",
+    "Pré-preenchimento automático a partir de insumos + validação IA"
 )
+st.divider()
 
 # ==========================================================
 # 🔍 Detecção de Insumo Ativo
@@ -37,7 +36,6 @@ else:
 # ==========================================================
 # 🧾 Formulário Institucional (com ou sem preenchimento IA)
 # ==========================================================
-st.divider()
 st.subheader("1️⃣ Entrada – Formulário Institucional")
 
 with st.form("form_dfd"):
@@ -70,12 +68,11 @@ if submitted:
 
     st.json(dfd_data)
     st.info("Os dados foram processados e podem ser exportados ou validados em etapas posteriores.")
-    st.session_state["last_dfd"] = dfd_data  # 🔄 guarda para uso futuro (TR, Edital, etc.)
+    st.session_state["last_dfd"] = dfd_data
 
 # ==========================================================
 # 📊 Observações Técnicas
 # ==========================================================
-st.divider()
 st.caption(
     """
     💡 *Dica:* Quando um insumo for processado na aba **Insumos**, o DFD será automaticamente pré-preenchido.  
