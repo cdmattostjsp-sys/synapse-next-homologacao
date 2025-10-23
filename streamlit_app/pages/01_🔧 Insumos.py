@@ -8,24 +8,17 @@ st.set_page_config(page_title="🔧 Insumos", layout="wide")
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-import sys, docx2txt, fitz  # PyMuPDF
+import sys, os, docx2txt, fitz  # PyMuPDF
 
 # ==========================================================
-# 🔍 Importação resiliente do módulo utils.integration_insumos
+# 🔍 Importação compatível com a estrutura SynapseNext
 # ==========================================================
-current_dir = Path(__file__).resolve()
-utils_dir = current_dir.parent.parent / "utils"
-if str(utils_dir) not in sys.path:
-    sys.path.insert(0, str(utils_dir))
-
 try:
-    from integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+    from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
 except ModuleNotFoundError:
-    try:
-        from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
-    except ModuleNotFoundError as e:
-        st.error(f"❌ Não foi possível importar integration_insumos: {e}")
-        st.stop()
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    sys.path.insert(0, base_dir)
+    from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
 
 # ==========================================================
 # 🏛️ Cabeçalho
