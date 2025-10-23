@@ -86,36 +86,40 @@ if arquivo and st.button("📤 Enviar insumo"):
         except Exception as e:
             st.error(f"Erro ao extrair texto do arquivo: {e}")
 
-        # ==========================================================
-        # 🤖 Processamento IA
-        # ==========================================================
-        campos_ai = {}
-        if texto_extraido.strip():
-            st.info("IA processando o insumo e identificando campos relevantes...")
-            try:
-                dados_inferidos = process_insumo_text(texto_extraido)
-                st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
-                st.json(dados_inferidos)
-                if isinstance(dados_inferidos, dict):
-                    campos_ai = dados_inferidos
-            except Exception as e:
-                st.error(f"Erro no processamento IA: {e}")
-        else:
-            st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
+# ==========================================================
+# 🤖 Processamento IA
+# ==========================================================
+campos_ai = {}
+if texto_extraido.strip():
+    st.info("IA processando o insumo e identificando campos relevantes...")
+    try:
+        dados_inferidos = process_insumo_text(texto_extraido)
+        st.success(f"✅ Insumo '{arquivo.name}' registrado e processado com sucesso.")
+        st.json(dados_inferidos)
 
-        # ==========================================================
-        # 💾 Registro em sessão
-        # ==========================================================
-        st.session_state["last_insumo"] = {
-            "nome": arquivo.name,
-            "artefato": artefato,
-            "conteudo": (texto_extraido or "")[:100000],
-            "campos_ai": campos_ai,
-            "usuario": usuario,
-            "descricao": descricao,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        st.info("📎 Insumo ativo armazenado na sessão e disponível para o DFD/TR.")
+        # 🔧 Ajuste opcional: salvar apenas o dicionário puro dos campos inferidos
+        if isinstance(dados_inferidos, dict):
+            campos_ai = dados_inferidos.get("campos_ai", {})
+
+    except Exception as e:
+        st.error(f"Erro no processamento IA: {e}")
+else:
+    st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
+
+# ==========================================================
+# 💾 Registro em sessão
+# ==========================================================
+st.session_state["last_insumo"] = {
+    "nome": arquivo.name,
+    "artefato": artefato,
+    "conteudo": (texto_extraido or "")[:100000],
+    "campos_ai": campos_ai,   # Agora salva somente o dicionário puro
+    "usuario": usuario,
+    "descricao": descricao,
+    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+}
+st.info("📎 Insumo ativo armazenado na sessão e disponível para o DFD/TR.")
+
 
 # ==========================================================
 # 🗂️ Histórico de uploads
