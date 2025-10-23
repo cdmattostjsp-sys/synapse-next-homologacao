@@ -14,39 +14,27 @@ from typing import Dict, Any, List, Optional
 # 🧠 Inicialização resiliente do cliente OpenAI
 # ==========================================================
 
-def get_openai_client():
-    """
-    Inicializa o cliente OpenAI de forma compatível com múltiplos formatos de secrets.
-    Aceita:
-      - [openai] api_key = "..."
-      - openai.api_key = "..."
-      - OPENAI_API_KEY = "..."
-      - [openai] model = "gpt-4o-mini" (opcional, com fallback)
-    Retorna: (client | None, model_str)
-    """
-    secrets = dict(st.secrets) if hasattr(st, "secrets") else {}
+secrets = st.secrets
+api_key = None
 
-    api_key = None
-    if isinstance(secrets.get("openai"), dict):
-        api_key = secrets.get("openai", {}).get("api_key")
-    api_key = api_key or secrets.get("openai.api_key") or secrets.get("OPENAI_API_KEY")
+openai_block = secrets.get("openai")
 
-    model = None
-    if isinstance(secrets.get("openai"), dict):
-        model = secrets.get("openai", {}).get("model")
-    model = model or secrets.get("openai.model") or "gpt-4o-mini"
+# Se for um dicionário (formato correto)
+if isinstance(openai_block, dict):
+    api_key = openai_block.get("api_key")
 
-    if not api_key:
-        st.warning("⚠️ A chave OpenAI não foi encontrada. Verifique o painel de Secrets.")
-        return None, model
+# Se for uma string (formato incorreto, mas lido como texto)
+elif isinstance(openai_block, str) and "api_key" in openai_block:
+    import re
+    match = re.search(r"api_key['\"]*:\s*['\"]([^'\"]+)['\"]", openai_block)
+    if match:
+        api_key = match.group(1)
 
-    try:
-        client = OpenAI(api_key=api_key)
-        return client, model
-    except Exception as e:
-        st.error(f"Erro ao inicializar o cliente OpenAI: {e}")
-        return None, model
+# Fallbacks alternativos
+api_key = api_key or secrets.get("openai.api_key") or secrets.get("OPENAI_API_KEY")
 
+if not api_key:
+    raise ValueError("A chave OpenAI não foi encontrada. Verifique o painel de Secrets.")
 
 # ==========================================================
 # 📂 Salvar insumo
