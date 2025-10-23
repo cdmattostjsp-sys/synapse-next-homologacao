@@ -3,8 +3,6 @@
 # ==============================
 
 import streamlit as st
-st.set_page_config(page_title="🔧 Insumos", layout="wide")
-
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -15,24 +13,31 @@ import sys, os, docx2txt, fitz  # PyMuPDF
 # ==========================================================
 try:
     from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except ModuleNotFoundError:
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     sys.path.insert(0, base_dir)
     from utils.integration_insumos import salvar_insumo, listar_insumos, process_insumo_text
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
-# 🏛️ Cabeçalho
+# ⚙️ Configuração da página
 # ==========================================================
-st.markdown(
-    """
-    <div style='padding:1.2rem 0;text-align:center;'>
-        <h1 style='color:#800000;margin-bottom:0.3rem;'>🔧 Upload de Insumos Institucionais</h1>
-        <p style='font-size:1.05rem;color:#444;'>Integração inteligente entre artefatos e dados do SynapseNext</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
+st.set_page_config(page_title="🔧 Insumos", layout="wide", page_icon="🔧")
+aplicar_estilo_global()
+
+# ==========================================================
+# 🏛️ Cabeçalho institucional padronizado
+# ==========================================================
+exibir_cabecalho_padrao(
+    "🔧 Upload de Insumos Institucionais",
+    "Integração inteligente entre artefatos e dados do SynapseNext"
 )
+st.divider()
 
+# ==========================================================
+# 📘 Descrição funcional
+# ==========================================================
 st.markdown(
     """
 O módulo **INSUMOS** permite anexar documentos institucionais (DFD, ETP, TR, Edital, Contrato etc.)  
