@@ -14,41 +14,42 @@ from typing import Dict, Any, List, Optional
 # 🧠 Inicialização resiliente do cliente OpenAI
 # ==========================================================
 
-def get_openai_client() -> tuple[Optional[OpenAI], str]:
-    """Inicializa o cliente OpenAI de forma resiliente e compatível com múltiplos formatos de secrets."""
+def get_openai_client():
+    """Inicializa o cliente OpenAI de forma resiliente e segura."""
     secrets = st.secrets
     api_key = None
 
     openai_block = secrets.get("openai")
 
-    # Caso 1 — formato TOML correto ([openai])
+    # Caso [openai] seja um dicionário (formato correto)
     if isinstance(openai_block, dict):
         api_key = openai_block.get("api_key")
 
-    # Caso 2 — formato incorreto (string convertida indevidamente)
+    # Caso seja uma string (formato incorreto, mas lido como texto)
     elif isinstance(openai_block, str) and "api_key" in openai_block:
         import re
         match = re.search(r"api_key['\"]*:\s*['\"]([^'\"]+)['\"]", openai_block)
         if match:
             api_key = match.group(1)
 
-    # Caso 3 — variáveis globais
+    # Fallbacks alternativos
     api_key = api_key or secrets.get("openai.api_key") or secrets.get("OPENAI_API_KEY")
-    model = (secrets.get("openai", {}).get("model")
-             if isinstance(secrets.get("openai"), dict)
-             else None) or secrets.get("OPENAI_MODEL", "gpt-4o")
+    model = (
+        secrets.get("openai", {}).get("model")
+        if isinstance(secrets.get("openai"), dict)
+        else secrets.get("OPENAI_MODEL", "gpt-4o")
+    )
 
-    # Se a chave não estiver disponível, apenas alerta — não quebra o app
     if not api_key:
-        st.warning("⚠️ A chave OpenAI não foi encontrada. O processamento IA está temporariamente desativado.")
-        return None, model
+        st.warning("⚠️ A chave OpenAI não foi encontrada. Verifique o painel de *Secrets* antes de usar o processamento IA.")
+        return None, None
 
     try:
         client = OpenAI(api_key=api_key)
         return client, model
     except Exception as e:
-        st.error(f"Erro ao inicializar cliente OpenAI: {e}")
-        return None, model
+        st.error(f"❌ Erro ao inicializar o cliente OpenAI: {e}")
+        return None, None
 
 
 # ==========================================================
@@ -65,6 +66,7 @@ def salvar_insumo(file, artefato: str) -> Optional[str]:
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, file.name)
 
+    # file pode ser SpooledTemporaryFile; usar getbuffer quando disponível
     try:
         data = file.getbuffer()
     except Exception:
@@ -186,7 +188,7 @@ def listar_insumos(artefato: Optional[str] = None) -> List[str]:
             if os.path.isfile(os.path.join(pasta, f))
         ]
 
-    # lista recursiva
+    # Lista recursiva
     arquivos: List[str] = []
     for root, _, files in os.walk(base):
         for file in files:
