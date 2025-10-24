@@ -51,6 +51,39 @@ def generate_guidance(user_input: str) -> dict:
     return guidance
 
 
+# === Integração com a Geração de Artefatos (DocumentAgent via AgentsBridge) ===
+from utils.agents_bridge import AgentsBridge
+
+def gerar_artefato_orquestrado(stage: str, metadata: dict) -> dict:
+    """
+    Gera o rascunho do artefato institucional com base no estágio detectado.
+    Atua como ponte entre o agente orientador (guide_agent)
+    e o agente gerador de documentos (DocumentAgent).
+
+    Parâmetros:
+    - stage: string indicando o módulo (ex.: "DFD", "ETP", "TR", "EDITAL", "CONTRATO")
+    - metadata: dicionário de metadados coletados dos formulários ou respostas do usuário
+
+    Retorna:
+    - dict estruturado no formato:
+      {
+        "modulo": "DFD",
+        "secoes": { "Contexto": "...", "Necessidade": "..." },
+        "lacunas": ["..."]
+      }
+    """
+    try:
+        bridge = AgentsBridge(stage)
+        result = bridge.generate(metadata)
+        return result
+    except Exception as e:
+        return {
+            "erro": f"Falha ao gerar artefato ({stage}): {e}",
+            "modulo": stage,
+            "metadata": metadata
+        }
+
+
 if __name__ == "__main__":
     # Exemplo de teste local
     texto_exemplo = """
@@ -58,5 +91,15 @@ if __name__ == "__main__":
     para o Fórum de Sorocaba. As atuais estão danificadas e representam risco.
     """
     resposta = generate_guidance(texto_exemplo)
+    print("Orientação do agente tutor:")
     print(resposta)
 
+    # Exemplo adicional de uso da nova função de geração de artefato
+    exemplo_metadata = {
+        "unidade": "SAAB/TJSP",
+        "descricao": "Aquisição de notebooks para a equipe técnica",
+        "estimativa_valor": 250000
+    }
+    rascunho = gerar_artefato_orquestrado("DFD", exemplo_metadata)
+    print("\nRascunho gerado via AgentsBridge:")
+    print(rascunho)
