@@ -1,4 +1,5 @@
 import streamlit as st
+from utils.integration_dfd import export_dfd_to_json
 
 # ==========================================================
 # 📄 DFD – Documento de Formalização da Demanda
