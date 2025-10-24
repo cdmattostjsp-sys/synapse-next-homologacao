@@ -159,6 +159,32 @@ if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
+    # ==========================================================
+    # 📦 Exportação do DFD em JSON (para integração com ETP)
+    # ==========================================================
+    st.markdown("---")
+    st.subheader("📦 Exportação para ETP (JSON)")
+    st.info("Gera o arquivo 'exports/dfd_data.json', que será utilizado automaticamente pelo módulo ETP.")
+
+    if st.button("📦 Exportar DFD (JSON)"):
+        dfd_payload = {
+            "unidade": dfd_data.get("unidade_solicitante", ""),
+            "descricao": dfd_data.get("objeto", ""),
+            "motivacao": dfd_data.get("justificativa", ""),
+            "quantidade": dfd_data.get("quantidade", ""),
+            "prazo": "",  # opcional – ainda não presente no DFD
+            "estimativa_valor": "",  # opcional – preenchido no ETP
+            "responsavel": dfd_data.get("responsavel", ""),
+            "riscos": dfd_data.get("riscos", ""),
+            "alinhamento": dfd_data.get("alinhamento_planejamento", "")
+        }
+        try:
+            path = export_dfd_to_json(dfd_payload)
+            st.success(f"✅ DFD exportado com sucesso para {path}")
+        except Exception as e:
+            st.error(f"Falha ao exportar DFD: {e}")
+
+
 # ==========================================================
 # 📊 Observações Técnicas
 # ==========================================================
