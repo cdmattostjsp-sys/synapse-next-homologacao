@@ -1,0 +1,123 @@
+# 🧩 SynapseNext – Fase 1  
+## Integração INSUMOS → DFD (Formalização da Demanda)
+
+---
+
+### 🏛️ Contexto Institucional
+
+O projeto **SynapseNext – SAAB/TJSP** tem como objetivo automatizar o ciclo completo de artefatos administrativos previstos na **Lei nº 14.133/2021**, promovendo interoperabilidade e inteligência institucional.  
+
+A **Fase 1** visou comprovar a integração funcional entre os módulos **INSUMOS** e **DFD (Formalização da Demanda)**, estabelecendo o fluxo base de ingestão de documentos, análise com IA, sincronização e exportação institucional.
+
+---
+
+### ⚙️ Estrutura Técnica e Componentes
+
+| Componente | Função principal |
+|-------------|------------------|
+| `utils/integration_insumos.py` | Processa insumos (PDF, DOCX, TXT), extrai texto e executa análise semântica via IA (modelo `gpt-4o-mini`). Exporta dados estruturados para uso nos artefatos seguintes. |
+| `streamlit_app/pages/02_📄 DFD – Formalização da Demanda.py` | Consome automaticamente os dados exportados pelo módulo INSUMOS e gera o rascunho do DFD com suporte da IA institucional. |
+| `exports/insumos_data.json` | Arquivo JSON criado automaticamente contendo os metadados e campos identificados para integração. |
+| `agents/guide_agent.py` | Agente orquestrador para geração de artefatos institucionais via IA. |
+
+---
+
+### 🔄 Fluxo Validado
+
+1. **Upload do Insumo**
+   - Usuário realiza upload via módulo **INSUMOS**.
+   - Documento salvo em `insumos_processados/`.
+   - Texto extraído automaticamente.
+
+2. **Análise Semântica com IA**
+   - O texto é interpretado pelo modelo **gpt-4o-mini**.
+   - Campos administrativos e técnicos são extraídos (objeto, justificativa, valor, unidade etc.).
+
+3. **Exportação Automática**
+   - O sistema gera o arquivo `exports/insumos_data.json`, pronto para ser consumido pelo DFD.
+
+4. **Importação no Módulo DFD**
+   - Ao abrir o DFD, o sistema identifica o arquivo `insumos_data.json`.
+   - Preenche automaticamente o formulário com os metadados importados.
+
+5. **Geração e Exportação do Artefato**
+   - IA institucional gera o rascunho completo do DFD.
+   - Resultado exibido em JSON e exportado para Word (`.docx`).
+   - Fluxo validado sem necessidade de ajustes manuais.
+
+---
+
+### ✅ Resultados Obtidos
+
+- Integração **completa e funcional** entre INSUMOS e DFD.  
+- IA aplicada com sucesso à leitura e estruturação semântica dos documentos.  
+- Exportação e importação automatizadas entre módulos.  
+- Geração de artefato institucional (DFD) em formato Word validada.  
+- Estrutura base pronta para replicação em ETP, TR, Edital e Contrato.  
+
+---
+
+### ⚙️ Evoluções Planejadas
+
+| Fase | Descrição | Status |
+|------|------------|--------|
+| **Fase 2** | Integração DFD → ETP (Estudo Técnico Preliminar) | ⏳ Em preparação |
+| **Fase 3** | Integração ETP → TR (Termo de Referência) | ⏳ Planejada |
+| **Fase 4** | Integração TR → Edital / Contrato | ⏳ Planejada |
+| **Fase 5** | Exportação refinada (Word e PDF com formatação oficial TJSP) | ⏳ Pendente de definições institucionais |
+| **Fase 6** | Integração SharePoint / Power BI | ⏳ Planejada |
+
+---
+
+### 🧠 Estado Atual do Sistema
+
+| Módulo | Situação | Observação |
+|---------|-----------|------------|
+| INSUMOS | ✅ Operacional | Upload, extração e IA funcionando |
+| DFD | ✅ Operacional | Importação automática e exportação Word |
+| ETP | ⚙️ Em desenvolvimento | Próxima integração |
+| TR | ⏳ Planejado | Depende da Fase 2 |
+| Edital / Contrato | ⏳ Planejado | Etapa final do ciclo |
+| SharePoint / Auditoria | ⏳ Preparado | Pipeline presente em `export_sharepoint_pipeline.py` |
+
+---
+
+### 🧩 Conclusão Técnica
+
+A **Fase 1** do projeto **SynapseNext – SAAB/TJSP** atingiu plenamente seus objetivos:
+
+- Prova de conceito concluída com sucesso.  
+- Integração funcional entre módulos estabelecida.  
+- Automação de leitura, análise e geração de artefatos validada.  
+
+O sistema encontra-se **tecnicamente apto** para avançar à **Fase 2 (DFD → ETP)**, consolidando o ciclo de produção documental inteligente do Tribunal.
+
+---
+
+### 🏁 Próximos Passos
+
+1. Criar novo ciclo de desenvolvimento:  
+   **Chat:** `SynapseNext – Fase 2: Integração DFD → ETP (Estudo Técnico Preliminar)`  
+2. Implementar leitura automática de `dfd_data.json` no módulo ETP.  
+3. Testar preenchimento e geração IA do artefato ETP.  
+4. Validar exportação e propagação de dados para o TR.
+
+---
+
+### 📎 Anexo Técnico
+
+**Arquivo gerado:**  
+`/exports/insumos_data.json`  
+
+**Fluxos ativos:**  
+- `/streamlit_app/pages/01_🧩 Insumos.py`  
+- `/streamlit_app/pages/02_📄 DFD – Formalização da Demanda.py`  
+- `/utils/integration_insumos.py`  
+
+---
+
+**Versão:** `Fase 1 – Build 2025.10.24`  
+**Responsável técnico:** Eng. Carlos Mattos  
+**Agente institucional:** SynapseNext (GPT-5 – OpenAI Orchestration)  
+**Ambiente:** Codespaces / Streamlit Runtime  
+**Status:** ✅ Homologada com sucesso
