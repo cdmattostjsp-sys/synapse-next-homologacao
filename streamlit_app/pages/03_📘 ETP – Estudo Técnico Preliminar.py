@@ -19,6 +19,10 @@ aplicar_estilo_global()
 from io import BytesIO
 from docx import Document
 from docx.shared import Pt
+# Novos utilitários de integração e IA
+from utils.integration_dfd import load_dfd_from_json
+from utils.knowledge_loader import read_txt_files
+from utils.agents_bridge import AgentsBridge
 
 
 # ==========================================================
@@ -29,6 +33,17 @@ exibir_cabecalho_padrao(
     "Pré-preenchimento automático a partir do DFD + complementação técnica"
 )
 st.divider()
+
+# ==========================================================
+# 📂 Leitura automática do DFD exportado
+# ==========================================================
+with st.expander("📂 Fonte de dados (DFD)", expanded=True):
+    dfd_data = load_dfd_from_json()
+    if dfd_data:
+        st.success("✅ Arquivo 'exports/dfd_data.json' encontrado e carregado.")
+        st.json(dfd_data)
+    else:
+        st.warning("⚠️ Arquivo 'exports/dfd_data.json' não encontrado. O ETP poderá ser preenchido manualmente.")
 
 
 # ==========================================================
@@ -147,6 +162,42 @@ if submitted:
     st.json(etp_data)
     st.session_state["last_etp"] = etp_data
 
+# ==========================================================
+# ⚙️ Geração assistida por IA institucional (SynapseNext)
+# ==========================================================
+st.divider()
+st.subheader("⚙️ Geração com IA institucional")
+
+usar_kb = st.checkbox("Enriquecer com Knowledge Base (ETP + legislação)", value=True)
+max_chars_kb = st.slider("Limite de caracteres da KB", min_value=2000, max_value=40000, value=20000, step=1000)
+
+if st.button("🤖 Gerar rascunho com IA (ETP)"):
+    metadata = {
+        "unidade": st.session_state.get("last_etp", {}).get("unidade_solicitante"),
+        "objeto": st.session_state.get("last_etp", {}).get("objeto"),
+        "justificativa": st.session_state.get("last_etp", {}).get("justificativa"),
+        "riscos": st.session_state.get("last_etp", {}).get("riscos"),
+        "responsavel": st.session_state.get("last_etp", {}).get("responsavel_tecnico"),
+        "_fonte_dfd": dfd_data,
+    }
+
+    # (Opcional) Carregar conhecimento contextual
+    kb_context = ""
+    if usar_kb:
+        kb_context = read_txt_files(["ETP", "legislacao"], max_chars=max_chars_kb)
+        if kb_context:
+            metadata["contexto_institucional"] = kb_context
+
+    try:
+        bridge = AgentsBridge("ETP")
+        doc = bridge.generate(metadata)
+        st.session_state["ETP_AI"] = doc
+        st.success("✅ Rascunho do ETP gerado com sucesso pela IA institucional.")
+        with st.expander("📄 Prévia do Rascunho (JSON)", expanded=False):
+            st.json(doc)
+    except Exception as e:
+        st.error(f"Falha ao gerar rascunho com IA: {e}")
+
 
 # ==========================================================
 # 📤 Exportação do último ETP (mesmo após reload)
@@ -192,6 +243,22 @@ if "last_etp" in st.session_state and st.session_state["last_etp"]:
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
+# ==========================================================
+# 📤 Exportação do rascunho gerado pela IA
+# ==========================================================
+if "ETP_AI" in st.session_state and st.session_state["ETP_AI"]:
+    st.divider()
+    st.subheader("📤 Exportação de Rascunho (IA)")
+    doc = st.session_state["ETP_AI"]
+    try:
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports", "ETP_rascunho.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        import json
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False, indent=2)
+        st.success(f"Arquivo salvo: {path}")
+    except Exception as e:
+        st.error(f"Falha ao salvar rascunho IA: {e}")
 
 # ==========================================================
 # 🛈 Observações
