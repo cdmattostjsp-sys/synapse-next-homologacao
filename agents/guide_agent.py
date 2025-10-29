@@ -1,105 +1,133 @@
 """
-guide_agent.py
---------------------------------
-Agente tutor responsável por:
-1. Ler o estágio atual detectado (via stage_detector).
-2. Carregar perguntas do question_bank.yaml.
-3. Gerar orientações dinâmicas para o usuário preencher lacunas.
+guide_agent.py – SynapseNext vNext
+Agente de orientação inteligente e tutor de homologação.
+Fornece respostas institucionais, orientações de próxima etapa e diagnósticos.
+Homologado: SAAB/TJSP – vNext 2025
 """
 
 import os
-import yaml
-from .stage_detector import detect_stage, get_next_stage, get_required_fields
+import json
+from datetime import datetime
+from openai import OpenAI
 
-BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "journey")
+# Inicializa cliente OpenAI (usa chave de ambiente ou secrets.toml)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
-def load_questions(stage: str) -> dict:
+class GuideAgent:
     """
-    Carrega as perguntas específicas para o estágio (DFD, ETP, TR).
+    Atua como assistente institucional do SynapseNext.
+    Orienta a sequência da jornada de contratação com base em artefatos, metadados e padrões SAAB/TJSP.
     """
-    try:
-        path = os.path.join(BASE_DIR, "question_bank.yaml")
-        with open(path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        return data.get(stage.lower(), {})
-    except Exception as e:
-        return {"error": f"Erro ao carregar question_bank.yaml: {str(e)}"}
 
+    def __init__(self, model="gpt-4o-mini"):
+        self.model = model
+        self.contexto_base = (
+            "Você é o assistente institucional SynapseNext, "
+            "especializado em contratações públicas e na Lei 14.133/2021. "
+            "Seu papel é orientar de forma técnica e objetiva o andamento "
+            "dos artefatos (DFD → ETP → TR → Edital → Contrato), "
+            "sempre conforme as diretrizes da SAAB/TJSP."
+        )
 
-def generate_guidance(user_input: str) -> dict:
-    """
-    Gera orientações personalizadas com base no estágio atual e no texto do usuário.
-    """
-    stage = detect_stage(user_input)
-    next_stage = get_next_stage(stage)
-    doc_type = next_stage.get("doc", "dfd")
+    def gerar_orientacao(self, artefatos_dir="exports") -> str:
+        """
+        Analisa os artefatos existentes e gera um resumo da situação institucional.
+        Exemplo: identifica se há documentos faltantes, inconsistentes ou desatualizados.
+        """
+        arquivos = [f for f in os.listdir(artefatos_dir) if f.endswith("_data.json")]
+        if not arquivos:
+            return "⚠️ Nenhum artefato encontrado para análise."
 
-    # Carregar perguntas do banco
-    questions = load_questions(doc_type)
-    required_fields = get_required_fields(doc_type)
+        situacao = []
+        for nome in sorted(arquivos):
+            path = os.path.join(artefatos_dir, nome)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                tipo = data.get("tipo", "INDEFINIDO")
+                data_gerado = data.get("gerado_em", "sem data")
+                situacao.append(f"📄 {tipo} – gerado em {data_gerado}")
+            except Exception as e:
+                situacao.append(f"⚠️ Erro ao ler {nome}: {e}")
 
-    # Construir retorno
-    guidance = {
-        "etapa_atual": stage,
-        "proximo_passo": next_stage.get("next", "fim"),
-        "descricao_etapa": next_stage.get("descricao", ""),
-        "documento_em_foco": doc_type.upper(),
-        "campos_minimos": required_fields,
-        "perguntas_recomendadas": questions
-    }
+        resumo = "\n".join(situacao)
+        prompt = f"""
+        {self.contexto_base}
 
-    return guidance
+        Abaixo está o estado atual dos artefatos no diretório 'exports':
+        {resumo}
 
+        Gere uma orientação institucional breve:
+        - Quais etapas estão concluídas?
+        - Qual a próxima ação recomendada?
+        - Há alertas ou pendências?
+        """
 
-# === Integração com a Geração de Artefatos (DocumentAgent via AgentsBridge) ===
-from utils.agents_bridge import AgentsBridge
+        try:
+            resposta = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "Você é o agente de orientação institucional do TJSP."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+            conteudo = resposta.choices[0].message.content.strip()
+            return conteudo
 
-def gerar_artefato_orquestrado(stage: str, metadata: dict) -> dict:
-    """
-    Gera o rascunho do artefato institucional com base no estágio detectado.
-    Atua como ponte entre o agente orientador (guide_agent)
-    e o agente gerador de documentos (DocumentAgent).
+        except Exception as e:
+            return f"⚠️ Erro ao gerar orientação: {e}"
 
-    Parâmetros:
-    - stage: string indicando o módulo (ex.: "DFD", "ETP", "TR", "EDITAL", "CONTRATO")
-    - metadata: dicionário de metadados coletados dos formulários ou respostas do usuário
+    def responder_pergunta(self, pergunta: str) -> str:
+        """
+        Responde perguntas institucionais gerais sobre a jornada de contratação.
+        Usa contexto SAAB/TJSP e diretrizes normativas.
+        """
+        prompt = f"""
+        {self.contexto_base}
 
-    Retorna:
-    - dict estruturado no formato:
-      {
-        "modulo": "DFD",
-        "secoes": { "Contexto": "...", "Necessidade": "..." },
-        "lacunas": ["..."]
-      }
-    """
-    try:
-        bridge = AgentsBridge(stage)
-        result = bridge.generate(metadata)
-        return result
-    except Exception as e:
-        return {
-            "erro": f"Falha ao gerar artefato ({stage}): {e}",
-            "modulo": stage,
-            "metadata": metadata
-        }
+        Pergunta: {pergunta}
+        Responda de forma técnica e concisa.
+        """
+
+        try:
+            resposta = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "Você é o orientador técnico da SAAB/TJSP."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2
+            )
+            conteudo = resposta.choices[0].message.content.strip()
+            return conteudo
+
+        except Exception as e:
+            return f"⚠️ Erro ao responder pergunta: {e}"
+
+    def registrar_orientacao(self, conteudo: str, output_dir="exports/logs") -> str:
+        """
+        Salva o texto de orientação gerado pela IA em um arquivo de log institucional.
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        path = os.path.join(output_dir, f"guide_agent_{datetime.now().strftime('%Y%m%d_%H%M')}.txt")
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("============================================================\n")
+            f.write("🧭 SynapseNext – Guia de Orientação Institucional\n")
+            f.write(f"🕒 {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write("============================================================\n\n")
+            f.write(conteudo)
+
+        return path
 
 
 if __name__ == "__main__":
-    # Exemplo de teste local
-    texto_exemplo = """
-    Gostaria de registrar uma solicitação de compra de mesas de audiência
-    para o Fórum de Sorocaba. As atuais estão danificadas e representam risco.
-    """
-    resposta = generate_guidance(texto_exemplo)
-    print("Orientação do agente tutor:")
-    print(resposta)
+    print("🧭 Teste rápido do GuideAgent – SynapseNext vNext")
+    agent = GuideAgent()
 
-    # Exemplo adicional de uso da nova função de geração de artefato
-    exemplo_metadata = {
-        "unidade": "SAAB/TJSP",
-        "descricao": "Aquisição de notebooks para a equipe técnica",
-        "estimativa_valor": 250000
-    }
-    rascunho = gerar_artefato_orquestrado("DFD", exemplo_metadata)
-    print("\nRascunho gerado via AgentsBridge:")
-    print(rascunho)
+    orientacao = agent.gerar_orientacao()
+    print("\n" + orientacao + "\n")
+
+    arquivo_log = agent.registrar_orientacao(orientacao)
+    print(f"📄 Log salvo em: {arquivo_log}")

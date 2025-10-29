@@ -1,69 +1,95 @@
 """
-stage_detector.py
---------------------------------
-Responsável por identificar em qual etapa da jornada o usuário se encontra:
-- início (nenhum dado técnico)
-- dfd_incomplete / dfd_ready
-- etp_incomplete / etp_ready
-- tr_incomplete / tr_ready
-Com base no texto descritivo ou nos insumos fornecidos.
+stage_detector.py – SynapseNext vNext
+Agente de detecção automática de estágio da jornada de contratação.
+Homologado: SAAB/TJSP – vNext 2025
 """
 
-import json
 import os
-import re
-import yaml
+import json
+from datetime import datetime
 
-# Caminho base do diretório journey
-BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "journey")
+EXPORTS_DIR = "exports"
+LOG_DIR = os.path.join(EXPORTS_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
-def detect_stage(user_input: str) -> str:
+STAGES = [
+    ("DFD", "dfd_data.json"),
+    ("ETP", "etp_data.json"),
+    ("TR", "tr_data.json"),
+    ("EDITAL", "edital_data.json"),
+    ("CONTRATO", "contrato_data.json")
+]
+
+
+class StageDetector:
     """
-    Analisa o texto de entrada do usuário e retorna o estágio atual da jornada.
+    Analisa os artefatos existentes e determina o estágio atual do processo.
     """
-    user_input_lower = user_input.lower()
 
-    # Regras simples baseadas em palavras-chave
-    if any(word in user_input_lower for word in ["problema", "necessidade", "solicitação", "compra", "reparo", "substituição"]):
-        if any(word in user_input_lower for word in ["etp", "estudo técnico", "termo de referência", "tr"]):
-            return "etp_incomplete"
-        if any(word in user_input_lower for word in ["dfd", "documento de formalização", "demanda"]):
-            return "dfd_incomplete"
-        return "inicio"
+    def __init__(self, exports_dir=EXPORTS_DIR):
+        self.exports_dir = exports_dir
 
-    if "dfd" in user_input_lower and "completo" in user_input_lower:
-        return "dfd_ready"
+    def detect_stage(self, verbose=False) -> dict:
+        """
+        Detecta o estágio atual da jornada de contratação com base
+        nos artefatos presentes e válidos.
+        """
+        status = {}
+        logs = []
+        current_stage = "INDEFINIDO"
 
-    if "etp" in user_input_lower and "completo" in user_input_lower:
-        return "etp_ready"
+        for stage, filename in STAGES:
+            path = os.path.join(self.exports_dir, filename)
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    valid = bool(data)
+                    logs.append(f"✅ {stage} detectado ({filename}) – válido: {valid}")
+                    status[stage] = {"existe": True, "valido": valid}
+                    current_stage = stage
+                except Exception as e:
+                    logs.append(f"⚠️ Erro ao ler {filename}: {e}")
+                    status[stage] = {"existe": True, "valido": False}
+            else:
+                logs.append(f"❌ {stage} ausente ({filename})")
+                status[stage] = {"existe": False, "valido": False}
 
-    if "tr" in user_input_lower and "completo" in user_input_lower:
-        return "tr_ready"
+        logs.append("\n📊 Estágio atual identificado: " + current_stage)
+        result = {
+            "estagio_atual": current_stage,
+            "detalhes": status,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
 
-    return "inicio"
+        if verbose:
+            print("\n".join(logs))
+
+        self._registrar_log(result, logs)
+        return result
+
+    def _registrar_log(self, resultado: dict, logs: list):
+        """
+        Registra o resultado da detecção em um arquivo de log institucional.
+        """
+        path = os.path.join(LOG_DIR, f"stage_detector_{datetime.now().strftime('%Y%m%d_%H%M')}.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("============================================================\n")
+            f.write("🔍 SynapseNext – Detecção de Estágio da Jornada\n")
+            f.write(f"🕒 {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write("============================================================\n\n")
+            f.write("\n".join(logs))
+            f.write("\n\nResumo:\n")
+            f.write(json.dumps(resultado, ensure_ascii=False, indent=2))
+        print(f"📄 Log salvo em: {path}")
+
+    def detect_stage_verbose(self):
+        """Executa a detecção detalhada (modo verbose)."""
+        return self.detect_stage(verbose=True)
 
 
-def get_next_stage(current_stage: str) -> dict:
-    """
-    Consulta o arquivo journey_config.json para determinar a próxima etapa.
-    """
-    try:
-        config_path = os.path.join(BASE_DIR, "journey_config.json")
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        return config["transitions"].get(current_stage, {})
-    except Exception as e:
-        return {"error": f"Erro ao carregar journey_config.json: {str(e)}"}
-
-
-def get_required_fields(stage: str) -> list:
-    """
-    Retorna os campos mínimos exigidos para o documento em elaboração (DFD, ETP ou TR).
-    """
-    schema_path = os.path.join(BASE_DIR, "schemas", f"{stage}.min.json")
-    try:
-        with open(schema_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("required_fields", [])
-    except FileNotFoundError:
-        return []
+if __name__ == "__main__":
+    print("🔍 Teste rápido do StageDetector – SynapseNext vNext\n")
+    detector = StageDetector()
+    resultado = detector.detect_stage_verbose()
+    print("\n📊 Resultado consolidado:\n", json.dumps(resultado, ensure_ascii=False, indent=2))
