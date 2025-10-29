@@ -1,0 +1,25 @@
+.
+├── agents
+├── assets
+├── exports
+├── journey
+│   └── schemas
+├── knowledge
+│   └── validators
+├── knowledge_base
+│   ├── DFD
+│   ├── ETP
+│   ├── TR
+│   ├── instrucoes_normativas
+│   ├── legislacao
+│   ├── manuais_modelos
+│   ├── notas_tecnicas
+│   └── referencias_internas
+├── prompts
+├── streamlit_app
+│   ├── DOCs
+│   └── pages
+├── tests
+└── utils
+
+23 directories
