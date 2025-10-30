@@ -1,0 +1,20 @@
+{
+  "gerado_em": "2025-10-30 04:59:31",
+  "totais": {
+    "alto": 0,
+    "medio": 0,
+    "baixo": 1
+  },
+  "alerts": [
+    {
+      "id": "pipeline_fallback",
+      "area": "Governança",
+      "artefato": "Snapshot",
+      "severidade": "baixo",
+      "mensagem": "Governança pipeline não acessível. Usando fallback.",
+      "recomendacao": "Executar governanca_pipeline antes da análise de alertas.",
+      "timestamp": "2025-10-30 04:59:31"
+    }
+  ],
+  "resumo": "1 alertas – 0 altos, 0 médios, 1 baixos."
+}

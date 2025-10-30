@@ -1,0 +1,15 @@
+{
+  "gerado_em": "2025-10-30 04:54:16",
+  "volume_tempo": [],
+  "volume_por_artefato": [],
+  "coerencia_global": [],
+  "wordcount": [],
+  "delta_percentual": [],
+  "fontes": {
+    "auditoria_files": [],
+    "analise_files": [],
+    "insights_files": [
+      "insights_metrics_20251030_000932.json"
+    ]
+  }
+}

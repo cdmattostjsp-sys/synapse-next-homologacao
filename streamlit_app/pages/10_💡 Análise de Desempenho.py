@@ -1,170 +1,162 @@
-# ==========================================================
-# 💡 SynapseNext – Insights Históricos
-# Secretaria de Administração e Abastecimento – SAAB 5.0
-# ==========================================================
+# -*- coding: utf-8 -*-
+"""
+10_💡 Análise de Desempenho.py – Painel de Métricas e Insights
+===============================================================
+Módulo analítico do SynapseNext vNext (TJSP/SAAB).
+Exibe indicadores de desempenho técnico e consistência documental
+a partir dos snapshots de auditoria e pipelines de governança.
 
-import sys
-from pathlib import Path
+Versão homologada vNext
+===============================================================
+"""
+
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
 import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 
-# ==========================================================
-# 🔧 Ajuste de path e imports institucionais
-# ==========================================================
-current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
-
-# ==========================================================
-# 📦 Importa pipeline de insights
-# ==========================================================
-try:
-    from utils.insights_pipeline import build_insights, export_insights_json
-except Exception as e:
-    st.set_page_config(page_title="SynapseNext — Insights", layout="wide")
-    st.error(f"❌ Erro ao importar insights_pipeline: {e}")
-    st.stop()
-
-# ==========================================================
-# ⚙️ Configuração da página
-# ==========================================================
-st.set_page_config(page_title="SynapseNext — Insights Históricos", layout="wide", page_icon="💡")
-
-# Importa estilo global padronizado
+# --------------------------------------------------------------
+# 🔧 Importação dos componentes e pipelines
+# --------------------------------------------------------------
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except Exception:
-    aplicar_estilo_global = lambda: None
-    exibir_cabecalho_padrao = lambda *a, **kw: None
+    from utils.insights_pipeline import build_insights, export_insights
+except Exception as e:
+    st.error(f"❌ Erro ao carregar pipeline de insights.\n\nDetalhes técnicos: {e}")
+    st.info("Verifique se o arquivo `utils/insights_pipeline.py` está presente e funcional.")
+    st.stop()
 
+# --------------------------------------------------------------
+# ⚙️ Configuração de página
+# --------------------------------------------------------------
+st.set_page_config(page_title="💡 Análise de Desempenho", layout="wide")
 aplicar_estilo_global()
+exibir_cabecalho_padrao("💡 Análise de Desempenho", "Indicadores técnicos e métricas institucionais.")
 
-# ==========================================================
-# 🏛️ Cabeçalho institucional padronizado
-# ==========================================================
-exibir_cabecalho_padrao(
-    "Insights Históricos",
-    "Painel analítico – tendências e métricas derivadas da Auditoria Digital e Comparador.IA"
-)
+# --------------------------------------------------------------
+# 🧠 Execução principal
+# --------------------------------------------------------------
 st.divider()
+st.subheader("📊 Compilando métricas de desempenho...")
 
-# ==========================================================
-# 📊 Carregamento de dados
-# ==========================================================
-with st.spinner("Gerando snapshot de insights..."):
+try:
     snap = build_insights()
+except Exception as e:
+    st.error(f"❌ Falha ao gerar insights: {e}")
+    st.stop()
 
-st.success(f"Snapshot gerado em {snap.get('timestamp')}")
+# 🔎 Bloqueio preventivo de snapshot vazio
+if not snap:
+    st.warning("Nenhum dado de auditoria foi encontrado. Execute primeiro o Painel de Governança ou Auditoria para gerar um snapshot.")
+    st.stop()
 
-# ==========================================================
-# 🔹 Função auxiliar para criar gráficos compactos
-# ==========================================================
-def plot_compacto(title, xlabel, ylabel, x, y_dict, legend=True):
-    """Gera gráfico com estilo compacto e legível."""
-    fig, ax = plt.subplots(figsize=(6, 3))  # tamanho reduzido
-    for label, y in y_dict.items():
-        ax.plot(x, y, marker="o", linewidth=1.5, label=label)
-    ax.set_xlabel(xlabel, fontsize=9)
-    ax.set_ylabel(ylabel, fontsize=9)
-    ax.set_title(title, fontsize=10, pad=8)
-    ax.grid(True, linestyle="--", alpha=0.5)
-    plt.xticks(rotation=45, fontsize=8)
-    plt.yticks(fontsize=8)
-    if legend:
-        ax.legend(fontsize=8, loc="best")
-    st.pyplot(fig, use_container_width=False)
+st.success("✅ Snapshot de auditoria carregado com sucesso.")
 
-# ==========================================================
-# 1️⃣ Volume de Eventos por Dia (Total)
-# ==========================================================
-st.subheader("1️⃣ Volume de Eventos por Dia (Total)")
+# --------------------------------------------------------------
+# 🧩 Seção 1 – Volume total de eventos
+# --------------------------------------------------------------
+st.divider()
+st.subheader("📈 Evolução temporal – Volume de eventos")
 
-vol = snap.get("volume_por_dia", [])
-if vol:
-    x = [v["day"] for v in vol]
-    y = [v["events"] for v in vol]
-    plot_compacto("Volume de eventos por dia (total)", "Data (YYYY-MM-DD)", "Eventos de Auditoria", x, {"Total": y})
+df_volume = pd.DataFrame(snap.get("volume_tempo", []))
+if not df_volume.empty:
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(df_volume["data"], df_volume["valor"], marker="o")
+    ax.set_title("Volume total de eventos")
+    ax.set_xlabel("Data")
+    ax.set_ylabel("Eventos")
+    st.pyplot(fig)
 else:
-    st.info("Sem eventos de auditoria registrados.")
+    st.info("Sem dados de volume temporal disponíveis.")
 
-# ==========================================================
-# 2️⃣ Volume de Eventos por Artefato
-# ==========================================================
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------
+# 🧩 Seção 2 – Volume por artefato
+# --------------------------------------------------------------
 st.divider()
-st.subheader("2️⃣ Volume de Eventos por Artefato")
+st.subheader("📁 Distribuição de eventos por artefato")
 
-vol_art = snap.get("volume_por_artefato", {})
-if vol_art:
-    for artefato, serie in vol_art.items():
-        x = [s["day"] for s in serie]
-        y = [s["events"] for s in serie]
-        plot_compacto(f"Eventos – {artefato}", "Data (YYYY-MM-DD)", "Eventos", x, {artefato: y}, legend=False)
+df_art = pd.DataFrame(snap.get("volume_por_artefato", []))
+if not df_art.empty:
+    fig, ax = plt.subplots(figsize=(6, 3))
+    for artefato in df_art["artefato"].unique():
+        df_f = df_art[df_art["artefato"] == artefato]
+        ax.plot(df_f["data"], df_f["valor"], marker="o", label=artefato)
+    ax.set_title("Volume por artefato")
+    ax.legend()
+    st.pyplot(fig)
 else:
-    st.info("Sem dados por artefato.")
+    st.info("Nenhum dado de artefato disponível.")
 
-# ==========================================================
-# 3️⃣ Coerência Global (Comparador.IA)
-# ==========================================================
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------
+# 🧩 Seção 3 – Coerência global
+# --------------------------------------------------------------
 st.divider()
-st.subheader("3️⃣ Coerência Global (Comparador.IA)")
+st.subheader("🧭 Tendência de coerência global")
 
-coh = snap.get("coherence_series", [])
-coh_ma = snap.get("coherence_ma_series", [])
-if coh:
-    x = [c["day"] for c in coh]
-    y = [c["coerencia_global"] for c in coh]
-    plot_compacto("Evolução da Coerência Global (%)", "Data (YYYY-MM-DD)", "Coerência (%)", x, {"Coerência": y}, legend=False)
-
-    if coh_ma:
-        xm = [m["day"] for m in coh_ma]
-        ym = [m["ma"] for m in coh_ma]
-        plot_compacto("Tendência (Média Móvel w=3)", "Data (YYYY-MM-DD)", "Coerência (Média Móvel)", xm, {"Média móvel": ym}, legend=False)
+df_coer = pd.DataFrame(snap.get("coerencia_global", []))
+if not df_coer.empty:
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(df_coer["data"], df_coer["valor"], marker="o", color="green")
+    ax.set_title("Coerência Global (média móvel)")
+    ax.set_xlabel("Data")
+    ax.set_ylabel("Índice (%)")
+    st.pyplot(fig)
 else:
-    st.info("Sem relatórios de coerência encontrados.")
+    st.info("Sem dados de coerência global disponíveis.")
 
-# ==========================================================
-# 4️⃣ Tamanho Médio (Word Count) por Artefato
-# ==========================================================
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------
+# 🧩 Seção 4 – Word Count médio
+# --------------------------------------------------------------
 st.divider()
-st.subheader("4️⃣ Tamanho Médio (Word Count) por Artefato")
+st.subheader("📄 Evolução do tamanho médio dos artefatos")
 
-wc_avg = snap.get("wc_day_avg", {})
-if wc_avg:
-    for artefato, serie in wc_avg.items():
-        x = [s["day"] for s in serie]
-        y = [s["avg_wc"] for s in serie]
-        plot_compacto(f"Tamanho médio – {artefato}", "Data (YYYY-MM-DD)", "Palavras", x, {artefato: y}, legend=False)
+df_wc = pd.DataFrame(snap.get("wordcount", []))
+if not df_wc.empty:
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(df_wc["data"], df_wc["valor"], marker="o", color="purple")
+    ax.set_title("Tamanho médio (WordCount)")
+    ax.set_xlabel("Data")
+    ax.set_ylabel("Palavras")
+    st.pyplot(fig)
 else:
-    st.info("Sem estatísticas de tamanho por artefato.")
+    st.info("Sem dados de Word Count disponíveis.")
 
-# ==========================================================
-# 5️⃣ Variação Recente de Tamanho (últimos snapshots)
-# ==========================================================
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------
+# 🧩 Seção 5 – Delta percentual recente
+# --------------------------------------------------------------
 st.divider()
-st.subheader("5️⃣ Variação Recente de Tamanho (últimos snapshots)")
+st.subheader("📉 Variação percentual recente (Δ%)")
 
-wc_delta_recent = snap.get("wc_delta_recent", {})
-rows = []
-for art, d in wc_delta_recent.items():
-    rows.append({
-        "Artefato": art,
-        "Prev (pal.)": d.get("prev"),
-        "Last (pal.)": d.get("last"),
-        "Δ%": d.get("delta_pct"),
-    })
-st.dataframe(rows, use_container_width=True, height=240)
+df_delta = pd.DataFrame(snap.get("delta_percentual", []))
+if not df_delta.empty:
+    st.dataframe(df_delta, use_container_width=True, hide_index=True)
+else:
+    st.info("Sem dados de variação recente disponíveis.")
 
-# ==========================================================
-# 📤 Exportação
-# ==========================================================
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------
+# 💾 Exportação de resultados
+# --------------------------------------------------------------
 st.divider()
-if st.button("📤 Exportar Insights (JSON)"):
-    path = export_insights_json(snap)
-    st.success(f"Insights exportados para: `{path}`")
+st.subheader("📤 Exportação dos Insights")
 
-# ==========================================================
-# 📘 Rodapé institucional simplificado
-# ==========================================================
-st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+if st.button("📤 Exportar Insights (JSON)", use_container_width=True):
+    try:
+        path = export_insights(snap)
+        st.success(f"✅ Insights exportados com sucesso: `{path}`")
+    except Exception as e:
+        st.error(f"❌ Erro ao exportar insights: {e}")
+
+st.caption("Sistema SynapseNext vNext – Secretaria de Administração e Abastecimento (SAAB/TJSP)")
