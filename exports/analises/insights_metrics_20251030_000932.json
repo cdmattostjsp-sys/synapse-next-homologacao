@@ -1,0 +1,25 @@
+{
+  "data_execucao": "2025-10-30 00:09:32",
+  "indicadores": [
+    {
+      "Indicador": "Conformidade Legal (%)",
+      "Valor": 0.0
+    },
+    {
+      "Indicador": "Artefatos Completos",
+      "Valor": 0.0
+    },
+    {
+      "Indicador": "Artefatos Incompletos",
+      "Valor": 0.0
+    },
+    {
+      "Indicador": "Artefatos Ausentes",
+      "Valor": 5.0
+    },
+    {
+      "Indicador": "Total de Artefatos",
+      "Valor": 5.0
+    }
+  ]
+}

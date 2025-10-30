@@ -1,0 +1,71 @@
+============================================================
+🔍 Diagnóstico Técnico – SynapseNext vNext (Fase 3)
+============================================================
+
+🧱 Estrutura de diretórios:
+ - agents: OK
+ - utils: OK
+ - streamlit_app/pages: OK
+ - knowledge_base: OK
+ - prompts: OK
+ - exports: OK
+
+🤖 Agentes detectados:
+ - github_bridge.py
+ - stage_detector.py
+ - guide_agent.py
+ - document_agent.py
+
+🧰 Módulos utilitários:
+ - diagnostic_fase2.py
+ - governanca_pipeline.py
+ - alertas_pipeline.py
+ - ai_client.py
+ - relatorio_executivo_pdf.py
+ - relatorio_consolidado_pipeline.py
+ - __init__.py
+ - integration_dfd.py
+ - export_sharepoint_pipeline.py
+ - integration_insumos.py
+ - layout_institucional.py
+ - next_pipeline.py
+ - export_snapshot.py
+ - formatter_docx.py
+ - comparador_pipeline.py
+ - agents_bridge.py
+ - parser_pdf.py
+ - ui_components.py
+ - knowledge_loader.py
+ - integration_placeholders.py
+ - validator_engine_vNext.py
+ - ui_style.py
+ - insights_pipeline.py
+ - edital_loader.py
+ - auditoria_pipeline.py
+ - paths.py
+ - diagnostic_fase3_vNext.py
+
+📄 Páginas Streamlit:
+ - 10_💡 Insights Históricos.py
+ - 09_⚠️ Alertas.py
+ - 12_📈 Painel Executivo.py
+ - 05_📑 TR – Termo de Referência.py
+ - 14_🔍_Comparador.py
+ - 06_📜 Edital – Minuta do Edital.py
+ - 03_📘 ETP – Estudo Técnico Preliminar.py
+ - 08_📜 Contrato.py
+ - 07_🧩 Validador de Editais.py
+ - 02_📄 DFD – Formalização da Demanda.py
+ - 01_🔧 Insumos.py
+ - 11_📊 Painel de Governança.py
+ - 15_🗂️_Exportar_Snapshot.py
+ - 13_🧾_Relatorio_Tecnico.py
+ - 16_🔗_Integracao.py
+
+�� Base de conhecimento:
+
+📂 Teste de escrita em /exports/: OK
+
+============================================================
+📄 Relatório salvo em: exports/diagnostic_fase3_vNext_20251029_235607.txt
+============================================================

@@ -1,0 +1,22 @@
+==============================================
+🧩 Validador de Artefatos – SynapseNext vNext
+==============================================
+
+DFD → Ausente
+   - ⚠️ Arquivo dfd_data.json não encontrado.
+
+ETP → Ausente
+   - ⚠️ Arquivo etp_data.json não encontrado.
+
+TR → Ausente
+   - ⚠️ Arquivo tr_data.json não encontrado.
+
+EDITAL → Ausente
+   - ⚠️ Arquivo edital_data.json não encontrado.
+
+CONTRATO → Ausente
+   - ⚠️ Arquivo contrato_data.json não encontrado.
+
+==============================================
+📄 Relatório salvo em: exports/validator_engine_vNext_20251029_235052.txt
+==============================================

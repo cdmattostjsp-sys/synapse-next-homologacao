@@ -1,0 +1,42 @@
+[
+  {
+    "tipo": "DFD",
+    "arquivo": "exports/dfd_data.json",
+    "status": "Ausente",
+    "alertas": [
+      "⚠️ Arquivo dfd_data.json não encontrado."
+    ]
+  },
+  {
+    "tipo": "ETP",
+    "arquivo": "exports/etp_data.json",
+    "status": "Ausente",
+    "alertas": [
+      "⚠️ Arquivo etp_data.json não encontrado."
+    ]
+  },
+  {
+    "tipo": "TR",
+    "arquivo": "exports/tr_data.json",
+    "status": "Ausente",
+    "alertas": [
+      "⚠️ Arquivo tr_data.json não encontrado."
+    ]
+  },
+  {
+    "tipo": "EDITAL",
+    "arquivo": "exports/edital_data.json",
+    "status": "Ausente",
+    "alertas": [
+      "⚠️ Arquivo edital_data.json não encontrado."
+    ]
+  },
+  {
+    "tipo": "CONTRATO",
+    "arquivo": "exports/contrato_data.json",
+    "status": "Ausente",
+    "alertas": [
+      "⚠️ Arquivo contrato_data.json não encontrado."
+    ]
+  }
+]
