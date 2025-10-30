@@ -27,16 +27,19 @@ DEFAULTS = {
 }
 
 # ======================================================
-# 📊 Função: avaliar alertas (usada por 09_⚠️ Alertas.py)
+# 📊 Função: avaliar alertas (compatível com Alertas.py)
 # ======================================================
 def evaluate_alerts(df_coerencia=None, coerencia_global=80, pairwise_min=70):
     """
-    Gera uma lista simulada de alertas de coerência.
-    Retorno compatível com 09_⚠️ Alertas.py (vNext).
+    Gera alertas de coerência e auditoria com chaves compatíveis
+    com o painel 09_⚠️ Alertas.py.
     """
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
     resultados = [
         {
             "id": 1,
+            "titulo": "Baixa coerência global",  # 🔹 compatível com Alertas.py
             "categoria": "Coerência Global",
             "descricao": "A coerência geral do documento está abaixo do limiar esperado.",
             "valor": coerencia_global,
@@ -45,12 +48,14 @@ def evaluate_alerts(df_coerencia=None, coerencia_global=80, pairwise_min=70):
             "severidade": "alto" if coerencia_global < 60 else "medio",
             "area": "Análise de Conteúdo",
             "artefato": "ETP.json",
+            "detalhe": f"Coerência global em {coerencia_global}%, abaixo do mínimo esperado ({DEFAULTS['min_coerencia_global']}%).",
             "mensagem": "Baixa coerência global detectada.",
-            "recomendacao": "Revisar estrutura textual do ETP e reexecutar a validação.",
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "recomendacao": "Revisar a estrutura textual e reexecutar a validação.",
+            "timestamp": agora,
         },
         {
             "id": 2,
+            "titulo": "Correlação fraca entre seções",  # 🔹 compatível com Alertas.py
             "categoria": "Coerência Par-a-Par",
             "descricao": "Foram identificadas seções com baixa correlação semântica.",
             "valor": pairwise_min,
@@ -59,9 +64,10 @@ def evaluate_alerts(df_coerencia=None, coerencia_global=80, pairwise_min=70):
             "severidade": "medio" if pairwise_min < 70 else "baixo",
             "area": "Estrutura Documental",
             "artefato": "DFD.json",
+            "detalhe": f"Correlação mínima detectada: {pairwise_min}%.",
             "mensagem": "Baixa coerência entre seções correlatas.",
-            "recomendacao": "Revisar interdependências de seções e critérios de coerência.",
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "recomendacao": "Revisar interdependências e critérios de coerência textual.",
+            "timestamp": agora,
         },
     ]
 
@@ -73,7 +79,7 @@ def evaluate_alerts(df_coerencia=None, coerencia_global=80, pairwise_min=70):
     }
 
     return {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": agora,
         "totais": totais,
         "alerts": resultados,
         "params": DEFAULTS,
