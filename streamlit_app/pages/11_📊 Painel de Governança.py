@@ -1,39 +1,43 @@
-# -*- coding: utf-8 -*-
-"""
-📊 Painel de Governança – SynapseNext vNext+
-==============================================================
-Consolidação institucional de auditorias e alertas técnicos.
-Integração direta com utils.alertas_pipeline.
-
-Versão: vNext+ (SAAB/TJSP)
---------------------------------------------------------------
-Este painel apresenta uma visão consolidada da integridade documental,
-baseando-se nos alertas gerados automaticamente pela camada de auditoria
-semântica e de coerência do SynapseNext.
-
-Autor: Equipe Synapse.Engineer
-Instituição: Secretaria de Administração e Abastecimento – TJSP
-==============================================================
-"""
+# ==========================================================
+# 📊 SynapseNext – Painel de Governança (SAAB 5.0)
+# Secretaria de Administração e Abastecimento – TJSP
+# ==========================================================
+# Objetivo:
+#   Consolidar auditorias e alertas técnicos institucionais,
+#   com visual unificado e responsivo.
+# ==========================================================
 
 import streamlit as st
-from utils.layout_manager import ajustar_grafico, iniciar_secao
 import pandas as pd
+import plotly.express as px
+import sys, os
+
+# ==========================================================
+# 🔧 Configuração de ambiente e estilo institucional
+# ==========================================================
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
 from utils.alertas_pipeline import gerar_alertas, export_alerts_json
 
-# ==========================================================
-# ⚙️ Configuração inicial
-# ==========================================================
 st.set_page_config(
-    page_title="📊 Painel de Governança – SynapseNext vNext",
-    page_icon="📊",
+    page_title="📊 Painel de Governança – SynapseNext",
     layout="wide"
 )
+aplicar_estilo_institucional()
 
-st.title("📊 Painel de Governança – SynapseNext vNext")
-st.caption("Consolidação institucional de auditorias e alertas técnicos (SAAB/TJSP)")
+# ==========================================================
+# 🎯 Cabeçalho institucional
+# ==========================================================
+st.markdown("""
+<div style="text-align:center; padding-top: 0.5rem; padding-bottom: 1.2rem;">
+    <h1 style="margin-bottom:0; color:#004A8F;">📊 Painel de Governança</h1>
+    <p style="color:#4d4d4d; font-size:1rem;">
+        Consolidação institucional de auditorias e alertas técnicos – SAAB/TJSP
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-st.divider()
+st.markdown("---")
 
 # ==========================================================
 # 🧩 Carregamento de dados
@@ -41,44 +45,33 @@ st.divider()
 try:
     alertas = gerar_alertas()
 except Exception as e:
-    st.error(f"Erro ao carregar alertas: {e}")
+    st.error(f"❌ Erro ao carregar alertas: {e}")
     st.stop()
 
 if not alertas or len(alertas) == 0:
-    st.warning("Nenhum alerta disponível. Gere alertas no módulo ⚠️ *Alertas Proativos*.")
+    st.warning("Nenhum alerta disponível. Gere alertas no módulo ⚠️ *Painel de Alertas*.")
     st.stop()
 
-# Convertendo em DataFrame
 df = pd.DataFrame(alertas)
 
 # ==========================================================
-# 🎛️ Filtros dinâmicos
+# 🎛️ Filtros de visualização
 # ==========================================================
 st.sidebar.header("⚙️ Filtros de Visualização")
 
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    severidade_opts = sorted(df["severidade"].unique())
+    severidade_opts = sorted(df["severidade"].dropna().unique())
 with col2:
-    area_opts = sorted(df["area"].unique())
+    area_opts = sorted(df["area"].dropna().unique())
 
-severidade = st.sidebar.multiselect(
-    "Filtrar por Severidade",
-    options=severidade_opts,
-    default=severidade_opts
-)
+severidade = st.sidebar.multiselect("Filtrar por Severidade", severidade_opts, default=severidade_opts)
+area = st.sidebar.multiselect("Filtrar por Área", area_opts, default=area_opts)
 
-area = st.sidebar.multiselect(
-    "Filtrar por Área",
-    options=area_opts,
-    default=area_opts
-)
-
-# Aplicar filtros
 df_filtrado = df[(df["severidade"].isin(severidade)) & (df["area"].isin(area))]
 
 # ==========================================================
-# 📈 Indicadores de Governança
+# 📈 Indicadores principais
 # ==========================================================
 st.subheader("📈 Indicadores de Governança Documental")
 
@@ -88,10 +81,11 @@ colB.metric("Alta Severidade", len(df_filtrado[df_filtrado["severidade"] == "alt
 colC.metric("Média Severidade", len(df_filtrado[df_filtrado["severidade"] == "medio"]))
 colD.metric("Baixa Severidade", len(df_filtrado[df_filtrado["severidade"] == "baixo"]))
 
+st.markdown("<br>", unsafe_allow_html=True)
+
 # ==========================================================
-# 📊 Gráficos e Visualizações
+# 📊 Distribuição de alertas por severidade
 # ==========================================================
-st.divider()
 st.subheader("📊 Distribuição de Alertas por Severidade")
 
 chart_data = (
@@ -101,58 +95,64 @@ chart_data = (
     .reset_index(name="Quantidade")
 )
 
-st.bar_chart(chart_data, x="Severidade", y="Quantidade")
+if not chart_data.empty:
+    fig = px.bar(
+        chart_data,
+        x="Severidade",
+        y="Quantidade",
+        color="Severidade",
+        text_auto=True,
+        title="Distribuição de Alertas por Severidade",
+        color_discrete_sequence=["#c0392b", "#f39c12", "#2980b9"]
+    )
+    fig.update_layout(
+        title=dict(x=0.5, font=dict(size=18, color="#004A8F")),
+        font=dict(size=13),
+        height=420,
+        margin=dict(l=20, r=20, t=60, b=40)
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Nenhum dado disponível para o gráfico de severidade.")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================================
 # 🧾 Tabela consolidada de alertas
 # ==========================================================
-st.divider()
 st.subheader("📋 Lista Consolidada de Alertas")
 
-# Garantir que coluna 'severidade' exista
 if "severidade" not in df_filtrado.columns:
-    st.warning("Coluna 'severidade' ausente nos dados — adicionando valor padrão.")
     df_filtrado["severidade"] = "não classificado"
 
-# Ordenar de forma segura
 try:
-    df_exibicao = df_filtrado.sort_values(
-        by="severidade",
-        ascending=False,
-        na_position="last"
-    )
+    df_exibicao = df_filtrado.sort_values(by="severidade", ascending=False, na_position="last")
 except Exception:
     df_exibicao = df_filtrado.copy()
 
+colunas_base = ["titulo", "area", "status", "mensagem", "recomendacao", "timestamp"]
+colunas_existentes = [c for c in colunas_base if c in df_exibicao.columns]
+
 with st.expander("🧠 Exibir Detalhamento dos Alertas", expanded=True):
-    colunas_base = ["titulo", "area", "status", "mensagem", "recomendacao", "timestamp"]
-    colunas_existentes = [c for c in colunas_base if c in df_exibicao.columns]
-    st.dataframe(
-        df_exibicao[colunas_existentes],
-        use_container_width=True,
-        hide_index=True,
-    )
+    st.dataframe(df_exibicao[colunas_existentes], use_container_width=True, hide_index=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================================
 # 💾 Exportação institucional
 # ==========================================================
-st.divider()
 st.subheader("📤 Exportação de Dados")
 
-if st.button("💾 Exportar Alertas Consolidados para JSON"):
+if st.button("💾 Exportar Alertas Consolidados para JSON", use_container_width=True):
     try:
         export_alerts_json({"alerts": alertas})
         st.success("✅ Arquivo JSON exportado com sucesso para a pasta /exports/analises.")
     except Exception as e:
-        st.error(f"Erro ao exportar alertas: {e}")
+        st.error(f"❌ Erro ao exportar alertas: {e}")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================================
 # 🏛️ Rodapé institucional
 # ==========================================================
-st.markdown(
-    """
-    ---
-    **Sistema SynapseNext vNext+**  
-    Secretaria de Administração e Abastecimento – Tribunal de Justiça do Estado de São Paulo (SAAB/TJSP)
-    """
-)
+rodape_institucional()
