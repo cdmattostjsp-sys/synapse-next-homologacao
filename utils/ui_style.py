@@ -198,3 +198,8 @@ def aplicar_tema():
 # Atributos auxiliares esperados pelos testes
 cor_primaria = "#004A8F"
 fonte_base = "Inter"
+
+# ==========================================================
+# 🔄 Alias de compatibilidade – manter compatibilidade com o layout SAAB 5.0
+# ==========================================================
+aplicar_estilo_global = aplicar_estilo_institucional
