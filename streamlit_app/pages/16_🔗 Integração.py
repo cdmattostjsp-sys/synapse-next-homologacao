@@ -1,39 +1,33 @@
-import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-# ==========================================================
-# 🔗 SynapseNext – Integração Institucional
-# Secretaria de Administração e Abastecimento – SAAB 5.0
-# ==========================================================
+# -*- coding: utf-8 -*-
+"""
+🔗 Integração Institucional – SynapseNext (SAAB 5.0)
+==============================================================
+Verificação de ambiente e testes simulados de integração com
+serviços institucionais (SharePoint, OneDrive e GitHub).
 
-import sys
-from pathlib import Path
+Autor: Equipe Synapse.Engineer
+Instituição: Secretaria de Administração e Abastecimento – TJSP
+Versão: vNext+ (SAAB 5.0)
+==============================================================
+"""
+
+import os, sys
 from datetime import datetime
 import streamlit as st
 
 # ==========================================================
-# 🔧 Ajuste de caminhos e imports
+# ⚙️ Configuração inicial
 # ==========================================================
-current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
+st.set_page_config(
+    page_title="🔗 Integração Institucional – SynapseNext",
+    layout="wide",
+    page_icon="🔗"
+)
 
-try:
-    from utils.integration_placeholders import upload_to_sharepoint, download_from_onedrive, save_integration_log
-except Exception as e:
-    st.error(f"❌ Erro ao importar módulos de integração: {e}")
-    st.stop()
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
 
-# ==========================================================
-# ⚙️ Configuração da página
-# ==========================================================
-st.set_page_config(page_title="SynapseNext – Integração Institucional", layout="wide", page_icon="🔗")
-
-# ==========================================================
-# 🎨 Estilo institucional padronizado
-# ==========================================================
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except Exception:
@@ -41,85 +35,103 @@ except Exception:
     exibir_cabecalho_padrao = lambda *a, **kw: None
 
 aplicar_estilo_global()
-
-# ==========================================================
-# 🏛️ Cabeçalho institucional padronizado
-# ==========================================================
 exibir_cabecalho_padrao(
-    "Integração Institucional",
-    "Simulação de conectividade com SharePoint e OneDrive – Fase Brasília (vNext)"
+    "🔗 Integração Institucional",
+    "Verificação de ambiente e testes simulados de conectividade – SAAB 5.0"
 )
 st.divider()
 
 # ==========================================================
-# 1️⃣ Enviar arquivo para SharePoint (simulado)
+# 🔍 1️⃣ Diagnóstico de Ambiente
 # ==========================================================
-st.subheader("1️⃣ Enviar arquivo para SharePoint (simulado)")
+st.subheader("1️⃣ Diagnóstico de Ambiente e Credenciais")
 
-base = Path(__file__).resolve().parents[2]
-rascunhos_dir = base / "exports" / "rascunhos"
-rascunhos_dir.mkdir(parents=True, exist_ok=True)
+def verificar_var(nome: str) -> bool:
+    try:
+        if nome in os.environ and os.environ[nome]:
+            return True
+        if hasattr(st, "secrets") and nome in st.secrets and st.secrets[nome]:
+            return True
+    except Exception:
+        pass
+    return False
 
-arquivos = sorted(rascunhos_dir.glob("*.docx"), reverse=True)
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.write("**🔐 OpenAI / IA**")
+    st.write(f"OPENAI_API_KEY: {'✅' if verificar_var('OPENAI_API_KEY') else '❌'}")
+    st.write(f"MODEL_DEFAULT: {'✅' if verificar_var('MODEL_DEFAULT') else '❌'}")
 
-if not arquivos:
-    st.info("📂 Nenhum arquivo encontrado em `exports/rascunhos`.")
-else:
-    arquivo_escolhido = st.selectbox(
-        "Selecione o arquivo para envio:",
-        [a.name for a in arquivos],
-        index=0,
-        help="Selecione um documento gerado (DFD, ETP, TR, Edital ou Contrato)."
-    )
-    destino = st.text_input(
-        "Destino (SharePoint Site / Pasta):",
-        placeholder="/sites/SynapseNext/DocumentosGerados"
-    )
+with col2:
+    st.write("**📁 SharePoint / OneDrive**")
+    st.write(f"SHAREPOINT_TENANT: {'✅' if verificar_var('SHAREPOINT_TENANT') else '❌'}")
+    st.write(f"ONEDRIVE_CLIENT_ID: {'✅' if verificar_var('ONEDRIVE_CLIENT_ID') else '❌'}")
 
-    if st.button("📤 Simular envio para SharePoint", use_container_width=True):
-        response = upload_to_sharepoint(arquivo_escolhido, destino)
-        save_integration_log("upload_sharepoint", response)
-        st.success(f"✅ Simulação concluída: {response['mensagem']}")
-        st.caption("O arquivo permanece localmente armazenado; esta função representa o futuro conector via Microsoft Graph API.")
+with col3:
+    st.write("**🐙 GitHub / Versionamento**")
+    st.write(f"GITHUB_TOKEN: {'✅' if verificar_var('GITHUB_TOKEN') else '❌'}")
+    st.write(f"GITHUB_REPO: {'✅' if verificar_var('GITHUB_REPO') else '❌'}")
 
-# ==========================================================
-# 2️⃣ Baixar arquivo do OneDrive (simulado)
-# ==========================================================
+st.info("✅ Variáveis marcadas em verde estão configuradas. "
+        "As ❌ indicam itens opcionais ou ainda não definidos.")
 st.divider()
-st.subheader("2️⃣ Baixar arquivo do OneDrive (simulado)")
-
-nome = st.text_input("Nome do arquivo no OneDrive:", placeholder="Ex.: Contrato_20251019.docx")
-
-if st.button("📥 Simular Download", use_container_width=True):
-    response = download_from_onedrive(nome)
-    save_integration_log("download_onedrive", response)
-    st.info(f"📄 {response['mensagem']}")
-    st.caption("A operação representa o fluxo inverso de integração – recuperação de arquivos no repositório institucional.")
 
 # ==========================================================
-# 3️⃣ Logs e Auditoria das Simulações
+# 🧪 2️⃣ Testes Simulados de Integração
 # ==========================================================
+st.subheader("2️⃣ Testes Simulados de Integração")
+
+def simular_teste(nome: str) -> tuple[bool, str]:
+    """Simula sucesso ou falha com base na presença de variáveis."""
+    ok = verificar_var(nome)
+    if ok:
+        return True, f"Conexão simulada com sucesso ({nome})"
+    return False, f"Variável ausente ({nome}) – integração não configurada"
+
+cols = st.columns(3)
+with cols[0]:
+    if st.button("🔎 Testar SharePoint"):
+        ok, msg = simular_teste("SHAREPOINT_TENANT")
+        st.success(msg) if ok else st.warning(msg)
+with cols[1]:
+    if st.button("🔎 Testar OneDrive"):
+        ok, msg = simular_teste("ONEDRIVE_CLIENT_ID")
+        st.success(msg) if ok else st.warning(msg)
+with cols[2]:
+    if st.button("🔎 Testar GitHub"):
+        ok, msg = simular_teste("GITHUB_TOKEN")
+        st.success(msg) if ok else st.warning(msg)
+
 st.divider()
-st.subheader("3️⃣ Logs de Integração")
-
-logs_dir = base / "exports" / "logs"
-logs_dir.mkdir(parents=True, exist_ok=True)
-
-log_files = sorted(logs_dir.glob("log_integration_*.json"), reverse=True)
-if not log_files:
-    st.info("🪶 Nenhum log de integração encontrado.")
-else:
-    with st.expander("📘 Visualizar logs recentes", expanded=False):
-        for log_file in log_files[:5]:
-            st.markdown(f"**{log_file.name}**")
-            with open(log_file, "r", encoding="utf-8") as f:
-                st.json(f.read())
 
 # ==========================================================
-# 📘 Rodapé institucional simplificado
+# 🧭 3️⃣ Orientações Institucionais
+# ==========================================================
+st.subheader("3️⃣ Orientações Institucionais")
+
+st.markdown("""
+Cada integração serve a um propósito específico dentro do ecossistema **SynapseNext – SAAB 5.0**:
+
+| Integração | Finalidade | Observações |
+|-------------|-------------|-------------|
+| **SharePoint / OneDrive** | Armazenamento centralizado de artefatos, registros de versão e relatórios técnicos. | Requer credenciais corporativas (Azure AD). |
+| **GitHub** | Controle de versão do código-fonte e pipelines automatizados. | Pode ser configurado com `GITHUB_TOKEN`. |
+| **OpenAI / IA** | Processamento semântico dos artefatos e análise proativa. | Utiliza `OPENAI_API_KEY`. |
+
+As variáveis de ambiente podem ser definidas:
+- No arquivo `.streamlit/secrets.toml`;  
+- Ou no painel de configuração do Streamlit Cloud.
+""")
+
+st.info("Dica: consulte o Manual Técnico SAAB 5.0 – Integração Institucional "
+        "para instruções detalhadas sobre configuração e credenciais.")
+
+# ==========================================================
+# 📘 Rodapé Institucional
 # ==========================================================
 st.markdown("---")
 st.caption(
-    f"SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
-    f"Simulação Institucional – Gerado em {datetime.now():%d/%m/%Y %H:%M}"
+    f"SynapseNext • SAAB 5.0 – Tribunal de Justiça de São Paulo • "
+    f"Secretaria de Administração e Abastecimento (SAAB)  \n"
+    f"Relatório gerado em {datetime.now():%d/%m/%Y %H:%M}"
 )
