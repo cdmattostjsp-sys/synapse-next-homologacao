@@ -169,3 +169,32 @@ def rodape_institucional():
         Desenvolvido em ambiente Python / Streamlit
     </div>
     """, unsafe_allow_html=True)
+
+# --- Funções de compatibilidade SAAB 5.0 ---
+
+def aplicar_tema():
+    """Aplica tema padrão SAAB 5.0 (compatibilidade com versões anteriores)."""
+    import streamlit as st
+
+    st.markdown(
+        """
+        <style>
+        :root {
+            --cor-primaria: #004A8F;
+            --cor-secundaria: #007ACC;
+            --cor-sucesso: #00A86B;
+            --cor-erro: #D72638;
+            --fonte-base: 'Inter', sans-serif;
+        }
+        body {
+            font-family: var(--fonte-base);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    return "Tema SAAB 5.0 aplicado"
+
+# Atributos auxiliares esperados pelos testes
+cor_primaria = "#004A8F"
+fonte_base = "Inter"
