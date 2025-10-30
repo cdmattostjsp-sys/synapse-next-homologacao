@@ -71,8 +71,10 @@ with st.form("form_dfd"):
     urgencia = st.text_area("Urgência (se aplicável)", value=defaults.get("urgencia", ""), height=80)
     riscos = st.text_area("Riscos identificados", value=defaults.get("riscos", ""), height=80)
     alinhamento = st.text_area("Alinhamento estratégico", value=defaults.get("alinhamento_planejamento", ""), height=80)
-    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
-    submitted = st.form_submit_button("�� Gerar rascunho manual")
+
+    # 🔵 Botões padronizados (azul/white) + ícone corrigido
+    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional", use_container_width=True, type="primary")
+    submitted = st.form_submit_button("💾 Gerar rascunho manual", use_container_width=True, type="primary")
 
 # ==========================================================
 # 💡 Geração IA Institucional
