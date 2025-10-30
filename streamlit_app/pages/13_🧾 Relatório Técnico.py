@@ -1,50 +1,42 @@
-import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-# ==========================================================
-# 🧾 SynapseNext – Relatório Técnico Consolidado
-# Secretaria de Administração e Abastecimento – SAAB 5.0
-# ==========================================================
+# -*- coding: utf-8 -*-
+"""
+🧾 Relatório Técnico Consolidado – SynapseNext vNext+
+==============================================================
+Auditoria Digital + Validação Semântica + Comparador.IA
+Integração total com pipelines de Governança e Alertas.
 
-import sys
+Autor: Equipe Synapse.Engineer
+Instituição: Secretaria de Administração e Abastecimento – TJSP
+Versão: vNext+ (SAAB 5.0)
+==============================================================
+"""
+
+import sys, os
 from pathlib import Path
 from datetime import datetime
 import streamlit as st
+import pandas as pd
 
 # ==========================================================
-# 🔧 Setup de caminhos e imports institucionais
+# 🔧 Configuração de caminhos e imports
 # ==========================================================
-current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
 
 try:
     from utils.relatorio_consolidado_pipeline import coletar_dados_relatorio, gerar_relatorio_docx
+    from utils.alertas_pipeline import gerar_alertas
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except Exception as e:
-    st.error(f"❌ Erro ao importar o pipeline do Relatório Consolidado: {e}")
+    st.error(f"❌ Falha ao importar módulos institucionais: {e}")
     st.stop()
 
 # ==========================================================
-# ⚙️ Configuração da página
+# ⚙️ Configuração da Página
 # ==========================================================
-st.set_page_config(page_title="Relatório Técnico Consolidado – SynapseNext", layout="wide", page_icon="🧾")
-
-# ==========================================================
-# 🎨 Importa estilo institucional
-# ==========================================================
-try:
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except Exception:
-    aplicar_estilo_global = lambda: None
-    exibir_cabecalho_padrao = lambda *a, **kw: None
-
+st.set_page_config(page_title="🧾 Relatório Técnico Consolidado – SynapseNext", layout="wide", page_icon="🧾")
 aplicar_estilo_global()
-
-# ==========================================================
-# 🏛️ Cabeçalho institucional padronizado
-# ==========================================================
 exibir_cabecalho_padrao(
     "Relatório Técnico Consolidado",
     "Auditoria Digital + Validação Semântica + Comparador.IA • SAAB 5.0 / TJSP"
@@ -52,22 +44,26 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 1️⃣ Compilação de evidências
+# 1️⃣ Compilação de Evidências
 # ==========================================================
 st.subheader("1️⃣ Compilação de Evidências")
 
 st.markdown("""
-Ao clicar no botão abaixo, o sistema irá:
+Ao clicar no botão abaixo, o sistema irá executar:
 
-1. Ler os **últimos snapshots auditados** dos artefatos (DFD, ETP, TR, Edital);
-2. Executar **Validação Semântica IA** para cada artefato;
-3. Rodar o **Comparador.IA** para aferir a **Coerência Global**;
-4. Consolidar tudo em um **Relatório Técnico institucional**.
+1. Leitura dos **últimos snapshots auditados** dos artefatos (DFD, ETP, TR, Edital);
+2. Execução da **Validação Semântica IA** para cada artefato;
+3. Aplicação do **Comparador.IA** para aferição da **Coerência Global**;
+4. Consolidação de evidências em um **Relatório Técnico institucional (.docx)**.
 """)
 
-if st.button("🔎 Compilar dados do relatório", type="primary"):
-    with st.spinner("Coletando dados e executando análises..."):
-        dados = coletar_dados_relatorio()
+if st.button("🔍 Compilar dados do relatório", type="primary", use_container_width=True):
+    with st.spinner("Executando auditoria técnica e consolidando evidências..."):
+        try:
+            dados = coletar_dados_relatorio()
+        except Exception as e:
+            st.error(f"Erro durante a coleta de dados: {e}")
+            st.stop()
 
     st.success("✅ Dados compilados com sucesso.")
     st.divider()
@@ -76,38 +72,62 @@ if st.button("🔎 Compilar dados do relatório", type="primary"):
     # 2️⃣ Resumo dos Resultados
     # ======================================================
     st.subheader("2️⃣ Resumo dos Resultados")
-
     coe = dados.get("coerencia", {})
-    st.markdown(f"**📊 Coerência Global:** **{coe.get('coerencia_global', 0)}%**")
-
-    cols = st.columns(4)
+    validacoes = dados.get("validacoes", {})
     ordem = dados.get("ordem", ["DFD", "ETP", "TR", "Edital"])
-    vals = dados.get("validacoes", {})
 
+    # KPIs
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📊 Coerência Global", f"{coe.get('coerencia_global', 0)}%")
+    col2.metric("📚 Artefatos Auditados", len(ordem))
+    col3.metric("🧠 Validações Executadas", len(validacoes))
+    col4.metric("⚙️ Pipeline", "vNext+")
+
+    st.markdown("### Desempenho por Artefato")
+    cols = st.columns(4)
     for i, nome in enumerate(ordem):
+        v = validacoes.get(nome, {})
         with cols[i % 4]:
-            v = vals.get(nome, {})
-            st.metric(label=f"{nome} – Pontuação IA", value=f"{v.get('pontuacao', 0)}%")
+            st.metric(label=f"{nome}", value=f"{v.get('pontuacao', 0)}%")
 
     # ======================================================
-    # 3️⃣ Alertas — Divergências e Ausências
+    # 3️⃣ Alertas e Divergências
     # ======================================================
     st.divider()
-    st.subheader("3️⃣ Alertas — Divergências e Ausências")
+    st.subheader("3️⃣ Alertas, Divergências e Ausências")
 
+    alertas = []
+    try:
+        alertas = gerar_alertas()
+    except Exception:
+        st.info("⚠️ Nenhum alerta adicional detectado.")
+
+    # Divergências
     if coe.get("divergencias"):
-        st.markdown("**⚠️ Divergências detectadas:**")
+        st.markdown("**⚠️ Divergências identificadas:**")
         for d in coe["divergencias"]:
-            st.markdown(f"- {d.get('descricao', '')}")
+            st.markdown(f"- {d.get('descricao', 'Sem descrição disponível.')}")
     else:
-        st.info("Nenhuma divergência relevante apontada.")
+        st.success("✅ Nenhuma divergência encontrada.")
 
+    # Ausências
     if coe.get("ausencias"):
-        st.markdown("**❌ Ausências identificadas:**")
+        st.markdown("**❌ Ausências registradas:**")
         for a in coe["ausencias"]:
-            st.markdown(f"- {a.get('descricao', '')}")
+            st.markdown(f"- {a.get('descricao', 'Sem descrição disponível.')}")
     else:
-        st.info("Nenhuma ausência registrada.")
+        st.info("Nenhuma ausência relevante.")
+
+    # Alertas Proativos
+    if alertas:
+        st.markdown("**🔔 Alertas Proativos Integrados:**")
+        df_alertas = pd.DataFrame(alertas)
+        if not df_alertas.empty:
+            st.dataframe(
+                df_alertas[["titulo", "area", "severidade", "mensagem"]],
+                use_container_width=True,
+                hide_index=True,
+            )
 
     # ======================================================
     # 4️⃣ Geração do Relatório Institucional (.docx)
@@ -115,34 +135,30 @@ if st.button("🔎 Compilar dados do relatório", type="primary"):
     st.divider()
     st.subheader("4️⃣ Geração do Relatório Institucional (.docx)")
 
-    if st.button("📄 Gerar Relatório Técnico (.docx)"):
+    if st.button("📄 Gerar Relatório Técnico (.docx)", use_container_width=True):
         with st.spinner("Gerando documento institucional..."):
-            out_path = gerar_relatorio_docx(dados)
-
-        st.success("📁 Relatório gerado com sucesso.")
-        try:
-            with open(out_path, "rb") as f:
-                data = f.read()
-
-            st.download_button(
-                label="⬇️ Baixar Relatório Técnico (.docx)",
-                data=data,
-                file_name=Path(out_path).name,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True,
-            )
-            st.info(f"Arquivo salvo em: `exports/relatorios/{Path(out_path).name}`")
-        except Exception as e:
-            st.error(f"Erro ao preparar o download: {e}")
+            try:
+                out_path = gerar_relatorio_docx(dados)
+                with open(out_path, "rb") as f:
+                    st.download_button(
+                        label="⬇️ Baixar Relatório Técnico (.docx)",
+                        data=f,
+                        file_name=Path(out_path).name,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True,
+                    )
+                st.success("📘 Relatório Técnico gerado com sucesso.")
+            except Exception as e:
+                st.error(f"Erro ao gerar relatório: {e}")
 
 else:
-    st.info("Clique em **Compilar dados do relatório** para iniciar.")
+    st.info("Clique em **Compilar dados do relatório** para iniciar a auditoria técnica.")
 
 # ==========================================================
-# 📘 Rodapé institucional simplificado
+# 📅 Rodapé Institucional
 # ==========================================================
 st.markdown("---")
 st.caption(
     f"SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
-    f"Relatório Técnico Consolidado • Gerado em {datetime.now():%d/%m/%Y %H:%M}"
+    f"Relatório Técnico Consolidado • Versão vNext+ • Gerado em {datetime.now():%d/%m/%Y %H:%M}"
 )
