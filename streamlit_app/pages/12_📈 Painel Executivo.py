@@ -1,97 +1,92 @@
-# -*- coding: utf-8 -*-
-"""
-📈 Painel Executivo – SynapseNext vNext+
-==============================================================
-Consolidação institucional de indicadores, alertas e insights
-do ecossistema SynapseNext (SAAB/TJSP).
+# ==========================================================
+# 📈 SynapseNext – Painel Executivo (SAAB 5.0)
+# Secretaria de Administração e Abastecimento – TJSP
+# ==========================================================
+# Objetivo:
+#   Exibir visão consolidada de desempenho, governança e
+#   alertas do ecossistema SynapseNext.
+# ==========================================================
 
-Autor: Equipe Synapse.Engineer
-Instituição: Secretaria de Administração e Abastecimento – TJSP
-Versão: vNext+ (atualizado para integração total com alertas_pipeline)
-==============================================================
-"""
-
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import datetime
 import sys, os
 from pathlib import Path
-from datetime import datetime
-import streamlit as st
-from utils.layout_manager import ajustar_grafico, iniciar_secao
-import pandas as pd
-import matplotlib.pyplot as plt
 
 # ==========================================================
-# 🔧 Ajuste de path
+# 🔧 Configuração de ambiente e estilo institucional
 # ==========================================================
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
-# ==========================================================
-# 📦 Importações internas
-# ==========================================================
-try:
-    from utils.alertas_pipeline import gerar_alertas
-    from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except Exception as e:
-    st.error(f"❌ Erro ao importar dependências: {e}")
-    st.stop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
+from utils.alertas_pipeline import gerar_alertas
+from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
 
 # ==========================================================
 # ⚙️ Configuração da página
 # ==========================================================
-st.set_page_config(page_title="📈 Painel Executivo – SynapseNext vNext", layout="wide", page_icon="📈")
-aplicar_estilo_global()
-exibir_cabecalho_padrao(
-    "Painel Executivo",
-    "Consolidação Institucional – Indicadores, Alertas e Insights do ecossistema SynapseNext (SAAB 5.0)"
+st.set_page_config(
+    page_title="📈 Painel Executivo – SynapseNext",
+    layout="wide",
+    page_icon="📈"
 )
-st.divider()
+aplicar_estilo_institucional()
 
 # ==========================================================
-# 📊 Carregamento dos alertas e dados consolidados
+# 🎯 Cabeçalho institucional
+# ==========================================================
+st.markdown("""
+<div style="text-align:center; padding-top: 0.5rem; padding-bottom: 1.2rem;">
+    <h1 style="margin-bottom:0; color:#004A8F;">📈 Painel Executivo</h1>
+    <p style="color:#4d4d4d; font-size:1rem;">
+        Consolidação Institucional de Indicadores, Alertas e Insights – SAAB/TJSP
+    </p>
+</div>
+""", unsafe_allow_html=True)
+st.markdown("---")
+
+# ==========================================================
+# 🧠 Carregamento de dados
 # ==========================================================
 try:
     alertas = gerar_alertas()
 except Exception as e:
-    st.error(f"Erro ao carregar alertas: {e}")
+    st.error(f"❌ Erro ao carregar alertas: {e}")
     st.stop()
 
 if not alertas or len(alertas) == 0:
-    st.warning("⚠️ Nenhum alerta encontrado. Gere alertas no módulo ⚠️ *Alertas Proativos*.")
+    st.warning("⚠️ Nenhum alerta encontrado. Gere alertas no módulo ⚠️ *Painel de Alertas*.")
     st.stop()
 
-# Converter lista de alertas para DataFrame
 df = pd.DataFrame(alertas)
-
-# Garantir colunas obrigatórias
 for col in ["severidade", "area", "titulo", "status", "mensagem", "recomendacao"]:
     if col not in df.columns:
         df[col] = "não classificado"
 
 # ==========================================================
-# 📈 Indicadores Consolidados
+# 📊 Indicadores Executivos
 # ==========================================================
-st.subheader("1️⃣ Indicadores Consolidados")
+st.subheader("📊 Indicadores Executivos Consolidado")
 
-total_alertas = len(df)
+total = len(df)
 altos = len(df[df["severidade"] == "alto"])
 medios = len(df[df["severidade"] == "medio"])
 baixos = len(df[df["severidade"] == "baixo"])
-areas_afetadas = df["area"].nunique()
+areas = df["area"].nunique()
 
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Alertas Totais", total_alertas)
+col1.metric("Alertas Totais", total)
 col2.metric("Alta Severidade", altos)
 col3.metric("Média Severidade", medios)
 col4.metric("Baixa Severidade", baixos)
-col5.metric("Áreas Afetadas", areas_afetadas)
+col5.metric("Áreas Afetadas", areas)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================================
-# 📉 Gráfico de Distribuição de Severidade
+# 📉 Distribuição de Severidade
 # ==========================================================
-st.divider()
-st.subheader("2️⃣ Distribuição de Alertas por Severidade")
+st.subheader("📉 Distribuição de Alertas por Severidade")
 
 dist = (
     df["severidade"]
@@ -101,53 +96,91 @@ dist = (
 )
 
 if not dist.empty:
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.bar(dist["Severidade"], dist["Quantidade"], color=["#E74C3C", "#F1C40F", "#2ECC71"])
-    ax.set_title("Classificação dos Alertas Detectados", fontsize=10)
-    ax.set_xlabel("Severidade", fontsize=9)
-    ax.set_ylabel("Quantidade", fontsize=9)
-    ax.grid(axis="y", linestyle="--", alpha=0.4)
-    st.pyplot(fig, use_container_width=False)
+    fig = px.bar(
+        dist,
+        x="Severidade",
+        y="Quantidade",
+        color="Severidade",
+        text_auto=True,
+        title="Classificação dos Alertas Detectados",
+        color_discrete_sequence=["#E74C3C", "#F1C40F", "#2ECC71"]
+    )
+    fig.update_layout(
+        title=dict(x=0.5, font=dict(size=18, color="#004A8F")),
+        font=dict(size=13),
+        height=420,
+        margin=dict(l=20, r=20, t=60, b=40)
+    )
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("Nenhum dado disponível para exibir gráfico de severidade.")
 
+st.markdown("<br>", unsafe_allow_html=True)
+
 # ==========================================================
-# 🧠 Insights Executivos
+# 🧭 Insights Executivos
 # ==========================================================
-st.divider()
-st.subheader("3️⃣ Insights Executivos – Análise de Contexto")
+st.subheader("🧭 Insights e Recomendações Estratégicas")
 
 if altos > 0:
-    st.error("⚠️ Foram detectados alertas de alta severidade. Recomendação: auditoria imediata dos documentos críticos.")
+    st.error("⚠️ Foram detectados alertas de **alta severidade**. Recomenda-se auditoria imediata dos documentos críticos.")
 elif medios > 0:
-    st.warning("ℹ️ A maioria dos alertas possui severidade média. Recomendação: revisão textual e nova análise de coerência.")
+    st.warning("ℹ️ A maioria dos alertas possui severidade **média**. Recomenda-se revisão textual e nova análise de coerência.")
 else:
     st.success("✅ Nenhum alerta crítico encontrado. A integridade documental está dentro dos parâmetros aceitáveis.")
 
+st.markdown("<br>", unsafe_allow_html=True)
+
 # ==========================================================
-# 🗂️ Distribuição por Área e Tipos de Alerta
+# 🗂️ Distribuição Institucional
 # ==========================================================
-st.divider()
-st.subheader("4️⃣ Distribuição Institucional de Alertas")
+st.subheader("🏛️ Distribuição Institucional de Alertas")
 
 colA, colB = st.columns(2)
 with colA:
     st.markdown("**Distribuição por Área Institucional**")
     dist_area = df["area"].value_counts().rename_axis("Área").reset_index(name="Alertas")
-    st.dataframe(dist_area, use_container_width=True, hide_index=True)
+    fig_area = px.bar(
+        dist_area,
+        x="Área",
+        y="Alertas",
+        color="Área",
+        text_auto=True,
+        color_discrete_sequence=px.colors.qualitative.Safe
+    )
+    fig_area.update_layout(
+        title=dict(x=0.5, font=dict(size=16, color="#004A8F")),
+        showlegend=False,
+        height=400
+    )
+    st.plotly_chart(fig_area, use_container_width=True)
 
 with colB:
-    st.markdown("**Principais Tipos de Alerta**")
-    top_alertas = df["titulo"].value_counts().rename_axis("Tipo de Alerta").reset_index(name="Ocorrências")
-    st.dataframe(top_alertas, use_container_width=True, hide_index=True)
+    st.markdown("**Tipos de Alerta Mais Frequentes**")
+    tipos = df["titulo"].value_counts().rename_axis("Tipo de Alerta").reset_index(name="Ocorrências").head(10)
+    fig_tipos = px.bar(
+        tipos,
+        x="Ocorrências",
+        y="Tipo de Alerta",
+        orientation="h",
+        text_auto=True,
+        color_discrete_sequence=["#007ACC"]
+    )
+    fig_tipos.update_layout(
+        title=dict(x=0.5, font=dict(size=16, color="#004A8F")),
+        height=400,
+        margin=dict(l=20, r=20, t=60, b=40)
+    )
+    st.plotly_chart(fig_tipos, use_container_width=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================================
-# 📘 Relatório Executivo em PDF
+# 📘 Relatório Executivo – Exportação em PDF
 # ==========================================================
-st.divider()
-st.subheader("5️⃣ Relatório Executivo – Exportação em PDF")
+st.subheader("📘 Relatório Executivo (Exportação PDF)")
 
-if st.button("📘 Gerar Relatório Executivo PDF"):
+if st.button("📤 Gerar Relatório Executivo em PDF", use_container_width=True):
     try:
         caminho_pdf = gerar_relatorio_executivo({}, {"alertas": alertas}, {})
         with open(caminho_pdf, "rb") as f:
@@ -157,15 +190,13 @@ if st.button("📘 Gerar Relatório Executivo PDF"):
                 file_name=Path(caminho_pdf).name,
                 mime="application/pdf"
             )
-        st.success("✅ Relatório gerado e pronto para download.")
+        st.success("✅ Relatório gerado com sucesso.")
     except Exception as e:
-        st.error(f"Erro ao gerar relatório: {e}")
+        st.error(f"❌ Erro ao gerar relatório: {e}")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================================
 # 📅 Rodapé institucional
 # ==========================================================
-st.markdown("---")
-st.caption(
-    f"SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
-    f"Versão institucional vNext+ • Gerado em {datetime.now():%d/%m/%Y %H:%M}"
-)
+rodape_institucional()
