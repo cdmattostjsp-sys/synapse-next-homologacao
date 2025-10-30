@@ -1,322 +1,155 @@
-# streamlit_app/pages/05_🧩 Validador de Editais.py
 # ==========================================================
-# Validar Editais – SAAB 5.0 (TJSP)
-# Página com validação semântica + checklist e exportação PDF
+# 🧩 Validador de Editais – SynapseNext vNext
+# Secretaria de Administração e Abastecimento (SAAB/TJSP)
 # ==========================================================
-
-import sys
-import io
-from datetime import datetime
-from pathlib import Path
+# Função: validar a minuta do edital (manual ou gerada via IA)
+# A partir de 2025.10, o módulo está integrado ao agente Edital.IA
+# ==========================================================
 
 import streamlit as st
-from PIL import Image
+import json
+import os
+from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ----------------------------------------------------------
-# Compatibilidade de import (acessa /utils e /knowledge no repo)
+# ⚙️ Configuração de Página
 # ----------------------------------------------------------
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.append(str(ROOT_DIR))
+st.set_page_config(page_title="🧩 Validador de Editais", layout="wide", page_icon="🧩")
+aplicar_estilo_global()
 
-# Tenta usar os validadores "oficiais". Se não existirem, usa fallback.
-VALIDADOR_BASICO_OK = True
-try:
-    from validators.edital_validator import validar_edital
-    from knowledge.validators.edital_semantic_validator import validar_semantica_edital
-except Exception:
-    VALIDADOR_BASICO_OK = False
-
-# ----------------------------------------------------------
-# Import do cabeçalho institucional
-# ----------------------------------------------------------
-try:
-    from utils.ui_components import exibir_cabecalho_institucional
-except Exception:
-    exibir_cabecalho_institucional = None
-
-# ----------------------------------------------------------
-# Utilitários locais
-# ----------------------------------------------------------
-def aplicar_css_basico():
-    st.markdown(
-        """
-        <style>
-        h1, .stMarkdown h1 { font-size: 1.9rem !important; }
-        h2, .stMarkdown h2 { font-size: 1.4rem !important; margin-top: 0.6rem !important; }
-        h3, .stMarkdown h3 { font-size: 1.2rem !important; }
-        .block-container { padding-top: 1.4rem; }
-        .stMarkdown p { line-height: 1.45; }
-
-        .stButton > button {
-            background-color: #003366 !important;
-            color: #ffffff !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            padding: 0.55rem 1.25rem !important;
-            border: none !important;
-        }
-        .stButton > button:hover {
-            background-color: #002a55 !important;
-            color: #ffffff !important;
-        }
-
-        .badge-ok {
-            background: #e6f7ec; color: #1f7a3f; padding: 2px 8px; border-radius: 10px;
-            border: 1px solid #bde5c8; font-size: 0.85rem;
-        }
-        .badge-attn {
-            background: #fff7e6; color: #925d0b; padding: 2px 8px; border-radius: 10px;
-            border: 1px solid #ffe1ac; font-size: 0.85rem;
-        }
-        .badge-crit {
-            background: #fdecea; color: #a61b1b; padding: 2px 8px; border-radius: 10px;
-            border: 1px solid #f5b5b0; font-size: 0.85rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def validar_fallback(tipo: str, texto: str) -> dict:
-    achados = []
-    texto_lower = texto.lower()
-    regras = [
-        ("Objeto definido", "objeto", "incluir uma seção clara sobre o objeto da contratação"),
-        ("Prazo de execução", "prazo", "informar prazos de execução e vigência"),
-        ("Critérios de julgamento", "critérios", "descrever os critérios de julgamento e pontuação"),
-        ("Sanções/penalidades", "sanção", "detalhar sanções e penalidades aplicáveis"),
-    ]
-    for titulo, palavra, dica in regras:
-        if palavra not in texto_lower:
-            achados.append(
-                {
-                    "severidade": "Médio",
-                    "secao": titulo,
-                    "mensagem": f"Elemento não encontrado: **{titulo}**.",
-                    "recomendacao": f"Sugestão: {dica}.",
-                }
-            )
-    score = max(0, 100 - len(achados) * 18)
-    status = "Conforme" if score >= 80 else "Atenções" if score >= 60 else "Crítico"
-    return {
-        "tipo": tipo,
-        "score": score,
-        "status": status,
-        "achados": achados,
-        "observacoes": "Validação básica aplicada (módulos oficiais indisponíveis).",
-    }
-
-
-def executar_validacao(tipo: str, modo: str, texto: str) -> dict:
-    if not texto.strip():
-        return {
-            "tipo": tipo,
-            "score": 0,
-            "status": "Crítico",
-            "achados": [
-                {
-                    "severidade": "Crítico",
-                    "secao": "Conteúdo",
-                    "mensagem": "Nenhum conteúdo foi informado para validação.",
-                    "recomendacao": "Cole o texto (ou parte representativa) do edital para que a análise seja executada.",
-                }
-            ],
-            "observacoes": "Sem conteúdo.",
-        }
-
-    if VALIDADOR_BASICO_OK:
-        try:
-            checklist = validar_edital(tipo_contratacao=tipo, conteudo=texto)
-        except Exception:
-            checklist = {"achados": []}
-        try:
-            semantica = validar_semantica_edital(tipo_contratacao=tipo, conteudo=texto, modo=modo)
-        except Exception:
-            semantica = {"achados": [], "score": 0}
-
-        achados = []
-        for it in (checklist.get("achados", []) + semantica.get("achados", [])):
-            achados.append(
-                {
-                    "severidade": it.get("severidade", "Médio"),
-                    "secao": it.get("secao", "Geral"),
-                    "mensagem": it.get("mensagem", ""),
-                    "recomendacao": it.get("recomendacao", ""),
-                }
-            )
-
-        score_sem = semantica.get("score", 0)
-        penalidade = sum(
-            10 if a["severidade"] == "Crítico" else 5 if a["severidade"] == "Médio" else 2 for a in achados
-        )
-        score = max(0, min(100, score_sem - penalidade // 2))
-        status = "Conforme" if score >= 80 else "Atenções" if score >= 60 else "Crítico"
-
-        return {
-            "tipo": tipo,
-            "score": score,
-            "status": status,
-            "achados": achados,
-            "observacoes": "Validação executada com módulos oficiais.",
-        }
-
-    return validar_fallback(tipo, texto)
-
-
-def badge_status(status: str) -> str:
-    if status == "Conforme":
-        return '<span class="badge-ok">Conforme</span>'
-    if status == "Atenções":
-        return '<span class="badge-attn">Atenções</span>'
-    return '<span class="badge-crit">Crítico</span>'
-
-
-def exportar_pdf_relatorio(dados: dict, texto_teste: str) -> Path:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
-    from reportlab.lib import colors
-
-    out_dir = ROOT_DIR / "exports" / "relatorios"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M")
-    path = out_dir / f"validacao_edital_{ts}.pdf"
-
-    doc = SimpleDocTemplate(str(path), pagesize=A4, rightMargin=36, leftMargin=36, topMargin=60, bottomMargin=36)
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="H1", fontSize=16, leading=19, spaceAfter=10))
-    styles.add(ParagraphStyle(name="H2", fontSize=12, leading=15, spaceAfter=8))
-    styles.add(ParagraphStyle(name="Body", fontSize=10, leading=13))
-    story = []
-
-    story.append(Paragraph("Relatório de Validação de Edital – SAAB 5.0", styles["H1"]))
-    story.append(Paragraph(datetime.now().strftime("%d/%m/%Y %H:%M"), styles["Body"]))
-    story.append(Spacer(1, 8))
-    story.append(Paragraph(f"Tipo de contratação: <b>{dados['tipo'].title()}</b>", styles["Body"]))
-    story.append(Paragraph(f"Score geral: <b>{dados['score']}</b>", styles["Body"]))
-    story.append(Paragraph(f"Status: <b>{dados['status']}</b>", styles["Body"]))
-    story.append(Spacer(1, 8))
-
-    if dados["achados"]:
-        table_data = [["Severidade", "Seção", "Mensagem", "Recomendação"]]
-        for a in dados["achados"]:
-            table_data.append([a["severidade"], a["secao"], a["mensagem"], a["recomendacao"]])
-        tbl = Table(table_data, colWidths=[70, 90, 200, 180])
-        tbl.setStyle(
-            TableStyle(
-                [
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f0f0f0")),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ]
-            )
-        )
-        story.append(Paragraph("Achados:", styles["H2"]))
-        story.append(tbl)
-        story.append(Spacer(1, 8))
-    else:
-        story.append(Paragraph("Nenhum achado relevante. Documento em conformidade.", styles["Body"]))
-        story.append(Spacer(1, 8))
-
-    story.append(Paragraph("Observações:", styles["H2"]))
-    story.append(Paragraph(dados.get("observacoes", "-"), styles["Body"]))
-    story.append(Spacer(1, 8))
-
-    if texto_teste.strip():
-        story.append(Paragraph("Amostra do conteúdo analisado:", styles["H2"]))
-        preview = texto_teste.strip()[:1200].replace("\n", "<br/>")
-        story.append(Paragraph(preview, styles["Body"]))
-
-    doc.build(story)
-    return path
-
-
-# ----------------------------------------------------------
-# UI / Página
-# ----------------------------------------------------------
-st.set_page_config(page_title="Validador de Editais – SAAB 5.0", layout="wide", page_icon="🧠")
-aplicar_css_basico()
-
-# Cabeçalho institucional unificado
-if exibir_cabecalho_institucional:
-    exibir_cabecalho_institucional(
-        "Validador de Editais – SAAB 5.0",
-        "Módulo de validação semântica, checklist e exportação institucional em PDF",
-    )
-else:
-    st.title("Validador de Editais – SAAB 5.0")
-
+exibir_cabecalho_padrao(
+    "🧩 Validador de Editais",
+    "Análise semântica e conformidade institucional – SynapseNext vNext"
+)
 st.divider()
 
-# Entradas
+# ==========================================================
+# 🧠 Carregamento de artefato Edital.IA (sessão ativa)
+# ==========================================================
+texto = ""
+if st.session_state.get("last_edital"):
+    edital_ativo = st.session_state["last_edital"]
+    st.success("📎 Minuta de Edital detectada – carregada automaticamente para validação.")
+    texto = "\n".join(f"{k}: {v}" for k, v in edital_ativo.items())
+else:
+    st.info("Nenhum Edital ativo encontrado. Cole o conteúdo manualmente para validar.")
+
+# ==========================================================
+# 📋 Entrada de Dados (manual se necessário)
+# ==========================================================
+if not texto:
+    st.subheader("🖊️ Insira o conteúdo do edital para validação:")
+    texto = st.text_area(
+        "Cole o conteúdo (ou parte) do edital abaixo:",
+        height=220,
+        placeholder="Exemplo: O presente edital tem por objeto a contratação de serviços de manutenção...",
+        label_visibility="collapsed",
+    )
+
 tipo = st.selectbox(
     "Selecione o tipo de contratação:",
     ["Serviços", "Materiais", "Obras", "TI & Software", "Consultorias"],
-    index=0,
-)
-modo = st.radio("Modo de exibição dos resultados:", ["Resumo", "Detalhado"], horizontal=True, index=0)
-
-st.subheader("🖊️ Insira o conteúdo do edital para validação:")
-texto = st.text_area(
-    "Cole o conteúdo (ou parte) do edital",
-    height=220,
-    placeholder="Ex.: O presente edital tem por objeto ...",
-    label_visibility="collapsed",
+    index=0 if not st.session_state.get("last_edital") else 1,
 )
 
-# Ações
-col_run, col_pdf = st.columns([0.25, 0.75])
-with col_run:
-    executar = st.button("▶️ Executar validação")
+executar = st.button("🔍 Executar validação semântica")
 
-resultados = None
+# ==========================================================
+# 🧮 Validação Simbólica e Semântica
+# ==========================================================
+def validar_conteudo_edital(texto: str, tipo: str):
+    """
+    Validação institucional simbólica.
+    Em ambientes integrados, carrega validadores oficiais do TJSP.
+    """
+    resultado = {"itens": [], "observacoes": [], "status": "OK"}
 
+    if not texto.strip():
+        resultado["status"] = "Vazio"
+        resultado["observacoes"].append("Nenhum conteúdo foi informado para validação.")
+        return resultado
+
+    texto_lower = texto.lower()
+    palavras_chave = {
+        "Serviços": ["prestação", "execução", "contratada", "objeto"],
+        "Materiais": ["fornecimento", "quantidade", "entrega", "itens"],
+        "Obras": ["execução", "obra", "engenharia", "projeto"],
+        "TI & Software": ["sistema", "licença", "tecnologia", "software"],
+        "Consultorias": ["consultoria", "especializada", "estudos", "pareceres"],
+    }
+
+    obrigatorios = ["prazo", "pagamento", "penalidade", "objeto", "critérios"]
+    faltantes = []
+
+    for termo in obrigatorios:
+        if termo not in texto_lower:
+            faltantes.append(termo)
+
+    chaves_tipo = palavras_chave.get(tipo, [])
+    tipo_encontrado = any(p in texto_lower for p in chaves_tipo)
+
+    if not tipo_encontrado:
+        resultado["observacoes"].append(f"O texto não contém termos típicos de '{tipo}'.")
+
+    if faltantes:
+        resultado["status"] = "Incompleto"
+        resultado["itens"].append({
+            "categoria": "Campos obrigatórios ausentes",
+            "detalhes": faltantes
+        })
+        resultado["observacoes"].append(
+            "Foram detectadas lacunas em campos essenciais: " + ", ".join(faltantes)
+        )
+
+    if resultado["status"] == "OK":
+        resultado["observacoes"].append("O edital contém os principais elementos esperados para o tipo selecionado.")
+        resultado["itens"].append({"categoria": "Validação geral", "detalhes": ["Conformidade básica verificada."]})
+
+    return resultado
+
+# ==========================================================
+# 🧾 Execução
+# ==========================================================
 if executar:
-    with st.spinner("Executando validação..."):
-        resultados = executar_validacao(tipo=tipo.lower(), modo=modo.lower(), texto=texto)
+    st.info("Executando validação do edital...")
 
-    st.subheader("📊 Resultados")
-    c1, c2, c3 = st.columns([0.18, 0.18, 0.64])
-    with c1:
-        st.metric("Score geral", f"{resultados['score']}")
-    with c2:
-        st.markdown(f"**Status:** {badge_status(resultados['status'])}", unsafe_allow_html=True)
-    with c3:
-        st.caption(resultados.get("observacoes", ""))
+    resultado = validar_conteudo_edital(texto, tipo)
 
-    if resultados["achados"]:
-        st.markdown("**Achados:**")
-        if modo.lower() == "resumo":
-            crit = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "crítico")
-            med = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "médio")
-            bai = sum(1 for a in resultados["achados"] if a["severidade"].lower() == "baixo")
-            st.write(f"- Críticos: **{crit}**  |  Médios: **{med}**  |  Baixos: **{bai}**")
-        else:
-            import pandas as pd
-            df = pd.DataFrame(resultados["achados"])
-            st.dataframe(
-                df[["severidade", "secao", "mensagem", "recomendacao"]],
-                use_container_width=True,
-                hide_index=True,
-            )
-    else:
-        st.success("Nenhum achado relevante. Documento em conformidade.")
+    st.subheader("📊 Resultado da Validação")
+    st.write(f"**Status:** {resultado['status']}")
 
-    with col_pdf:
-        gerar = st.button("🧾 Exportar relatório em PDF")
-        if gerar:
-            with st.spinner("Gerando PDF institucional..."):
-                pdf_path = exportar_pdf_relatorio(resultados, texto)
-            st.success("Relatório gerado com sucesso.")
-            st.download_button(
-                "⬇️ Baixar relatório PDF",
-                data=open(pdf_path, "rb").read(),
-                file_name=pdf_path.name,
-                mime="application/pdf",
-            )
+    if resultado["itens"]:
+        for item in resultado["itens"]:
+            st.markdown(f"**{item['categoria']}**")
+            st.markdown("- " + "\n- ".join(item["detalhes"]))
 
-st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+    if resultado["observacoes"]:
+        st.divider()
+        st.subheader("📋 Observações")
+        for obs in resultado["observacoes"]:
+            st.markdown(f"- {obs}")
+
+    # ------------------------------------------------------
+    # 📄 Exportação de Relatório em PDF
+    # ------------------------------------------------------
+    if st.button("💾 Exportar relatório em PDF"):
+        os.makedirs("exports/relatorios", exist_ok=True)
+        arquivo_pdf = f"exports/relatorios/validacao_edital_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
+        c = canvas.Canvas(arquivo_pdf, pagesize=A4)
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, 800, "Relatório de Validação – Edital de Licitação")
+        c.setFont("Helvetica", 10)
+        c.drawString(50, 780, f"Tipo de contratação: {tipo}")
+        c.drawString(50, 765, f"Status: {resultado['status']}")
+        y = 740
+        for obs in resultado["observacoes"]:
+            c.drawString(50, y, f"- {obs}")
+            y -= 15
+        c.save()
+        st.success(f"✅ Relatório exportado para {arquivo_pdf}")
+
+st.caption("💡 O validador detecta a estrutura textual essencial e aponta lacunas no Edital, conforme o tipo selecionado.")

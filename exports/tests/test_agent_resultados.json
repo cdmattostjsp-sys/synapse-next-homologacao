@@ -1,0 +1,53 @@
+{
+  "DFD": {
+    "modulo": "DFD",
+    "secoes": {
+      "Contexto": "A Secretaria de Administração e Abastecimento (SAAB) do Tribunal de Justiça de São Paulo (TJSP) propõe a aquisição de notebooks com o objetivo de expandir as unidades judiciais, proporcionando maior eficiência e agilidade nos serviços prestados.",
+      "Necessidade": "A necessidade de aquisição de notebooks surge da demanda crescente por recursos tecnológicos que suportem as atividades diárias das unidades judiciais, visando a modernização e a melhoria na prestação de serviços ao cidadão.",
+      "Resultados Esperados": "Espera-se que a aquisição dos notebooks contribua para a otimização dos processos judiciais, aumento da produtividade dos servidores e melhoria na qualidade do atendimento ao público.",
+      "Justificativa Legal": "A aquisição está fundamentada na Lei nº 14.133/2021, que estabelece normas para licitações e contratos administrativos, garantindo a transparência e a eficiência nas contratações públicas.",
+      "Escopo": "O escopo do projeto abrange a aquisição de notebooks, incluindo a especificação técnica dos equipamentos, a quantidade necessária e a entrega em todas as unidades judiciais designadas.",
+      "Critérios de Sucesso": "Os critérios de sucesso incluem a entrega dos notebooks dentro do prazo estipulado de 30 dias, a conformidade técnica dos equipamentos com as especificações solicitadas e a satisfação dos usuários finais com os novos recursos tecnológicos."
+    },
+    "lacunas": [],
+    "_usage": "CompletionUsage(completion_tokens=308, prompt_tokens=231, total_tokens=539, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=0, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=0), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0))",
+    "_gerado_em": "2025-10-30 02:46:30"
+  },
+  "ETP": {
+    "modulo": "ETP",
+    "secoes": {
+      "Objeto": "Aquisição de notebooks",
+      "Soluções de Mercado": "",
+      "Justificativa Técnica": "Necessidade de renovação do parque computacional",
+      "Requisitos": "",
+      "Estimativa de Custos": "R$ 250.000,00",
+      "Riscos": ""
+    },
+    "lacunas": [
+      "Soluções de Mercado",
+      "Requisitos",
+      "Riscos"
+    ],
+    "_usage": "CompletionUsage(completion_tokens=113, prompt_tokens=233, total_tokens=346, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=0, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=0), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0))",
+    "_gerado_em": "2025-10-30 02:46:32"
+  },
+  "TR": {
+    "modulo": "TR",
+    "secoes": {
+      "Objeto": "Aquisição de notebooks corporativos.",
+      "Especificações Técnicas": "Os notebooks a serem adquiridos devem atender às seguintes especificações técnicas: Processadores i7, 16GB de RAM e SSD de 512GB.",
+      "Critérios de Aceitação": "Os notebooks deverão ser avaliados com base nos critérios de aceitação estabelecidos, que incluem a conformidade com as especificações técnicas mencionadas.",
+      "Prazos": "O prazo para execução do contrato será de 45 dias a partir da data de sua assinatura.",
+      "Garantias": "As garantias dos produtos adquiridos deverão ser especificadas pelo fornecedor, incluindo a duração e as condições de cobertura.",
+      "Gestão": "A gestão do contrato será realizada pela equipe designada pela Secretaria de Administração e Abastecimento (SAAB/TJSP), que acompanhará o cumprimento das obrigações contratuais.",
+      "Fiscalização": "A fiscalização do contrato será exercida por servidor designado, que deverá garantir a conformidade com as condições estabelecidas no edital e no contrato."
+    },
+    "lacunas": [
+      "Especificações de Garantias",
+      "Informações sobre a Gestão do contrato",
+      "Detalhes sobre a Fiscalização do contrato"
+    ],
+    "_usage": "CompletionUsage(completion_tokens=279, prompt_tokens=234, total_tokens=513, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=0, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=0), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0))",
+    "_gerado_em": "2025-10-30 02:46:39"
+  }
+}

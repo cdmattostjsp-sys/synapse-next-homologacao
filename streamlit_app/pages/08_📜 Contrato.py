@@ -1,149 +1,99 @@
 # ==========================================================
-# 📜 SynapseNext – Contrato Administrativo
-# Secretaria de Administração e Abastecimento – SAAB 5.0
+# 📜 SynapseNext vNext – Contrato Administrativo
+# Secretaria de Administração e Abastecimento (SAAB/TJSP)
 # ==========================================================
 
-import sys
-from pathlib import Path
-from datetime import datetime
-import json
 import streamlit as st
+from datetime import datetime
+from io import BytesIO
+from docx import Document
+import json, os
 
 # ==========================================================
-# 🔧 Ajuste de path e imports institucionais
+# 🔧 Imports institucionais
 # ==========================================================
-current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
-
-# 📦 Importa módulos funcionais
-try:
-    from utils.next_pipeline import build_contrato_markdown, registrar_log
-    from utils.formatter_docx import markdown_to_docx
-except Exception as e:
-    st.error(f"❌ Erro ao importar módulos utilitários: {e}")
-    st.stop()
-
-# 📦 Importa novo estilo institucional unificado
-try:
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except Exception:
-    st.warning("⚠️ Módulo ui_components não encontrado. O estilo não será aplicado.")
-    aplicar_estilo_global = lambda: None
-    exibir_cabecalho_padrao = lambda *a, **kw: None
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from utils.agents_bridge import AgentsBridge
+from utils.formatter_docx import markdown_to_docx
+from utils.next_pipeline import registrar_log
 
 # ==========================================================
-# ⚙️ Configuração da página
+# ⚙️ Configuração de página
 # ==========================================================
 st.set_page_config(
-    page_title="Contrato Administrativo – SynapseNext",
+    page_title="📜 Contrato Administrativo",
     layout="wide",
     page_icon="📜"
 )
 aplicar_estilo_global()
 
-# ==========================================================
-# 🏛️ Cabeçalho institucional padronizado
-# ==========================================================
 exibir_cabecalho_padrao(
-    "Contrato Administrativo",
-    "Última etapa da Fase Interna: formalização contratual com base no Termo de Referência (TR)"
+    "📜 Contrato Administrativo",
+    "Formalização contratual automatizada com base no Termo de Referência (TR)"
 )
 st.divider()
 
 # ==========================================================
-# 1️⃣ Reaproveitamento do TR
+# 🧩 Recupera TR ativo (vNext)
 # ==========================================================
-st.subheader("1️⃣ Reaproveitamento do TR")
-
-base = Path(__file__).resolve().parents[2]
-logs_dir = base / "exports" / "logs"
-tr_data = None
-
-if logs_dir.exists():
-    log_files = sorted(logs_dir.glob("log_*.json"), reverse=True)
-    if log_files:
-        last_log = log_files[0]
-        with open(last_log, "r", encoding="utf-8") as f:
-            logs = json.load(f)
-        tr_entries = [l for l in logs if l.get("artefato") == "TR" and "gerar_rascunho" in str(l)]
-        if tr_entries:
-            tr_data = tr_entries[-1].get("dados", {}).get("respostas")
-            st.success("✅ Dados do TR carregados automaticamente.")
-        else:
-            st.info("Nenhum registro de TR encontrado nos logs.")
-    else:
-        st.info("Nenhum log encontrado.")
+if st.session_state.get("last_tr"):
+    tr_data = st.session_state["last_tr"]
+    st.success("📎 Termo de Referência detectado – dados importados automaticamente.")
 else:
-    st.info("A pasta de logs ainda não foi criada.")
+    st.info("Nenhum TR ativo encontrado. Preencha manualmente ou gere via IA.")
+    tr_data = {}
 
 # ==========================================================
-# 2️⃣ Dados Contratuais
+# 🧾 Formulário Institucional do Contrato
 # ==========================================================
-st.divider()
-st.subheader("2️⃣ Dados Contratuais")
+st.subheader("1️⃣ Entrada – Dados Contratuais")
 
-with st.form("form_contrato", clear_on_submit=False):
+with st.form("form_contrato"):
     col1, col2 = st.columns(2)
     with col1:
-        objeto = st.text_area(
-            "Objeto do contrato",
-            value=tr_data.get("objeto", "") if tr_data else "",
-            height=90,
-        )
-        partes = st.text_area(
-            "Partes contratantes",
-            placeholder="Ex.: O Tribunal de Justiça do Estado de São Paulo e a empresa XYZ Ltda.",
-            height=70,
-        )
-        valor_global = st.text_input(
-            "Valor global (R$)",
-            value=tr_data.get("estimativa_final", "") if tr_data else "",
-        )
-        prazo_execucao = st.text_input(
-            "Prazo de execução",
-            value=tr_data.get("prazo_execucao", "") if tr_data else "",
-        )
-        vigencia = st.text_input(
-            "Vigência contratual",
-            placeholder="Ex.: 12 meses contados da assinatura.",
-        )
+        objeto = st.text_area("Objeto do contrato", value=tr_data.get("objeto", ""), height=80)
+        partes = st.text_area("Partes contratantes", placeholder="Ex.: TJSP e a empresa XYZ Ltda.", height=70)
+        valor_global = st.text_input("Valor global (R$)", value=tr_data.get("estimativa_valor", ""))
+        prazo_execucao = st.text_input("Prazo de execução", value=tr_data.get("prazo_execucao", ""))
+        vigencia = st.text_input("Vigência contratual", placeholder="Ex.: 12 meses contados da assinatura.")
     with col2:
-        obrigacoes_contratada = st.text_area(
-            "Obrigações da contratada",
-            placeholder="Liste as principais obrigações do fornecedor.",
-            height=100,
-        )
-        obrigacoes_contratante = st.text_area(
-            "Obrigações da contratante",
-            placeholder="Liste as obrigações do TJSP como contratante.",
-            height=100,
-        )
-        garantias = st.text_area(
-            "Garantias e penalidades",
-            placeholder="Descreva as garantias exigidas e penalidades aplicáveis.",
-            height=80,
-        )
-        fiscalizacao = st.text_area(
-            "Fiscalização e acompanhamento",
-            placeholder="Identifique o servidor ou unidade responsável pelo acompanhamento do contrato.",
-            height=70,
-        )
-        assinatura = st.text_area(
-            "Assinaturas / Representantes",
-            placeholder="Informe nomes, cargos e funções dos signatários.",
-            height=70,
-        )
+        obrigacoes_contratada = st.text_area("Obrigações da contratada", height=90)
+        obrigacoes_contratante = st.text_area("Obrigações da contratante", height=90)
+        garantias = st.text_area("Garantias e penalidades", height=80)
+        fiscalizacao = st.text_area("Fiscalização e acompanhamento", height=70)
+        assinatura = st.text_area("Assinaturas / Representantes", height=70)
 
-    enviado = st.form_submit_button("Gerar rascunho do Contrato")
+    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
+    gerar_manual = st.form_submit_button("💾 Gerar rascunho manual")
 
 # ==========================================================
-# 3️⃣ Geração e Visualização
+# ⚙️ Geração via IA Institucional (Contrato.IA)
 # ==========================================================
-if enviado:
-    respostas_contrato = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+if gerar_ia:
+    st.info("Executando agente Contrato institucional...")
+    metadata = {
+        "objeto": objeto,
+        "valor_global": valor_global,
+        "prazo_execucao": prazo_execucao,
+        "vigencia": vigencia,
+        "garantias": garantias,
+        "fiscalizacao": fiscalizacao,
+    }
+    try:
+        bridge = AgentsBridge("CONTRATO")
+        resultado = bridge.generate(metadata)
+        st.success("✅ Rascunho gerado com sucesso pelo agente Contrato.IA!")
+        st.json(resultado)
+        st.session_state["last_contrato"] = resultado.get("secoes", {})
+        registrar_log("CONTRATO", "gerar_rascunho_ia")
+    except Exception as e:
+        st.error(f"Erro ao gerar rascunho com IA: {e}")
+
+# ==========================================================
+# 💾 Geração Manual (formulário)
+# ==========================================================
+if gerar_manual:
+    contrato_data = {
         "objeto": objeto,
         "partes": partes,
         "valor_global": valor_global,
@@ -155,47 +105,37 @@ if enviado:
         "fiscalizacao": fiscalizacao,
         "assinatura": assinatura,
     }
-
-    md = build_contrato_markdown(respostas_contrato, tr_data)
-    registrar_log("CONTRATO", "gerar_rascunho")
-
-    st.success("✅ Rascunho do Contrato gerado com sucesso.")
-    st.divider()
-
-    st.subheader("3️⃣ Preview – Rascunho em Markdown")
-    st.markdown(md)
-
-    # ======================================================
-    # 4️⃣ Exportação DOCX
-    # ======================================================
-    st.divider()
-    st.subheader("4️⃣ Exportação – `.docx`")
-
-    rascunhos_dir = base / "exports" / "rascunhos"
-    rascunhos_dir.mkdir(parents=True, exist_ok=True)
-    filename_base = f"Contrato_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    docx_path = rascunhos_dir / f"{filename_base}.docx"
-
-    if st.button("📄 Exportar para .docx"):
-        markdown_to_docx(md, str(docx_path))
-        registrar_log("CONTRATO", "exportar_docx")
-
-        with open(docx_path, "rb") as f:
-            data = f.read()
-        st.download_button(
-            label="⬇️ Baixar arquivo .docx",
-            data=data,
-            file_name=docx_path.name,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True,
-        )
-        st.info(f"Arquivo salvo em: `exports/rascunhos/{docx_path.name}`")
-
-else:
-    st.info("Preencha o formulário e clique em **Gerar rascunho do Contrato**.")
+    st.success("✅ Rascunho de contrato gerado manualmente!")
+    st.json(contrato_data)
+    st.session_state["last_contrato"] = contrato_data
+    registrar_log("CONTRATO", "gerar_rascunho_manual")
 
 # ==========================================================
-# 📘 Rodapé institucional simplificado
+# 📤 Exportação de Contrato
 # ==========================================================
-st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+if st.session_state.get("last_contrato"):
+    st.divider()
+    st.subheader("📤 Exportação de Documento")
+
+    contrato_data = st.session_state["last_contrato"]
+    doc = Document()
+    doc.add_heading("Contrato Administrativo", level=1)
+    for k, v in contrato_data.items():
+        p = doc.add_paragraph()
+        p.add_run(f"{k}: ").bold = True
+        p.add_run(str(v) or "—")
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    st.download_button("💾 Baixar Contrato_rascunho.docx", buffer, file_name="Contrato_rascunho.docx")
+
+    if st.button("📦 Exportar Contrato (JSON)"):
+        os.makedirs("exports", exist_ok=True)
+        path = "exports/contrato_teste.json"
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(contrato_data, f, ensure_ascii=False, indent=2)
+        st.success(f"✅ Contrato exportado com sucesso para {path}")
+        registrar_log("CONTRATO", "exportar_json")
+
+st.caption("💡 O agente Contrato.IA gera automaticamente a minuta contratual com base no TR ativo e nos dados informados.")

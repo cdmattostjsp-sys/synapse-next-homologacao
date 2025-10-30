@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-AgentsBridge – Bridge único para criação/uso de agentes pelos módulos Streamlit.
-Mantém a padronização institucional entre páginas e agentes.
+AgentsBridge – SynapseNext / SAAB TJSP
+Ponte única de integração entre módulos Streamlit e agentes cognitivos.
+Versão vNext 2025 – Homologada
 """
+
 from __future__ import annotations
 from typing import Dict, Any
 
@@ -12,11 +14,16 @@ SUPPORTED = {"DFD", "ETP", "TR", "EDITAL", "CONTRATO"}
 
 
 class AgentsBridge:
+    """Gerencia e executa agentes de IA de forma unificada."""
+
     def __init__(self, modulo: str):
         modulo = modulo.upper()
         if modulo not in SUPPORTED:
             raise ValueError(f"Módulo não suportado: {modulo}")
-        self._agent = DocumentAgent(modulo)
+        self.modulo = modulo
+        self.agent = DocumentAgent(modulo)
 
     def generate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        return self._agent.generate(metadata)
+        """Executa a geração institucional padronizada."""
+        return self.agent.generate(metadata)
+
