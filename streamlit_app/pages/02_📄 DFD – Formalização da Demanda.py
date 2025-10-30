@@ -2,14 +2,12 @@ import sys, os
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if BASE_PATH not in sys.path:
     sys.path.append(BASE_PATH)
-import sys, os
 import streamlit as st
 from utils.integration_dfd import export_dfd_to_json
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 from utils.agents_bridge import AgentsBridge
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt
 import json
 
 # ==========================================================
@@ -58,6 +56,28 @@ else:
     defaults = {}
 
 # ==========================================================
+# 🎨 Estilo institucional SAAB (azul escuro)
+# ==========================================================
+st.markdown("""
+    <style>
+        div.stButton > button:first-child {
+            background-color: #003366;
+            color: white;
+            border-radius: 8px;
+            height: 2.8em;
+            width: 100%;
+            font-weight: 500;
+            border: none;
+        }
+        div.stButton > button:hover {
+            background-color: #002244;
+            color: white;
+            transition: 0.2s;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==========================================================
 # 🧾 Formulário Institucional
 # ==========================================================
 st.subheader("1️⃣ Entrada – Formulário Institucional")
@@ -72,9 +92,14 @@ with st.form("form_dfd"):
     riscos = st.text_area("Riscos identificados", value=defaults.get("riscos", ""), height=80)
     alinhamento = st.text_area("Alinhamento estratégico", value=defaults.get("alinhamento_planejamento", ""), height=80)
 
-    # 🔵 Botões padronizados (azul/white) + ícone corrigido
-    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional", use_container_width=True, type="primary")
-    submitted = st.form_submit_button("💾 Gerar rascunho manual", use_container_width=True, type="primary")
+    # 🔵 Botões padronizados no estilo do Validador de Editais
+    col1, col2 = st.columns(2)
+    with col1:
+        gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
+    with col2:
+        submitted = st.form_submit_button("💾 Gerar rascunho manual")
+
+st.caption("💡 O botão '⚙️ Gerar rascunho com IA institucional' usa o agente DFD.IA com base nos metadados preenchidos.")
 
 # ==========================================================
 # 💡 Geração IA Institucional
