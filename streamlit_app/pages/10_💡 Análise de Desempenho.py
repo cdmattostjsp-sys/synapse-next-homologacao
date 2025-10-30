@@ -1,163 +1,157 @@
-# -*- coding: utf-8 -*-
-"""
-10_💡 Análise de Desempenho.py – Painel de Métricas e Insights
-===============================================================
-Módulo analítico do SynapseNext vNext (TJSP/SAAB).
-Exibe indicadores de desempenho técnico e consistência documental
-a partir dos snapshots de auditoria e pipelines de governança.
-
-Versão homologada vNext
-===============================================================
-"""
-
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+# ==========================================================
+# 💡 SynapseNext – Painel de Análise de Desempenho (SAAB 5.0)
+# Secretaria de Administração e Abastecimento – TJSP
+# ==========================================================
+# Objetivo:
+#   Exibir métricas de desempenho técnico e consistência
+#   documental com visual padronizado SAAB 5.0.
+# ==========================================================
 
 import streamlit as st
-from utils.layout_manager import ajustar_grafico, iniciar_secao
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 from datetime import datetime
+import sys, os
 
-# --------------------------------------------------------------
-# 🔧 Importação dos componentes e pipelines
-# --------------------------------------------------------------
+# ==========================================================
+# 🔧 Configuração de ambiente e estilo institucional
+# ==========================================================
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
+
+st.set_page_config(page_title="💡 Análise de Desempenho – SynapseNext", layout="wide")
+aplicar_estilo_institucional()
+
+# ==========================================================
+# 🎯 Cabeçalho institucional
+# ==========================================================
+st.markdown("""
+<div style="text-align:center; padding-top: 0.5rem; padding-bottom: 1.2rem;">
+    <h1 style="margin-bottom:0; color:#004A8F;">💡 Análise de Desempenho</h1>
+    <p style="color:#4d4d4d; font-size:1rem;">Indicadores técnicos e métricas institucionais – SAAB/TJSP</p>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ==========================================================
+# 🧠 Carregamento de dados (simulado)
+# ==========================================================
+# Na versão real, substituir por dados vindos de utils/insights_pipeline.py
 try:
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-    from utils.insights_pipeline import build_insights, export_insights
+    # Simulação de snapshot de desempenho
+    df_volume = pd.DataFrame({
+        "data": pd.date_range("2025-10-01", periods=7),
+        "valor": [120, 135, 140, 160, 175, 190, 210]
+    })
+
+    df_art = pd.DataFrame({
+        "data": pd.date_range("2025-10-01", periods=7),
+        "DFD": [40, 42, 45, 47, 49, 51, 55],
+        "ETP": [30, 34, 36, 39, 40, 44, 46],
+        "TR": [25, 27, 28, 31, 33, 35, 37]
+    })
+
+    df_coer = pd.DataFrame({
+        "data": pd.date_range("2025-10-01", periods=7),
+        "valor": [68, 70, 73, 75, 77, 80, 82]
+    })
+
+    df_wc = pd.DataFrame({
+        "data": pd.date_range("2025-10-01", periods=7),
+        "valor": [950, 970, 1000, 1020, 1040, 1060, 1080]
+    })
+
+    df_delta = pd.DataFrame({
+        "Indicador": ["DFD", "ETP", "TR", "EDITAL"],
+        "Variação (%)": [+5.4, +3.8, +4.1, +2.7]
+    })
 except Exception as e:
-    st.error(f"❌ Erro ao carregar pipeline de insights.\n\nDetalhes técnicos: {e}")
-    st.info("Verifique se o arquivo `utils/insights_pipeline.py` está presente e funcional.")
+    st.error(f"❌ Erro ao carregar dados simulados: {e}")
     st.stop()
 
-# --------------------------------------------------------------
-# ⚙️ Configuração de página
-# --------------------------------------------------------------
-st.set_page_config(page_title="💡 Análise de Desempenho", layout="wide")
-aplicar_estilo_global()
-exibir_cabecalho_padrao("💡 Análise de Desempenho", "Indicadores técnicos e métricas institucionais.")
-
-# --------------------------------------------------------------
-# 🧠 Execução principal
-# --------------------------------------------------------------
-st.divider()
-st.subheader("📊 Compilando métricas de desempenho...")
-
-try:
-    snap = build_insights()
-except Exception as e:
-    st.error(f"❌ Falha ao gerar insights: {e}")
-    st.stop()
-
-# 🔎 Bloqueio preventivo de snapshot vazio
-if not snap:
-    st.warning("Nenhum dado de auditoria foi encontrado. Execute primeiro o Painel de Governança ou Auditoria para gerar um snapshot.")
-    st.stop()
-
-st.success("✅ Snapshot de auditoria carregado com sucesso.")
-
-# --------------------------------------------------------------
-# 🧩 Seção 1 – Volume total de eventos
-# --------------------------------------------------------------
-st.divider()
+# ==========================================================
+# 📊 Seção 1 – Evolução temporal (Volume total)
+# ==========================================================
 st.subheader("📈 Evolução temporal – Volume de eventos")
 
-df_volume = pd.DataFrame(snap.get("volume_tempo", []))
-if not df_volume.empty:
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(df_volume["data"], df_volume["valor"], marker="o")
-    ax.set_title("Volume total de eventos")
-    ax.set_xlabel("Data")
-    ax.set_ylabel("Eventos")
-    st.pyplot(fig)
-else:
-    st.info("Sem dados de volume temporal disponíveis.")
-
+fig_vol = px.line(
+    df_volume, x="data", y="valor", markers=True,
+    title="Volume total de eventos registrados",
+    line_shape="spline"
+)
+fig_vol.update_layout(
+    title=dict(x=0.5, font=dict(size=18, color="#004A8F")),
+    font=dict(size=13),
+    height=400,
+    margin=dict(l=20, r=20, t=60, b=40)
+)
+st.plotly_chart(fig_vol, use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------
-# 🧩 Seção 2 – Volume por artefato
-# --------------------------------------------------------------
-st.divider()
+# ==========================================================
+# 🗂️ Seção 2 – Volume por artefato
+# ==========================================================
 st.subheader("📁 Distribuição de eventos por artefato")
 
-df_art = pd.DataFrame(snap.get("volume_por_artefato", []))
-if not df_art.empty:
-    fig, ax = plt.subplots(figsize=(6, 3))
-    for artefato in df_art["artefato"].unique():
-        df_f = df_art[df_art["artefato"] == artefato]
-        ax.plot(df_f["data"], df_f["valor"], marker="o", label=artefato)
-    ax.set_title("Volume por artefato")
-    ax.legend()
-    st.pyplot(fig)
-else:
-    st.info("Nenhum dado de artefato disponível.")
-
+df_art_long = df_art.melt(id_vars="data", var_name="Artefato", value_name="Eventos")
+fig_art = px.line(
+    df_art_long, x="data", y="Eventos", color="Artefato", markers=True,
+    title="Evolução por Artefato"
+)
+fig_art.update_layout(
+    title=dict(x=0.5, font=dict(size=18, color="#004A8F")),
+    font=dict(size=13),
+    height=400,
+    legend_title_text="Artefato",
+    margin=dict(l=20, r=20, t=60, b=40)
+)
+st.plotly_chart(fig_art, use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------
-# 🧩 Seção 3 – Coerência global
-# --------------------------------------------------------------
-st.divider()
+# ==========================================================
+# 🧭 Seção 3 – Coerência global
+# ==========================================================
 st.subheader("🧭 Tendência de coerência global")
 
-df_coer = pd.DataFrame(snap.get("coerencia_global", []))
-if not df_coer.empty:
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(df_coer["data"], df_coer["valor"], marker="o", color="green")
-    ax.set_title("Coerência Global (média móvel)")
-    ax.set_xlabel("Data")
-    ax.set_ylabel("Índice (%)")
-    st.pyplot(fig)
-else:
-    st.info("Sem dados de coerência global disponíveis.")
-
+fig_coer = px.line(
+    df_coer, x="data", y="valor", markers=True, color_discrete_sequence=["#00A86B"],
+    title="Índice de Coerência Global (%)"
+)
+fig_coer.update_layout(
+    title=dict(x=0.5, font=dict(size=18, color="#004A8F")),
+    yaxis=dict(range=[0, 100]),
+    height=400,
+    margin=dict(l=20, r=20, t=60, b=40)
+)
+st.plotly_chart(fig_coer, use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------
-# 🧩 Seção 4 – Word Count médio
-# --------------------------------------------------------------
-st.divider()
-st.subheader("📄 Evolução do tamanho médio dos artefatos")
+# ==========================================================
+# 📄 Seção 4 – Tamanho médio dos artefatos
+# ==========================================================
+st.subheader("📄 Evolução do tamanho médio (WordCount)")
 
-df_wc = pd.DataFrame(snap.get("wordcount", []))
-if not df_wc.empty:
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(df_wc["data"], df_wc["valor"], marker="o", color="purple")
-    ax.set_title("Tamanho médio (WordCount)")
-    ax.set_xlabel("Data")
-    ax.set_ylabel("Palavras")
-    st.pyplot(fig)
-else:
-    st.info("Sem dados de Word Count disponíveis.")
-
+fig_wc = px.line(
+    df_wc, x="data", y="valor", markers=True, color_discrete_sequence=["#6A0DAD"],
+    title="Média de palavras por artefato"
+)
+fig_wc.update_layout(
+    title=dict(x=0.5, font=dict(size=18, color="#004A8F")),
+    height=400,
+    margin=dict(l=20, r=20, t=60, b=40)
+)
+st.plotly_chart(fig_wc, use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------
-# 🧩 Seção 5 – Delta percentual recente
-# --------------------------------------------------------------
-st.divider()
+# ==========================================================
+# 📉 Seção 5 – Delta percentual recente
+# ==========================================================
 st.subheader("📉 Variação percentual recente (Δ%)")
-
-df_delta = pd.DataFrame(snap.get("delta_percentual", []))
-if not df_delta.empty:
-    st.dataframe(df_delta, use_container_width=True, hide_index=True)
-else:
-    st.info("Sem dados de variação recente disponíveis.")
-
+st.dataframe(df_delta, use_container_width=True, hide_index=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------
-# 💾 Exportação de resultados
-# --------------------------------------------------------------
-st.divider()
-st.subheader("📤 Exportação dos Insights")
-
-if st.button("📤 Exportar Insights (JSON)", use_container_width=True):
-    try:
-        path = export_insights(snap)
-        st.success(f"✅ Insights exportados com sucesso: `{path}`")
-    except Exception as e:
-        st.error(f"❌ Erro ao exportar insights: {e}")
-
-st.caption("Sistema SynapseNext vNext – Secretaria de Administração e Abastecimento (SAAB/TJSP)")
+# ==========================================================
+# 🏛️ Rodapé institucional
+# ==========================================================
+rodape_institucional()
