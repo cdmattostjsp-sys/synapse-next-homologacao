@@ -1,158 +1,142 @@
 # -*- coding: utf-8 -*-
 """
-11_📊 Painel de Governança – SynapseNext vNext
-==============================================
-Supervisão institucional dos módulos da jornada de
-contratação pública (Lei 14.133/2021), incluindo:
-- Coerência documental e auditoria;
-- Métricas de desempenho;
-- Alertas institucionais automáticos.
+📊 Painel de Governança – SynapseNext vNext+
+==============================================================
+Consolidação institucional de auditorias e alertas técnicos.
+Integração direta com utils.alertas_pipeline.
 
-Autor: Synapse.Engineer
-Instituição: TJSP / SAAB
-Data: 2025-10-30
+Versão: vNext+ (SAAB/TJSP)
+--------------------------------------------------------------
+Este painel apresenta uma visão consolidada da integridade documental,
+baseando-se nos alertas gerados automaticamente pela camada de auditoria
+semântica e de coerência do SynapseNext.
+
+Autor: Equipe Synapse.Engineer
+Instituição: Secretaria de Administração e Abastecimento – TJSP
+==============================================================
 """
 
 import streamlit as st
 import pandas as pd
-import json
-from datetime import datetime
-from pathlib import Path
-
-# ======================================================
-# 🧩 Integrações institucionais
-# ======================================================
-from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.governanca_pipeline import build_governance_snapshot, export_governance_snapshot
-from utils.insights_pipeline import build_insights, export_insights_json
 from utils.alertas_pipeline import gerar_alertas, export_alerts_json
 
-# ======================================================
-# ⚙️ Configuração da página
-# ======================================================
+# ==========================================================
+# ⚙️ Configuração inicial
+# ==========================================================
 st.set_page_config(
-    page_title="📊 Painel de Governança – SynapseNext",
-    layout="wide",
-    page_icon="📊"
+    page_title="📊 Painel de Governança – SynapseNext vNext",
+    page_icon="📊",
+    layout="wide"
 )
 
-aplicar_estilo_global()
-exibir_cabecalho_padrao("📊 Painel de Governança", "Supervisão de Integridade e Desempenho Institucional")
+st.title("📊 Painel de Governança – SynapseNext vNext")
+st.caption("Consolidação institucional de auditorias e alertas técnicos (SAAB/TJSP)")
 
-st.markdown("---")
+st.divider()
 
-# ======================================================
-# 🧠 Construção do snapshot de governança
-# ======================================================
-st.subheader("🧠 Consolidação de Governança")
+# ==========================================================
+# 🧩 Carregamento de dados
+# ==========================================================
+try:
+    alertas = gerar_alertas()
+except Exception as e:
+    st.error(f"Erro ao carregar alertas: {e}")
+    st.stop()
 
-with st.spinner("Gerando snapshot institucional..."):
-    try:
-        snapshot = build_governance_snapshot()
-        path = export_governance_snapshot(snapshot)
-        st.success("✅ Snapshot de governança gerado com sucesso.")
-        st.caption(f"📁 Arquivo exportado: `{path}`")
-    except Exception as e:
-        st.error(f"❌ Erro ao gerar snapshot de governança: {e}")
-        snapshot = {}
+if not alertas or len(alertas) == 0:
+    st.warning("Nenhum alerta disponível. Gere alertas no módulo ⚠️ *Alertas Proativos*.")
+    st.stop()
 
-if snapshot:
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Coerência Global (%)", f"{snapshot.get('coerencia_global', 0):.2f}")
-    col2.metric("Artefatos Processados", snapshot.get("artefatos", 0))
-    col3.metric("Última Atualização", snapshot.get("gerado_em", "—"))
+# Convertendo em DataFrame
+df = pd.DataFrame(alertas)
 
-st.markdown("---")
+# ==========================================================
+# 🎛️ Filtros dinâmicos
+# ==========================================================
+st.sidebar.header("⚙️ Filtros de Visualização")
 
-# ======================================================
-# 💡 Integração com Insights Institucionais
-# ======================================================
-st.subheader("💡 Análise de Desempenho")
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    severidade_opts = sorted(df["severidade"].unique())
+with col2:
+    area_opts = sorted(df["area"].unique())
 
-with st.spinner("Consolidando métricas de desempenho..."):
-    try:
-        insights = build_insights()
-        insights_path = export_insights_json(insights)
-        st.success("✅ Insights consolidados com sucesso.")
-        st.caption(f"📁 Arquivo exportado: `{insights_path}`")
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao consolidar métricas: {e}")
-        insights = {}
+severidade = st.sidebar.multiselect(
+    "Filtrar por Severidade",
+    options=severidade_opts,
+    default=severidade_opts
+)
 
-if insights:
-    df_vol = pd.DataFrame(insights.get("volume_tempo", []))
-    if not df_vol.empty:
-        st.line_chart(df_vol.set_index("data")["valor"], height=240)
+area = st.sidebar.multiselect(
+    "Filtrar por Área",
+    options=area_opts,
+    default=area_opts
+)
 
-st.markdown("---")
+# Aplicar filtros
+df_filtrado = df[(df["severidade"].isin(severidade)) & (df["area"].isin(area))]
 
-# ======================================================
-# ⚠️ Execução automática do Pipeline de Alertas
-# ======================================================
-st.subheader("⚠️ Alertas Institucionais")
+# ==========================================================
+# 📈 Indicadores de Governança
+# ==========================================================
+st.subheader("📈 Indicadores de Governança Documental")
 
-with st.spinner("Analisando consistência e integridade..."):
-    try:
-        alertas = gerar_alertas(snapshot)
-        if alertas:
-            st.success(f"{len(alertas)} alertas detectados no sistema.")
-        else:
-            st.info("Nenhum alerta identificado no momento.")
-    except Exception as e:
-        st.error(f"❌ Erro ao gerar alertas: {e}")
-        alertas = []
+colA, colB, colC, colD = st.columns(4)
+colA.metric("Total de Alertas", len(df_filtrado))
+colB.metric("Alta Severidade", len(df_filtrado[df_filtrado["severidade"] == "alto"]))
+colC.metric("Média Severidade", len(df_filtrado[df_filtrado["severidade"] == "medio"]))
+colD.metric("Baixa Severidade", len(df_filtrado[df_filtrado["severidade"] == "baixo"]))
 
-if alertas:
-    df_alertas = pd.DataFrame(alertas)
+# ==========================================================
+# 📊 Gráficos e Visualizações
+# ==========================================================
+st.divider()
+st.subheader("📊 Distribuição de Alertas por Severidade")
 
-    # 💡 Realce visual por severidade
-    def _style_severidade(val):
-        if val == "alto":
-            color = "red"
-        elif val == "medio":
-            color = "orange"
-        else:
-            color = "green"
-        return f"color: {color}; font-weight: bold;"
+chart_data = (
+    df_filtrado["severidade"]
+    .value_counts()
+    .rename_axis("Severidade")
+    .reset_index(name="Quantidade")
+)
 
+st.bar_chart(chart_data, x="Severidade", y="Quantidade")
+
+# ==========================================================
+# 🧾 Tabela consolidada de alertas
+# ==========================================================
+st.divider()
+st.subheader("📋 Lista Consolidada de Alertas")
+
+with st.expander("🧠 Exibir Detalhamento dos Alertas", expanded=True):
     st.dataframe(
-        df_alertas[["severidade", "area", "artefato", "mensagem", "recomendacao"]]
-        .style.applymap(_style_severidade, subset=["severidade"]),
+        df_filtrado[
+            ["titulo", "area", "status", "mensagem", "recomendacao", "timestamp"]
+        ].sort_values(by="severidade", ascending=False),
         use_container_width=True,
         hide_index=True,
     )
 
-    # 📥 Exportação de alertas
-    if st.button("💾 Exportar Alertas em JSON"):
-        data = {
-            "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "alerts": alertas,
-        }
-        path = export_alerts_json(data)
-        st.success(f"Arquivo salvo em: `{path}`")
+# ==========================================================
+# 💾 Exportação institucional
+# ==========================================================
+st.divider()
+st.subheader("📤 Exportação de Dados")
 
-st.markdown("---")
+if st.button("💾 Exportar Alertas Consolidados para JSON"):
+    try:
+        export_alerts_json({"alerts": alertas})
+        st.success("✅ Arquivo JSON exportado com sucesso para a pasta /exports/analises.")
+    except Exception as e:
+        st.error(f"Erro ao exportar alertas: {e}")
 
-# ======================================================
-# 🧾 Histórico Institucional
-# ======================================================
-st.subheader("🗂️ Histórico de Snapshots")
-
-exports_dir = Path("exports/analises")
-if exports_dir.exists():
-    files = sorted(exports_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
-    if files:
-        st.dataframe(
-            pd.DataFrame(
-                [{"Arquivo": f.name, "Modificado em": datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")} for f in files]
-            ),
-            hide_index=True,
-            use_container_width=True,
-        )
-    else:
-        st.info("Nenhum snapshot encontrado.")
-else:
-    st.info("Diretório de análises ainda não criado.")
-
-st.markdown("---")
-st.caption("📊 Painel de Governança – SynapseNext vNext • SAAB / TJSP • Engenharia Institucional")
+# ==========================================================
+# 🏛️ Rodapé institucional
+# ==========================================================
+st.markdown(
+    """
+    ---
+    **Sistema SynapseNext vNext+**  
+    Secretaria de Administração e Abastecimento – Tribunal de Justiça do Estado de São Paulo (SAAB/TJSP)
+    """
+)
