@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-import sys, os
 09_⚠️ Alertas.py – Painel de Alertas Proativos
 ==============================================================
 Exibe resultados do módulo utils/alertas_pipeline.py,
@@ -14,11 +9,24 @@ Versão: SynapseNext vNext (TJSP/SAAB)
 ==============================================================
 """
 
+# ======================================================
+# 🔧 Compatibilidade de importação para pacotes locais
+# ======================================================
+import sys, os
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
+
+# ======================================================
+# 🧩 Importação de dependências principais
+# ======================================================
 import streamlit as st
-from utils.alertas_pipeline import evaluate_alerts, export_alerts_json, DEFAULTS
 from datetime import datetime
 import json
 import os
+
+from utils.alertas_pipeline import evaluate_alerts, export_alerts_json, DEFAULTS
+
 
 # --------------------------------------------------------------
 # Configuração de página

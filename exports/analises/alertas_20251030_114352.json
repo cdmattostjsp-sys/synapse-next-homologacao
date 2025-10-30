@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "categoria": "Coerência Global",
+    "descricao": "A coerência geral do documento está abaixo do limiar esperado.",
+    "valor": 78,
+    "limiar": 75,
+    "status": "OK"
+  },
+  {
+    "id": 2,
+    "categoria": "Coerência Par-a-Par",
+    "descricao": "Foram identificadas seções com baixa correlação semântica.",
+    "valor": 68,
+    "limiar": 70,
+    "status": "Atenção"
+  }
+]
