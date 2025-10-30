@@ -1,39 +1,20 @@
-import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-# ==========================================================
-# 🔍 SynapseNext – Comparador.IA
-# Secretaria de Administração e Abastecimento – SAAB 5.0
-# ==========================================================
+# -*- coding: utf-8 -*-
+"""
+🧮 Comparador – SynapseNext (vNext+)
+SAAB/TJSP – Comparação interdocumental com fallback seguro.
+"""
 
-import sys
+import sys, os, json
 from pathlib import Path
 from datetime import datetime
 import streamlit as st
+import pandas as pd
 
-# ==========================================================
-# 🔧 Setup e imports institucionais
-# ==========================================================
-current_dir = Path(__file__).resolve().parents[0]
-root_dir = current_dir.parents[2] if (current_dir.parents[2] / "utils").exists() else current_dir.parents[1]
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
 
-try:
-    from utils.comparador_pipeline import carregar_snapshots, analisar_coerencia, gerar_relatorio
-except Exception as e:
-    st.error(f"❌ Erro ao importar módulo comparador_pipeline: {e}")
-    st.stop()
-
-# ==========================================================
-# ⚙️ Configuração da página
-# ==========================================================
-st.set_page_config(page_title="SynapseNext – Comparador.IA", layout="wide", page_icon="🔍")
-
-# ==========================================================
-# 🎨 Estilo institucional padronizado
-# ==========================================================
+# === Estilo/UX institucional ===
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except Exception:
@@ -41,140 +22,109 @@ except Exception:
     exibir_cabecalho_padrao = lambda *a, **kw: None
 
 aplicar_estilo_global()
+st.set_page_config(page_title="🧮 Comparador – SynapseNext", layout="wide", page_icon="🧮")
+exibir_cabecalho_padrao("🧮 Comparador", "Análise comparativa interdocumental com métricas de similaridade")
 
-# ==========================================================
-# 🏛️ Cabeçalho institucional padronizado
-# ==========================================================
-exibir_cabecalho_padrao(
-    "Comparador.IA – Coerência entre Artefatos",
-    "Análise cruzada entre DFD, ETP, TR e Edital com base nos snapshots auditados"
-)
+# === Tentativa de import do pipeline oficial ===
+comparar_fn = None
+try:
+    from utils.comparador_pipeline import comparar_documentos as _comparar
+    comparar_fn = _comparar
+except Exception:
+    pass
+
 st.divider()
 
-# ==========================================================
-# 1️⃣ Carregar artefatos auditados
-# ==========================================================
-st.subheader("1️⃣ Carregar Artefatos")
+# === Utilidades locais (fallback) ===
+def _ler_json(path: Path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
-st.markdown("""
-O sistema buscará automaticamente os **últimos snapshots auditados** dos artefatos:
-**DFD**, **ETP**, **TR** e **Edital**, localizados em  
-`exports/auditoria/snapshots/`.
-""")
+def _texto_do_doc(doc: dict) -> str:
+    # Junta valores textuais para comparação simples
+    partes = []
+    for k, v in doc.items():
+        if isinstance(v, str):
+            partes.append(v)
+        elif isinstance(v, (list, tuple)):
+            partes += [x for x in v if isinstance(x, str)]
+        elif isinstance(v, dict):
+            partes += [x for x in v.values() if isinstance(x, str)]
+    return " ".join(partes).lower()
 
-if st.button("🔄 Carregar snapshots auditados", type="primary"):
-    artefatos = carregar_snapshots()
+def _jaccard_similarity(a: str, b: str) -> float:
+    sa, sb = set(a.split()), set(b.split())
+    inter = len(sa & sb)
+    union = len(sa | sb) or 1
+    return round(100 * inter / union, 2)
 
-    if not artefatos:
-        st.warning("⚠️ Nenhum snapshot encontrado. Gere e audite os artefatos antes de executar a análise.")
+def _comparar_fallback(docA: dict, docB: dict) -> dict:
+    ta, tb = _texto_do_doc(docA), _texto_do_doc(docB)
+    sim = _jaccard_similarity(ta, tb)
+    return {
+        "similaridade_percentual": sim,
+        "resumo": f"Similaridade Jaccard ≈ {sim}%",
+        "detalhes": [
+            {"chave": "tokens_A", "valor": len(set(ta.split()))},
+            {"chave": "tokens_B", "valor": len(set(tb.split()))},
+        ],
+    }
+
+# === Fonte dos dados: snapshots existentes ou upload ===
+snap_dir = Path("exports/snapshots")
+snapshots = list(snap_dir.glob("*_snapshot.json")) if snap_dir.exists() else []
+
+st.subheader("Seleção de Artefatos")
+col1, col2 = st.columns(2)
+
+with col1:
+    optA_mode = st.radio("Origem do Artefato A", ["Snapshot", "Upload"], horizontal=True)
+    if optA_mode == "Snapshot" and snapshots:
+        selA = st.selectbox("Selecione o Artefato A (snapshot)", options=[s.name for s in snapshots])
+        pathA = snap_dir / selA
+        docA = _ler_json(pathA)
+    else:
+        upA = st.file_uploader("Envie o Artefato A (.json)", type=["json"], key="upA")
+        docA = json.load(upA) if upA else {}
+with col2:
+    optB_mode = st.radio("Origem do Artefato B", ["Snapshot", "Upload"], horizontal=True)
+    if optB_mode == "Snapshot" and snapshots:
+        selB = st.selectbox("Selecione o Artefato B (snapshot)", options=[s.name for s in snapshots], key="selB")
+        pathB = snap_dir / selB
+        docB = _ler_json(pathB)
+    else:
+        upB = st.file_uploader("Envie o Artefato B (.json)", type=["json"], key="upB")
+        docB = json.load(upB) if upB else {}
+
+st.divider()
+
+if st.button("🔍 Executar Comparação", type="primary", use_container_width=True):
+    if not docA or not docB:
+        st.error("Forneça os dois artefatos (A e B).")
         st.stop()
 
-    st.success(f"✅ {len(artefatos)} artefatos carregados: {', '.join(artefatos.keys())}")
-    st.divider()
+    try:
+        if comparar_fn:
+            resultado = comparar_fn(docA, docB)
+        else:
+            resultado = _comparar_fallback(docA, docB)
+    except Exception as e:
+        st.warning(f"Pipeline oficial indisponível. Usando fallback. Detalhe: {e}")
+        resultado = _comparar_fallback(docA, docB)
 
-    # ======================================================
-    # 2️⃣ Conteúdo pré-processado
-    # ======================================================
-    st.subheader("2️⃣ Conteúdo Pré-Processado")
-    with st.expander("Visualizar textos limpos (pré-processados)", expanded=False):
-        for nome, texto in artefatos.items():
-            st.markdown(f"#### 🗂️ {nome}")
-            st.text_area(f"Texto auditado – {nome}", texto[:2500], height=180)
+    st.success("✅ Comparação concluída.")
+    st.metric("Similaridade Global (%)", f"{resultado.get('similaridade_percentual', 0)}%")
 
-    st.divider()
+    if "detalhes" in resultado:
+        df = pd.DataFrame(resultado["detalhes"])
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
-    # ======================================================
-    # 3️⃣ Análise de coerência entre artefatos
-    # ======================================================
-    st.subheader("3️⃣ Análise de Coerência")
-
-    with st.spinner("Executando análise comparativa entre os artefatos..."):
-        resultado = analisar_coerencia(artefatos)
-
-    st.success("✅ Análise concluída com sucesso.")
-    st.markdown(f"### 📊 **Coerência Global:** {resultado.get('coerencia_global', 0)}%")
-
-    # ======================================================
-    # 4️⃣ Comparações diretas e divergências
-    # ======================================================
-    st.divider()
-    st.subheader("4️⃣ Comparações Diretas")
-
-    comparacoes = resultado.get("comparacoes", {})
-    if comparacoes:
-        for par, valor in comparacoes.items():
-            if valor >= 75:
-                cor = "🟩"
-            elif 50 <= valor < 75:
-                cor = "🟨"
-            else:
-                cor = "🟥"
-            st.markdown(f"- {cor} **{par}** → Similaridade: `{valor}%`")
-    else:
-        st.info("Sem comparações diretas disponíveis.")
-
-    # Divergências
-    if resultado.get("divergencias"):
-        st.markdown("### ⚠️ Divergências Encontradas")
-        for d in resultado["divergencias"]:
-            st.markdown(f"- {d.get('descricao', '')}")
-    else:
-        st.info("Nenhuma divergência registrada.")
-
-    # Ausências
-    if resultado.get("ausencias"):
-        st.markdown("### ❌ Ausências de Artefato")
-        for a in resultado["ausencias"]:
-            st.markdown(f"- {a.get('descricao', '')}")
-    else:
-        st.info("Nenhuma ausência identificada.")
-
-    # ======================================================
-    # 5️⃣ Exportação dos relatórios
-    # ======================================================
-    st.divider()
-    st.subheader("5️⃣ Exportação dos Relatórios")
-
-    with st.spinner("Gerando relatórios de coerência..."):
-        saida = gerar_relatorio(resultado)
-
-    if saida.get("ok"):
-        st.success("📄 Relatórios gerados com sucesso!")
-
-        # Markdown
-        with open(saida["md_path"], "r", encoding="utf-8") as f:
-            md_text = f.read()
-        st.download_button(
-            label="⬇️ Baixar relatório em Markdown (.md)",
-            data=md_text,
-            file_name=Path(saida["md_path"]).name,
-            mime="text/markdown",
-            use_container_width=True,
-        )
-
-        # JSON
-        with open(saida["json_path"], "r", encoding="utf-8") as jf:
-            json_data = jf.read()
-        st.download_button(
-            label="⬇️ Baixar relatório em JSON (.json)",
-            data=json_data,
-            file_name=Path(saida["json_path"]).name,
-            mime="application/json",
-            use_container_width=True,
-        )
-
-        st.info(f"Arquivos salvos em: `exports/analises/{Path(saida['md_path']).name}`")
-    else:
-        st.error("Erro na geração dos relatórios.")
-
+    st.json({"resumo": resultado.get("resumo", ""), "timestamp": datetime.now().isoformat()})
 else:
-    st.info("Clique em **Carregar snapshots auditados** para iniciar a análise.")
+    st.info("Selecione/Envie os artefatos e clique em **Executar Comparação**.")
 
-# ==========================================================
-# 📘 Rodapé institucional simplificado
-# ==========================================================
 st.markdown("---")
-st.caption(
-    f"SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
-    f"Relatório de Comparação Gerado em {datetime.now():%d/%m/%Y %H:%M}"
-)
+st.caption("Sistema SynapseNext • SAAB 5.0 – TJSP • Comparador vNext+")
