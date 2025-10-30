@@ -108,11 +108,26 @@ st.bar_chart(chart_data, x="Severidade", y="Quantidade")
 st.divider()
 st.subheader("📋 Lista Consolidada de Alertas")
 
+# Garantir que coluna 'severidade' exista
+if "severidade" not in df_filtrado.columns:
+    st.warning("Coluna 'severidade' ausente nos dados — adicionando valor padrão.")
+    df_filtrado["severidade"] = "não classificado"
+
+# Ordenar de forma segura
+try:
+    df_exibicao = df_filtrado.sort_values(
+        by="severidade",
+        ascending=False,
+        na_position="last"
+    )
+except Exception:
+    df_exibicao = df_filtrado.copy()
+
 with st.expander("🧠 Exibir Detalhamento dos Alertas", expanded=True):
+    colunas_base = ["titulo", "area", "status", "mensagem", "recomendacao", "timestamp"]
+    colunas_existentes = [c for c in colunas_base if c in df_exibicao.columns]
     st.dataframe(
-        df_filtrado[
-            ["titulo", "area", "status", "mensagem", "recomendacao", "timestamp"]
-        ].sort_values(by="severidade", ascending=False),
+        df_exibicao[colunas_existentes],
         use_container_width=True,
         hide_index=True,
     )
