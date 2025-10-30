@@ -1,19 +1,20 @@
+# -*- coding: utf-8 -*-
 # ==============================================================
 # SynapseNext – SAAB 5.0
-# Página Inicial (Home v4)
+# Página Inicial (Home v5 – Interoperabilidade Institucional)
 # ==============================================================
-# Versão institucional vNext – Outubro/2025
-# Desenvolvido em ambiente Python / Streamlit
+# Versão institucional vNext+ – Novembro/2025
 # ==============================================================
 import streamlit as st
 from pathlib import Path
 import base64
+from datetime import datetime
 
 # --------------------------------------------------------------
 # Configuração da página
 # --------------------------------------------------------------
 st.set_page_config(
-    page_title="SynapseNext – SAAB 5.0 | TJSP",
+    page_title="SynapseNext – SAAB 5.0 | Interoperabilidade Institucional",
     layout="wide",
     page_icon="🧭"
 )
@@ -32,17 +33,12 @@ def get_base64_image(path: Path) -> str:
 LOGO_BASE64 = get_base64_image(LOGO_PATH)
 
 # --------------------------------------------------------------
-# Estilos customizados
+# Estilos customizados (SAAB 5.0)
 # --------------------------------------------------------------
 st.markdown("""
 <style>
-/* ======= BASE E RESET ======= */
-section.main > div {
-    padding-top: 10px !important;
-}
-.block-container {
-    padding-top: 0rem !important;
-}
+section.main > div { padding-top: 10px !important; }
+.block-container { padding-top: 0rem !important; }
 
 /* ======= CABEÇALHO ======= */
 .header-wrap {
@@ -51,22 +47,18 @@ section.main > div {
     gap: 1.5rem;
     margin: -10px 0 10px 0;
 }
-.header-logo img {
-    width: 165px;
-    height: auto;
-    object-fit: contain;
-}
+.header-logo img { width: 165px; object-fit: contain; }
 .header-title h1 {
     margin: 0;
-    font-size: 2.3rem;
-    color: #000000;
+    font-size: 2.4rem;
+    color: #990000;
     line-height: 1.2;
     font-weight: 700;
 }
 .header-title p {
     margin: 3px 0 0 0;
     font-size: 1rem;
-    color: #555555;
+    color: #444444;
 }
 .divider {
     height: 1px;
@@ -90,13 +82,14 @@ section.main > div {
     transition: all 0.2s ease-in-out;
 }
 .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(153,0,0,0.25);
     border-color: #990000;
 }
 .card h4 {
     margin: 0 0 6px 0;
     color: #990000;
+    font-weight: 600;
 }
 .card p {
     color: #555555;
@@ -110,11 +103,7 @@ section.main > div {
     color:#666666;
     font-size:0.9rem;
 }
-.footer img {
-    width: 70px;
-    opacity: 0.35;
-    margin-top: 5px;
-}
+.footer img { width: 70px; opacity: 0.35; margin-top: 5px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -123,40 +112,28 @@ section.main > div {
 # --------------------------------------------------------------
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
 
-# logotipo (lado esquerdo)
 if LOGO_BASE64:
-    st.markdown(
-        f"""
-        <div class="header-logo">
-            <img src="data:image/png;base64,{LOGO_BASE64}" alt="TJSP">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown('<div class="header-logo"></div>', unsafe_allow_html=True)
-
-# título e subtítulo
-st.markdown('<div class="header-title">', unsafe_allow_html=True)
-st.markdown("<h1>SynapseNext – SAAB 5.0</h1>", unsafe_allow_html=True)
-st.markdown("<p>Secretaria de Administração e Abastecimento • Tribunal de Justiça de São Paulo</p>", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(f"<div class='header-logo'><img src='data:image/png;base64,{LOGO_BASE64}' alt='TJSP'></div>", unsafe_allow_html=True)
+st.markdown("""
+<div class="header-title">
+    <h1>SynapseNext – SAAB 5.0</h1>
+    <p>Secretaria de Administração e Abastecimento • Tribunal de Justiça de São Paulo</p>
+</div>
+""", unsafe_allow_html=True)
 st.markdown('</div><div class="divider"></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------
 # Conteúdo introdutório
 # --------------------------------------------------------------
 st.markdown("""
-### 🧭 O que você encontra aqui
-Esta é a **página inicial** do ecossistema **SynapseNext – SAAB 5.0**, uma plataforma integrada que apoia a **Fase Interna da Licitação** do Tribunal de Justiça de São Paulo.
+### 🧭 Bem-vindo ao SynapseNext
+O **SynapseNext – SAAB 5.0** é o ecossistema institucional de automação inteligente que apoia a **Fase Interna da Licitação**, conforme a **Lei nº 14.133/2021** e a **Instrução Normativa nº 12/2025**.
 
-Utilize o **menu lateral** para acessar os principais módulos:
-- **Documentos e Governança:** acompanhe indicadores e relatórios técnicos.  
-- **Alertas e Auditoria:** visualize inconsistências detectadas e status de coerência.  
-- **Insights Históricos:** explore a evolução dos dados e tendências de governança.  
-- **Painel Executivo:** acesse o resumo consolidado, com gráficos e relatórios PDF.
-
-Todas as etapas seguem os padrões institucionais do **TJSP / SAAB**, conforme a **Instrução Normativa nº 12/2025**.
+Aqui você encontra todos os módulos que compõem a jornada digital do processo de contratação pública:
+- **Insumos, DFD, ETP, TR e Edital:** geração assistida por IA, análise normativa e validação técnica.  
+- **Relatórios e Governança:** acompanhamento de coerência, integridade e conformidade.  
+- **Painéis Executivo e de Qualidade:** indicadores de performance institucional.  
+- **🧩 Interoperabilidade:** integração com sistemas externos e plataformas de gestão documental.
 """)
 
 # --------------------------------------------------------------
@@ -165,39 +142,37 @@ Todas as etapas seguem os padrões institucionais do **TJSP / SAAB**, conforme a
 st.markdown('<div class="cards-container">', unsafe_allow_html=True)
 
 cards = [
-    ("📑 Relatórios Técnicos", "Gere e valide artefatos como DFD, ETP e TR, com auditoria integrada e exportação automatizada."),
-    ("⚙️ Painel de Governança", "Monitore indicadores de coerência, auditoria e trilhas de controle em tempo real."),
-    ("⚠️ Alertas Proativos", "Acompanhe notificações sobre inconsistências, staleness e variações textuais."),
-    ("💡 Insights Históricos", "Analise a evolução da coerência global, volume de auditorias e médias móveis de desempenho."),
-    ("📊 Painel Executivo", "Visualize KPIs, gráficos e relatórios executivos integrados ao ambiente institucional do TJSP.")
+    ("📘 Documentos Técnicos", "Produza e valide os artefatos institucionais da Fase Interna: DFD, ETP, TR e Edital."),
+    ("📊 Painel Executivo", "Visualize indicadores, KPIs e métricas de desempenho em tempo real."),
+    ("⚙️ Painel de Governança", "Monitore a coerência global dos artefatos e a rastreabilidade das decisões."),
+    ("🧩 Interoperabilidade", "Gerencie conexões seguras com SharePoint, OneDrive, GitHub e OpenAI."),
+    ("📑 Relatórios Técnicos", "Gere auditorias e relatórios integrados em formatos DOCX e PDF."),
 ]
 
 for title, desc in cards:
-    st.markdown(f"""
-    <div class="card">
-        <h4>{title}</h4>
-        <p>{desc}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div class='card'><h4>{title}</h4><p>{desc}</p></div>", unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------
-# Rodapé institucional
+# Seção futura: Manual e Recursos
 # --------------------------------------------------------------
 st.markdown("""
+---
+### 📘 Manual e Recursos (em breve)
+Esta área exibirá o **Manual do Usuário SAAB 5.0** e tutoriais interativos sobre o uso de cada módulo,
+incluindo vídeos e orientações sobre as boas práticas de interoperabilidade institucional.
+""")
+
+# --------------------------------------------------------------
+# Rodapé institucional
+# --------------------------------------------------------------
+st.markdown(f"""
 <div class="footer">
 TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0<br>
-Versão institucional vNext • Desenvolvido em ambiente Python / Streamlit
+• Build gerado em {datetime.now():%d/%m/%Y %H:%M}
 </div>
 """, unsafe_allow_html=True)
 
 if LOGO_BASE64:
-    st.markdown(
-        f"""
-        <div style='text-align:center;'>
-            <img src="data:image/png;base64,{LOGO_BASE64}" alt="TJSP">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown(f"<div style='text-align:center;'><img src='data:image/png;base64,{LOGO_BASE64}' alt='TJSP'></div>", unsafe_allow_html=True)
