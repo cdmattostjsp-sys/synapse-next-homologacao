@@ -50,8 +50,10 @@ with st.form("form_etp"):
     estimativa = st.text_area("Estimativa de custos", height=80)
     riscos = st.text_area("Riscos associados", height=80)
     responsavel = st.text_input("Responsável técnico", value="")
-    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
-    submitted = st.form_submit_button("💾 Gerar rascunho manual")
+
+    # 🔵 Botões padronizados
+    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional", use_container_width=True, type="primary")
+    submitted = st.form_submit_button("💾 Gerar rascunho manual", use_container_width=True, type="primary")
 
 # ==========================================================
 # ⚙️ Geração IA Institucional
