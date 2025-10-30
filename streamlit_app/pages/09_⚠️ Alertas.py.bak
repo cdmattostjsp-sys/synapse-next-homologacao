@@ -21,7 +21,6 @@ if BASE_PATH not in sys.path:
 # 🧩 Importação de dependências principais
 # ======================================================
 import streamlit as st
-from utils.layout_manager import ajustar_grafico, iniciar_secao
 from datetime import datetime
 import json
 import os

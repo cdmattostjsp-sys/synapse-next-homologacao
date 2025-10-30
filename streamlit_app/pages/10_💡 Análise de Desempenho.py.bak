@@ -14,7 +14,6 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 import streamlit as st
-from utils.layout_manager import ajustar_grafico, iniciar_secao
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
