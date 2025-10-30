@@ -1,0 +1,40 @@
+============================================================
+🔍 SynapseNext – Detecção de Estágio da Jornada
+🕒 30/10/2025 17:36:26
+============================================================
+
+✅ DFD detectado (dfd_data.json) – válido: True
+✅ ETP detectado (etp_data.json) – válido: True
+✅ TR detectado (tr_data.json) – válido: True
+❌ EDITAL ausente (edital_data.json)
+❌ CONTRATO ausente (contrato_data.json)
+
+📊 Estágio atual identificado: TR
+
+Resumo:
+{
+  "estagio_atual": "TR",
+  "detalhes": {
+    "DFD": {
+      "existe": true,
+      "valido": true
+    },
+    "ETP": {
+      "existe": true,
+      "valido": true
+    },
+    "TR": {
+      "existe": true,
+      "valido": true
+    },
+    "EDITAL": {
+      "existe": false,
+      "valido": false
+    },
+    "CONTRATO": {
+      "existe": false,
+      "valido": false
+    }
+  },
+  "timestamp": "2025-10-30 17:36:26"
+}
