@@ -1,0 +1,28 @@
+# ==========================================================
+# 📦 MODELO DE CONTRATO ADMINISTRATIVO – FORNECIMENTO DE BENS
+# Secretaria de Administração e Abastecimento – SAAB / TJSP
+# Base legal: Lei nº 14.133/2021, art. 89 e seguintes
+# ==========================================================
+
+CONTRATO ADMINISTRATIVO Nº ___/2025 – FORNECIMENTO DE BENS
+
+### CLÁUSULA PRIMEIRA – DO OBJETO
+O presente contrato tem por objeto o **fornecimento de bens permanentes e/ou de consumo**, conforme especificações técnicas e quantidades descritas no Termo de Referência.
+
+### CLÁUSULA SEGUNDA – DA ENTREGA
+A entrega deverá ocorrer no prazo máximo de ___ dias úteis após a emissão da Nota de Empenho, no endereço indicado pelo CONTRATANTE.
+
+### CLÁUSULA TERCEIRA – DO VALOR E PAGAMENTO
+O valor total é de R$ __________ (__________), com pagamento em até 10 dias úteis após o recebimento definitivo.
+
+### CLÁUSULA QUARTA – DAS OBRIGAÇÕES DA CONTRATADA
+Garantir a qualidade e conformidade dos bens, bem como substituir itens com defeito em até 5 dias úteis.
+
+### CLÁUSULA QUINTA – DA FISCALIZAÇÃO
+A entrega será acompanhada por servidor responsável pelo recebimento provisório e definitivo.
+
+### CLÁUSULA SEXTA – DAS PENALIDADES E RESCISÃO
+Aplicam-se as penalidades previstas no art. 156 da Lei nº 14.133/2021.
+
+### CLÁUSULA SÉTIMA – DO FORO
+Fica eleito o foro da Comarca de São Paulo/SP.
