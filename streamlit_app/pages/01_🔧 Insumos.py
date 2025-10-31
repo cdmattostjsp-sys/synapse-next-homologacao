@@ -3,19 +3,19 @@
 # ==============================
 
 import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
-import streamlit as st
 from datetime import datetime
-from io import BytesIO
+import streamlit as st
 from pathlib import Path
+from io import BytesIO
 import docx2txt, fitz  # PyMuPDF
 
 # ==========================================================
 # 🔍 Importações compatíveis (atualizadas)
 # ==========================================================
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
+
 try:
     from utils.integration_insumos import processar_insumo_dinamico
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
@@ -71,28 +71,42 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["d
 # ==========================================================
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
-
         st.info(f"📄 Processando insumo para o artefato **{artefato}**...")
 
         try:
             resultado = processar_insumo_dinamico(arquivo, artefato)
+
             if "erro" not in resultado:
-                st.success(f"Insumo '{arquivo.name}' processado e encaminhado com sucesso para {artefato}.")
+                artefato_destino = artefato.upper()
+                campos_ai = resultado.get("campos_ai", {})
+
+                # 🔗 Integração direta com session_state (para preenchimento automático)
+                if artefato_destino == "DFD":
+                    st.session_state["dfd_campos_ai"] = campos_ai
+                elif artefato_destino == "ETP":
+                    st.session_state["etp_campos_ai"] = campos_ai
+                elif artefato_destino == "TR":
+                    st.session_state["tr_campos_ai"] = campos_ai
+
+                # 🧾 Registro do upload atual
                 st.session_state[f"last_insumo_{artefato.lower()}"] = {
                     "nome": arquivo.name,
-                    "artefato": artefato,
+                    "artefato": artefato_destino,
                     "usuario": usuario,
                     "descricao": descricao,
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "resultado": resultado
                 }
 
-                # Redireciona automaticamente para o módulo selecionado (caso seja suportado)
-                if artefato in ["DFD", "ETP", "TR"]:
+                # ✅ Confirmação institucional
+                st.success(f"✅ Insumo '{arquivo.name}' processado e encaminhado com sucesso para o módulo {artefato_destino}.")
+
+                # 🔁 Tentativa de redirecionamento automático
+                if artefato_destino in ["DFD", "ETP", "TR"]:
                     try:
-                        st.switch_page(f"pages/{artefato.lower()}.py")
+                        st.switch_page(f"pages/{artefato_destino.lower()}.py")
                     except Exception:
-                        st.info(f"📎 Você pode agora abrir o módulo **{artefato}** para revisar os campos.")
+                        st.info(f"📎 Você pode agora abrir o módulo **{artefato_destino}** para revisar os campos.")
             else:
                 st.error(f"Erro: {resultado['erro']}")
 
