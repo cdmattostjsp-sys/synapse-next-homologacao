@@ -1,20 +1,20 @@
+# ==============================
+# pages/01_🔧 Insumos.py  –  SynapseNext / SAAB TJSP
+# ==============================
+
 import sys, os
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if BASE_PATH not in sys.path:
     sys.path.append(BASE_PATH)
-import sys, os
-# ==============================
-# pages/01_🔧 Insumos.py  –  SynapseNext / SAAB TJSP
-# ==============================
 
 import streamlit as st
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-import sys, os, docx2txt, fitz  # PyMuPDF
+import docx2txt, fitz  # PyMuPDF
 
 # ==========================================================
-# 🔍 Importações compatíveis
+# 🔍 Importações compatíveis (atualizadas)
 # ==========================================================
 try:
     from utils.integration_insumos import processar_insumo_dinamico
@@ -22,7 +22,7 @@ try:
 except ModuleNotFoundError:
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     sys.path.insert(0, base_dir)
-    from utils.integration_insumos import salvar_insumo, listar_insumos, processar_insumo
+    from utils.integration_insumos import processar_insumo_dinamico
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
@@ -71,66 +71,50 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["d
 # ==========================================================
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
-        caminho_salvo = salvar_insumo(arquivo, artefato)
-        st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
 
-        # Extração preliminar de texto
-        texto_extraido = ""
+        st.info(f"📄 Processando insumo para o artefato **{artefato}**...")
+
         try:
-            nome = arquivo.name.lower()
-            arquivo.seek(0)
-            dados = arquivo.read()
-            if nome.endswith(".pdf"):
-                pdf = fitz.open(stream=dados, filetype="pdf")
-                texto_extraido = "".join(p.get_text() for p in pdf)
-            elif nome.endswith(".docx"):
-                texto_extraido = docx2txt.process(BytesIO(dados))
-            elif nome.endswith(".txt"):
-                texto_extraido = dados.decode("utf-8", errors="ignore")
+            resultado = processar_insumo_dinamico(arquivo, artefato)
+            if "erro" not in resultado:
+                st.success(f"Insumo '{arquivo.name}' processado e encaminhado com sucesso para {artefato}.")
+                st.session_state[f"last_insumo_{artefato.lower()}"] = {
+                    "nome": arquivo.name,
+                    "artefato": artefato,
+                    "usuario": usuario,
+                    "descricao": descricao,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "resultado": resultado
+                }
+
+                # Redireciona automaticamente para o módulo selecionado (caso seja suportado)
+                if artefato in ["DFD", "ETP", "TR"]:
+                    try:
+                        st.switch_page(f"pages/{artefato.lower()}.py")
+                    except Exception:
+                        st.info(f"📎 Você pode agora abrir o módulo **{artefato}** para revisar os campos.")
+            else:
+                st.error(f"Erro: {resultado['erro']}")
+
         except Exception as e:
-            st.error(f"Erro ao extrair texto do arquivo: {e}")
-
-        # Processamento com IA e parser institucional
-        campos_ai = {}
-        if texto_extraido.strip():
-            try:
-                st.info("🤖 IA processando o insumo e identificando campos relevantes...")
-                campos_ai = processar_insumo(arquivo, artefato)
-            except Exception as e:
-                st.error(f"Erro no processamento IA: {e}")
-        else:
-            st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
-
-        # ======================================================
-        # 💾 Registro seletivo por artefato
-        # ======================================================
-        chave = f"last_insumo_{artefato.lower()}"
-        st.session_state[chave] = {
-            "nome": arquivo.name,
-            "artefato": artefato,
-            "conteudo": (texto_extraido or "")[:100000],
-            "campos_ai": campos_ai or {},
-            "usuario": usuario,
-            "descricao": descricao,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-
-        st.success(f"📎 Insumo armazenado e disponível para o artefato **{artefato}**.")
+            st.error(f"Erro no processamento do insumo: {e}")
 
 # ==========================================================
 # 🗂️ Histórico de uploads
 # ==========================================================
 st.divider()
-st.subheader("🗂️ Histórico de Insumos Enviados")
+st.subheader("🗂️ Histórico de Insumos (Sessão Atual)")
 
-artefato_hist = st.selectbox("Filtrar por artefato", ["Todos", "DFD", "ETP", "TR", "EDITAL", "CONTRATO"])
+if "last_insumo_dfd" in st.session_state:
+    st.markdown("#### 📘 DFD")
+    st.json(st.session_state["last_insumo_dfd"])
 
-if artefato_hist == "Todos":
-    for tipo in ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]:
-        arquivos = listar_insumos()
-        st.markdown(f"#### 📘 {tipo}")
-        st.write(arquivos or "— sem arquivos —")
-else:
-    arquivos = listar_insumos()
-    st.markdown(f"#### 📘 {artefato_hist}")
-    st.write(arquivos or "Nenhum insumo encontrado para o artefato selecionado.")
+if "last_insumo_etp" in st.session_state:
+    st.markdown("#### 📗 ETP")
+    st.json(st.session_state["last_insumo_etp"])
+
+if "last_insumo_tr" in st.session_state:
+    st.markdown("#### 📙 TR")
+    st.json(st.session_state["last_insumo_tr"])
+
+st.caption("📎 O histórico é temporário e será limpo ao reiniciar a sessão.")
