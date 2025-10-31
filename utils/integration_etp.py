@@ -8,22 +8,29 @@ Responsável por:
 
 import json
 import os
+import re
 from typing import Dict, Any
+from pathlib import Path
+from utils.ai_client import AIClient
 
+# ==========================================================
+# 📂 Diretórios e caminhos de exportação
+# ==========================================================
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
 ETP_JSON_PATH = os.path.join(EXPORTS_DIR, "etp_data.json")
+client = AIClient()
 
-
+# ==========================================================
+# 📤 Funções utilitárias
+# ==========================================================
 def ensure_exports_dir(path: str = EXPORTS_DIR) -> None:
     os.makedirs(path, exist_ok=True)
-
 
 def export_etp_to_json(data: Dict[str, Any], path: str = ETP_JSON_PATH) -> str:
     ensure_exports_dir(os.path.dirname(path))
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return path
-
 
 def load_etp_from_json(path: str = ETP_JSON_PATH) -> Dict[str, Any]:
     try:
@@ -35,16 +42,9 @@ def load_etp_from_json(path: str = ETP_JSON_PATH) -> Dict[str, Any]:
     return {}
 
 # ==========================================================
-# 🤖 Análise Semântica de Insumo (IA Institucional – ETP)
+# 🧠 Base de conhecimento institucional (ETP)
 # ==========================================================
-
-import re
-from pathlib import Path
-from utils.ai_client import AIClient
-
-client = AIClient()
-
-def ler_modelos_etp():
+def ler_modelos_etp() -> str:
     """Lê a base de conhecimento institucional (Knowledge Base) para ETP."""
     base = Path(__file__).resolve().parents[1] / "knowledge" / "etp_models"
     textos = []
@@ -56,15 +56,16 @@ def ler_modelos_etp():
                 pass
     return "\n\n".join(textos)
 
-
+# ==========================================================
+# 🤖 Processamento de Insumo – ETP
+# ==========================================================
 def processar_insumo_etp(arquivo, artefato: str = "ETP") -> dict:
     """
     Extrai o texto do arquivo enviado (PDF, DOCX ou TXT),
-    realiza análise semântica institucional com base nos modelos
-    e retorna um dicionário com os campos do ETP.
+    realiza análise semântica institucional e retorna campos estruturados.
     """
     from io import BytesIO
-    import fitz, docx2txt, json
+    import fitz, docx2txt
 
     dados = arquivo.read()
     arquivo.seek(0)
@@ -92,7 +93,7 @@ def processar_insumo_etp(arquivo, artefato: str = "ETP") -> dict:
     # 2️⃣ Prompt institucional
     system_prompt = (
         "Você é um agente institucional especializado em Estudo Técnico Preliminar (ETP). "
-        "Analise o texto do insumo e extraia os campos padronizados de um ETP conforme o padrão TJSP."
+        "Analise o texto do insumo e extraia os campos padronizados conforme o modelo do TJSP."
     )
 
     user_prompt = f"""
@@ -124,10 +125,29 @@ Retorne apenas um JSON com os seguintes campos:
     except Exception as e:
         campos = {"erro": f"Falha ao processar IA: {e}"}
 
-    print(f"[IA:ETP] Arquivo: {arquivo.name} – Campos: {list(campos.keys())}")
+    # ==========================================================
+    # 🔄 Normalização dos campos para compatibilidade com o front-end
+    # ==========================================================
+    campos_ai = {
+        "requisitos": campos.get("solucao_proposta", campos.get("objeto", "")),
+        "custos": campos.get("impacto_orcamentario", "A definir com base no orçamento institucional."),
+        "riscos": campos.get("problema_a_resolver", "Sem riscos relevantes identificados."),
+        "responsavel_tecnico": campos.get("responsavel_tecnico", "Responsável técnico a designar.")
+    }
+
+    # Garante que nenhum campo fique vazio
+    for k, v in campos_ai.items():
+        if not v:
+            campos_ai[k] = "—"
+
+    print(f"[IA:ETP] Arquivo: {arquivo.name} – Campos normalizados: {list(campos_ai.keys())}")
+
+    # ==========================================================
+    # 📦 Retorno final compatível com SynapseNext
+    # ==========================================================
     return {
         "artefato": artefato,
         "nome_arquivo": arquivo.name,
         "status": "processado",
-        "campos_ai": campos
+        "campos_ai": campos_ai
     }
