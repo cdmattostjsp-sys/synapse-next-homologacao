@@ -17,7 +17,7 @@ import sys, os, docx2txt, fitz  # PyMuPDF
 # 🔍 Importações compatíveis
 # ==========================================================
 try:
-    from utils.integration_insumos import salvar_insumo, listar_insumos, processar_insumo
+    from utils.integration_insumos import processar_insumo_dinamico
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except ModuleNotFoundError:
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
