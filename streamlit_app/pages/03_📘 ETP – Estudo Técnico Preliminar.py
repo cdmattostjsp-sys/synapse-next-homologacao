@@ -1,15 +1,18 @@
-import sys, os
+# ==============================
+# pages/03_📘 ETP – Estudo Técnico Preliminar.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==============================
+
+import sys, os, json
 import streamlit as st
+from io import BytesIO
+from docx import Document
 from utils.agents_bridge import AgentsBridge
 from utils.integration_etp import export_etp_to_json
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from io import BytesIO
-from docx import Document
-import json
 
 # ==========================================================
-# 📘 ETP – Estudo Técnico Preliminar
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ⚙️ Configuração inicial
 # ==========================================================
 st.set_page_config(page_title="📘 ETP – Estudo Técnico Preliminar", layout="wide", page_icon="📘")
 aplicar_estilo_global()
@@ -21,39 +24,23 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção do Insumo Ativo
+# 🔍 Detecção e carregamento de insumos automáticos
 # ==========================================================
-insumo = st.session_state.get("last_insumo")
+defaults = {}
 
-def _extract_defaults(insumo_obj):
-    if not insumo_obj:
-        return {}
-    raw = insumo_obj.get("campos_ai", {}) or {}
-    if isinstance(raw, dict) and "campos_ai" in raw and isinstance(raw["campos_ai"], dict):
-        return raw["campos_ai"]
-    if isinstance(raw, dict):
-        return raw
-    if isinstance(raw, str):
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict) and "campos_ai" in parsed:
-                return parsed["campos_ai"]
-            return parsed
-        except Exception:
-            return {}
-    return {}
-
-if insumo and insumo.get("artefato") in {"ETP", "TR"}:
-    st.success(f"📎 Insumo ativo detectado: {insumo.get('nome', '—')} (Artefato: {insumo.get('artefato', '—')})")
-    with st.expander("🧾 Prévia do insumo (texto legível)", expanded=False):
-        st.text((insumo.get("conteudo", "") or "")[:1500])
-    defaults = _extract_defaults(insumo)
+if "etp_campos_ai" in st.session_state and st.session_state["etp_campos_ai"]:
+    defaults = st.session_state["etp_campos_ai"]
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+elif "last_insumo_etp" in st.session_state:
+    result = st.session_state["last_insumo_etp"].get("resultado", {})
+    defaults = result.get("campos_ai", {})
+    if defaults:
+        st.success("📎 Dados carregados a partir do histórico da sessão.")
 else:
-    st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
-    defaults = {}
+    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
 
 # ==========================================================
-# 🎨 Ajuste visual institucional SAAB – Botões azuis
+# 🎨 Estilo institucional SAAB – botões
 # ==========================================================
 st.markdown("""
 <style>
@@ -84,7 +71,6 @@ with st.form("form_etp"):
     riscos = st.text_area("Riscos associados", value=defaults.get("riscos", ""), height=80)
     responsavel = st.text_input("Responsável técnico", value=defaults.get("responsavel_tecnico", ""))
 
-    # 🔵 Botões no padrão institucional SAAB
     col1, col2 = st.columns(2)
     with col1:
         gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
@@ -94,7 +80,7 @@ with st.form("form_etp"):
 st.caption("💡 O botão '⚙️ Gerar rascunho com IA institucional' usa o agente ETP.IA para gerar automaticamente o texto técnico.")
 
 # ==========================================================
-# 💡 Geração IA Institucional
+# 🤖 Geração IA Institucional
 # ==========================================================
 if gerar_ia:
     st.info("Executando agente ETP institucional...")
@@ -114,7 +100,7 @@ if gerar_ia:
         st.error(f"Erro ao gerar rascunho com IA: {e}")
 
 # ==========================================================
-# 💾 Resultado Manual
+# ✍️ Geração Manual
 # ==========================================================
 if gerar_manual:
     etp_data = {
@@ -128,7 +114,7 @@ if gerar_manual:
     st.session_state["last_etp"] = etp_data
 
 # ==========================================================
-# 📤 Exportação
+# 📤 Exportação do Documento
 # ==========================================================
 if "last_etp" in st.session_state and st.session_state["last_etp"]:
     st.divider()
