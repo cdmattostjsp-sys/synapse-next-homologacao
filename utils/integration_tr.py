@@ -8,22 +8,30 @@ Responsável por:
 
 import json
 import os
+import re
 from typing import Dict, Any
+from pathlib import Path
+from utils.ai_client import AIClient
 
+# ==========================================================
+# 📂 Diretórios e caminhos de exportação
+# ==========================================================
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
 TR_JSON_PATH = os.path.join(EXPORTS_DIR, "tr_data.json")
 
+client = AIClient()
 
+# ==========================================================
+# 📤 Utilitários de exportação
+# ==========================================================
 def ensure_exports_dir(path: str = EXPORTS_DIR) -> None:
     os.makedirs(path, exist_ok=True)
-
 
 def export_tr_to_json(data: Dict[str, Any], path: str = TR_JSON_PATH) -> str:
     ensure_exports_dir(os.path.dirname(path))
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return path
-
 
 def load_tr_from_json(path: str = TR_JSON_PATH) -> Dict[str, Any]:
     try:
@@ -35,17 +43,10 @@ def load_tr_from_json(path: str = TR_JSON_PATH) -> Dict[str, Any]:
     return {}
 
 # ==========================================================
-# 🤖 Análise Semântica de Insumo (IA Institucional – TR)
+# 🧠 Base de conhecimento institucional (Knowledge Base)
 # ==========================================================
-
-import re, json
-from pathlib import Path
-from utils.ai_client import AIClient
-
-client = AIClient()
-
-def ler_modelos_tr():
-    """Lê a base de conhecimento institucional (Knowledge Base) para TR."""
+def ler_modelos_tr() -> str:
+    """Lê os modelos textuais da pasta knowledge/tr_models."""
     base = Path(__file__).resolve().parents[1] / "knowledge" / "tr_models"
     textos = []
     if base.exists():
@@ -56,12 +57,13 @@ def ler_modelos_tr():
                 pass
     return "\n\n".join(textos)
 
-
+# ==========================================================
+# 🤖 Processamento de Insumo – IA Institucional TR
+# ==========================================================
 def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
     """
     Extrai o texto do arquivo enviado (PDF, DOCX ou TXT),
-    realiza análise semântica institucional e retorna um dicionário
-    com os campos padronizados do Termo de Referência (TR).
+    realiza análise semântica e retorna campos padronizados do TR.
     """
     from io import BytesIO
     import fitz, docx2txt
@@ -91,16 +93,15 @@ def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
 
     # 2️⃣ Prompt institucional
     system_prompt = (
-        "Você é um agente institucional especializado em Termo de Referência (TR). "
-        "Analise o texto do insumo e extraia, em formato JSON, os campos padronizados "
-        "de um TR conforme o padrão da Secretaria de Administração e Abastecimento (TJSP)."
+        "Você é um agente institucional do Tribunal de Justiça de São Paulo, especializado em Termos de Referência (TR). "
+        "Analise o texto do insumo e extraia os campos padronizados conforme os modelos institucionais do TJSP."
     )
 
     user_prompt = f"""
 Texto do insumo:
 \"\"\"{texto_limpo}\"\"\"
 
-Modelos institucionais de referência:
+Modelos de referência:
 \"\"\"{modelos}\"\"\"
 
 Retorne apenas um JSON com os seguintes campos:
@@ -126,10 +127,34 @@ Retorne apenas um JSON com os seguintes campos:
     except Exception as e:
         campos = {"erro": f"Falha ao processar IA: {e}"}
 
-    print(f"[IA:TR] Arquivo: {arquivo.name} – Campos: {list(campos.keys())}")
+    # ==========================================================
+    # 🔄 Normalização de campos para compatibilidade com a página TR
+    # ==========================================================
+    campos_ai = {
+        "objeto": campos.get("objeto", ""),
+        "justificativa_tecnica": campos.get("justificativa", ""),
+        "especificacao_tecnica": campos.get("especificacoes_tecnicas", ""),
+        "criterios_julgamento": campos.get("criterios_de_julgamento", ""),
+        "riscos": campos.get("obrigacoes_da_contratada", "Sem riscos adicionais identificados."),
+        "observacoes_finais": "",
+        "prazo_execucao": campos.get("prazo_execucao", ""),
+        "estimativa_valor": campos.get("estimativa_valor", ""),
+        "fonte_recurso": campos.get("fonte_recurso", "")
+    }
+
+    # Fallback seguro
+    for k, v in campos_ai.items():
+        if not v:
+            campos_ai[k] = "—"
+
+    print(f"[IA:TR] Arquivo: {arquivo.name} – Campos normalizados: {list(campos_ai.keys())}")
+
+    # ==========================================================
+    # 📦 Retorno final compatível com o SynapseNext
+    # ==========================================================
     return {
         "artefato": artefato,
         "nome_arquivo": arquivo.name,
         "status": "processado",
-        "campos_ai": campos
+        "campos_ai": campos_ai
     }
