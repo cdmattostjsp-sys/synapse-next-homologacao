@@ -98,20 +98,27 @@ if arquivo and st.button("📤 Enviar insumo"):
                     "resultado": resultado
                 }
 
-                # ✅ Confirmação institucional
-                st.success(f"✅ Insumo '{arquivo.name}' processado e encaminhado com sucesso para o módulo {artefato_destino}.")
+                # ✅ Marca status de envio para exibição persistente
+                st.session_state["ultimo_envio_ok"] = f"✅ Insumo '{arquivo.name}' processado e encaminhado com sucesso para o módulo {artefato_destino}."
 
-                # 🔁 Tentativa de redirecionamento automático
+                # ✅ Mensagem persistente antes de redirecionar
+                st.success(st.session_state["ultimo_envio_ok"])
+
+                # 🔁 Redirecionamento controlado
                 if artefato_destino in ["DFD", "ETP", "TR"]:
-                    try:
-                        st.switch_page(f"pages/{artefato_destino.lower()}.py")
-                    except Exception:
-                        st.info(f"📎 Você pode agora abrir o módulo **{artefato_destino}** para revisar os campos.")
+                    st.info(f"📎 Você pode agora abrir o módulo **{artefato_destino}** para revisar os campos.")
+                    st.stop()  # garante persistência do estado
             else:
                 st.error(f"Erro: {resultado['erro']}")
 
         except Exception as e:
             st.error(f"Erro no processamento do insumo: {e}")
+
+# ==========================================================
+# 💬 Mensagem persistente pós-envio
+# ==========================================================
+if "ultimo_envio_ok" in st.session_state:
+    st.success(st.session_state["ultimo_envio_ok"])
 
 # ==========================================================
 # 🗂️ Histórico de uploads
@@ -132,3 +139,4 @@ if "last_insumo_tr" in st.session_state:
     st.json(st.session_state["last_insumo_tr"])
 
 st.caption("📎 O histórico é temporário e será limpo ao reiniciar a sessão.")
+
