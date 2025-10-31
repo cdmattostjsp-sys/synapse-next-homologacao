@@ -1,204 +1,154 @@
-import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-import sys, os
-# ==========================================================
-# 📜 Edital – Minuta do Edital de Licitação
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# ==========================================================
+# ==============================
+# pages/06_📜Edital – Minuta do Edital.py  –  SynapseNext / SAAB TJSP
+# ==============================
 
 import streamlit as st
+from datetime import datetime
+import os, sys, json
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.agents_bridge import AgentsBridge
-import json, os
+from openai import OpenAI
+from pathlib import Path
 
 # ==========================================================
-# ⚙️ Configuração da página
+# ⚙️ Configuração
 # ==========================================================
 st.set_page_config(page_title="📜 Edital – Minuta", layout="wide", page_icon="📜")
 aplicar_estilo_global()
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ==========================================================
+# 📚 Leitura de modelos da Knowledge Base
+# ==========================================================
+def ler_modelos_edital() -> str:
+    base = Path(__file__).resolve().parents[1] / "knowledge" / "edital_models"
+    textos = []
+    if base.exists():
+        for arq in base.glob("*.txt"):
+            try:
+                textos.append(arq.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    return "\n\n".join(textos)
+
+# ==========================================================
+# 🏛️ Cabeçalho institucional
+# ==========================================================
 exibir_cabecalho_padrao(
     "📜 Minuta do Edital de Licitação",
-    "Geração automatizada com IA institucional a partir do TR/ETP/DFD"
+    "Geração automatizada com IA institucional a partir dos artefatos TR, ETP e DFD"
 )
 st.divider()
 
 # ==========================================================
-# 🧩 Normalização de dados (prioridade TR > ETP > DFD > Insumo)
+# 🔗 Dados disponíveis na sessão
 # ==========================================================
-def _extract_from_last_insumo() -> dict:
-    insumo = st.session_state.get("last_insumo")
-    if not insumo:
-        return {}
-    raw = insumo.get("campos_ai", {}) or {}
-    if isinstance(raw, dict) and "campos_ai" in raw:
-        return raw["campos_ai"]
-    if isinstance(raw, dict):
-        return raw
-    if isinstance(raw, str):
-        try:
-            parsed = json.loads(raw)
-            return parsed.get("campos_ai", parsed)
-        except Exception:
-            return {}
-    return {}
+defaults = {}
 
-def _defaults_edital() -> dict:
-    last_tr = st.session_state.get("last_tr", {}) or {}
-    last_etp = st.session_state.get("last_etp", {}) or {}
-    last_dfd = st.session_state.get("last_dfd", {}) or {}
-    from_insumo = _extract_from_last_insumo()
+for fonte in ["tr_campos_ai", "etp_campos_ai", "dfd_campos_ai"]:
+    if fonte in st.session_state:
+        defaults.update(st.session_state[fonte])
 
-    def pick(key, default=""):
-        return (
-            last_tr.get(key)
-            or last_etp.get(key)
-            or last_dfd.get(key)
-            or from_insumo.get(key)
-            or default
-        )
-
-    return {
-        "unidade_solicitante": pick("unidade_solicitante"),
-        "responsavel_tecnico": pick("responsavel_tecnico", pick("responsavel")),
-        "objeto": pick("objeto"),
-        "modalidade": "",
-        "regime_execucao": "",
-        "base_legal": "Lei nº 14.133/2021",
-        "justificativa_modalidade": pick("justificativa", pick("justificativa_tecnica")),
-        "habilitacao": "",
-        "criterios_julgamento": pick("criterios_julgamento"),
-        "prazo_execucao": pick("prazo_execucao"),
-        "forma_pagamento": "",
-        "penalidades": "",
-        "observacoes_finais": "",
-    }
+if defaults:
+    st.success("📎 Dados recebidos automaticamente dos módulos anteriores (TR, ETP, DFD).")
+else:
+    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **INSUMOS**.")
 
 # ==========================================================
-# 🏛️ Contexto da sessão
+# 🧾 Formulário – Campos base do Edital
 # ==========================================================
-cols = st.columns(3)
-for i, (label, cond, msg_ok, msg_info) in enumerate([
-    ("TR", "last_tr", "✅ TR detectado: o Edital será baseado nele.", "ℹ️ Nenhum TR detectado."),
-    ("ETP", "last_etp", "✅ ETP detectado: dados complementares disponíveis.", "ℹ️ Nenhum ETP detectado."),
-    ("DFD", "last_dfd", "✅ DFD detectado: origem de dados disponível.", "ℹ️ Nenhum DFD detectado."),
-]):
-    with cols[i]:
-        if st.session_state.get(cond):
-            st.success(msg_ok)
-        else:
-            st.info(msg_info)
+st.subheader("📘 Entrada – Dados da Minuta do Edital")
 
-if st.session_state.get("last_insumo"):
-    insumo = st.session_state["last_insumo"]
-    st.info(f"📎 Insumo ativo: {insumo.get('nome','—')} (Artefato: {insumo.get('artefato','—')})")
-
-st.divider()
-
-# ==========================================================
-# 🧾 Formulário do Edital (auto-preenchido e editável)
-# ==========================================================
-st.subheader("1️⃣ Entrada – Informações do Edital")
-
-defaults = _defaults_edital()
-
-with st.form("form_edital"):
-    unidade = st.text_input("Unidade solicitante", value=defaults.get("unidade_solicitante", ""))
+col1, col2 = st.columns(2)
+with col1:
+    unidade_solicitante = st.text_input("Unidade solicitante", value=defaults.get("unidade_solicitante", ""))
     responsavel_tecnico = st.text_input("Responsável técnico", value=defaults.get("responsavel_tecnico", ""))
-    objeto = st.text_area("Objeto da licitação", value=defaults.get("objeto", ""), height=90)
-    modalidade = st.text_input("Modalidade de licitação", value=defaults.get("modalidade", ""))
-    regime_execucao = st.text_input("Regime de execução", value=defaults.get("regime_execucao", ""))
+    objeto = st.text_area("Objeto da licitação", value=defaults.get("objeto", ""), height=100)
+    modalidade = st.text_input("Modalidade de licitação", value=defaults.get("modalidade", "Pregão Eletrônico"))
+    regime_execucao = st.text_input("Regime de execução", value=defaults.get("regime_execucao", "Menor preço global"))
+with col2:
     base_legal = st.text_input("Base legal", value=defaults.get("base_legal", "Lei nº 14.133/2021"))
-    justificativa_modalidade = st.text_area(
-        "Justificativa da escolha da modalidade / fundamentação",
-        value=defaults.get("justificativa_modalidade", ""),
-        height=100
-    )
-    habilitacao = st.text_area("Requisitos de habilitação", value=defaults.get("habilitacao", ""), height=90)
-    criterios_julgamento = st.text_area("Critérios de julgamento", value=defaults.get("criterios_julgamento", ""), height=90)
-    prazo_execucao = st.text_input("Prazo de entrega / execução", value=defaults.get("prazo_execucao", ""))
-    forma_pagamento = st.text_input("Forma de pagamento", value=defaults.get("forma_pagamento", ""))
-    penalidades = st.text_area("Penalidades e sanções", value=defaults.get("penalidades", ""), height=90)
-    observacoes_finais = st.text_area("Observações finais", value=defaults.get("observacoes_finais", ""), height=80)
+    criterios_julgamento = st.text_area("Critérios de julgamento", value=defaults.get("criterios_julgamento", ""), height=100)
+    prazo_execucao = st.text_input("Prazo de execução", value=defaults.get("prazo_execucao", ""))
+    forma_pagamento = st.text_input("Forma de pagamento", value=defaults.get("forma_pagamento", "Conforme cronograma físico-financeiro"))
+    penalidades = st.text_area("Penalidades e sanções", value=defaults.get("penalidades", ""), height=100)
 
-    gerar_ia = st.form_submit_button("⚙️ Gerar minuta com IA institucional")
-    submitted = st.form_submit_button("💾 Gerar minuta manual")
+observacoes_finais = st.text_area("Observações finais", value=defaults.get("observacoes_finais", ""), height=80)
 
 # ==========================================================
-# ⚙️ Geração IA – Edital.IA
+# ⚙️ Geração do Artefato com IA
 # ==========================================================
-if gerar_ia:
-    st.info("Executando agente Edital institucional...")
-    metadata = {
-        "objeto": objeto,
-        "modalidade": modalidade,
-        "regime_execucao": regime_execucao,
-        "base_legal": base_legal,
-        "criterios_julgamento": criterios_julgamento,
-        "prazo_execucao": prazo_execucao,
-        "forma_pagamento": forma_pagamento,
-        "penalidades": penalidades,
-    }
-    try:
-        bridge = AgentsBridge("EDITAL")
-        resultado = bridge.generate(metadata)
-        st.success("✅ Minuta gerada com sucesso pelo agente Edital.IA!")
-        st.json(resultado)
-        st.session_state["last_edital"] = resultado.get("secoes", {})
-    except Exception as e:
-        st.error(f"Erro ao gerar minuta com IA: {e}")
+st.divider()
+st.subheader("⚙️ Geração de Minuta com IA Institucional")
+
+if st.button("🤖 Gerar minuta do Edital com IA institucional"):
+    with st.spinner("Gerando minuta completa com base nos artefatos e modelos do TJSP..."):
+        modelos = ler_modelos_edital()
+        campos = {
+            "unidade_solicitante": unidade_solicitante,
+            "responsavel_tecnico": responsavel_tecnico,
+            "objeto": objeto,
+            "modalidade": modalidade,
+            "regime_execucao": regime_execucao,
+            "base_legal": base_legal,
+            "criterios_julgamento": criterios_julgamento,
+            "prazo_execucao": prazo_execucao,
+            "forma_pagamento": forma_pagamento,
+            "penalidades": penalidades,
+            "observacoes_finais": observacoes_finais,
+        }
+
+        user_prompt = f"""
+Com base nos campos abaixo e nos modelos institucionais da SAAB/TJSP,
+elabore a minuta completa de um **Edital de Licitação**, seguindo o padrão redacional do TJSP.
+
+Campos:
+{json.dumps(campos, ensure_ascii=False, indent=2)}
+
+Modelos de referência:
+\"\"\"{modelos}\"\"\"
+"""
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Você é um redator institucional do Tribunal de Justiça de São Paulo, responsável por elaborar minutas de edital conforme os padrões da SAAB/TJSP e da Lei nº 14.133/2021."},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.3
+            )
+
+            artefato_edital = response.choices[0].message.content.strip()
+            st.session_state["artefato_edital_gerado"] = artefato_edital
+            st.success("✅ Minuta gerada com sucesso! Você pode visualizar e exportar o documento.")
+
+            st.text_area("📄 Pré-visualização da minuta gerada:", artefato_edital, height=400)
+
+        except Exception as e:
+            st.error(f"Erro ao gerar minuta com IA: {e}")
 
 # ==========================================================
-# 💾 Geração manual
+# 💾 Exportação do Artefato (DOCX)
 # ==========================================================
-if submitted:
-    edital_data = {
-        "unidade_solicitante": unidade,
-        "responsavel_tecnico": responsavel_tecnico,
-        "objeto": objeto,
-        "modalidade": modalidade,
-        "regime_execucao": regime_execucao,
-        "base_legal": base_legal,
-        "justificativa_modalidade": justificativa_modalidade,
-        "habilitacao": habilitacao,
-        "criterios_julgamento": criterios_julgamento,
-        "prazo_execucao": prazo_execucao,
-        "forma_pagamento": forma_pagamento,
-        "penalidades": penalidades,
-        "observacoes_finais": observacoes_finais,
-    }
-    st.success("✅ Minuta do Edital gerada manualmente!")
-    st.json(edital_data)
-    st.session_state["last_edital"] = edital_data
-
-# ==========================================================
-# 📤 Exportação
-# ==========================================================
-if st.session_state.get("last_edital"):
-    st.divider()
-    st.subheader("📤 Exportação de Documento")
-
-    edital_data = st.session_state["last_edital"]
+if "artefato_edital_gerado" in st.session_state:
+    artefato_edital = st.session_state["artefato_edital_gerado"]
     doc = Document()
-    doc.add_heading("Minuta do Edital de Licitação", level=1)
-    for k, v in edital_data.items():
-        p = doc.add_paragraph()
-        p.add_run(f"{k}: ").bold = True
-        p.add_run(str(v) or "—")
+    doc.add_heading("MINUTA DO EDITAL DE LICITAÇÃO", level=1)
+    doc.add_paragraph(artefato_edital)
 
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
+
     st.download_button(
-        label="💾 Baixar Edital_rascunho.docx",
+        label="📤 Exportar minuta em DOCX",
         data=buffer,
         file_name="Edital_rascunho.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
-st.caption("💡 O agente Edital.IA gera automaticamente as cláusulas e disposições padrão com base nos dados do TR, ETP e DFD.")
+st.caption("📎 O texto acima é gerado pela IA institucional com base nos modelos oficiais do TJSP e nos artefatos TR, ETP e DFD.")
