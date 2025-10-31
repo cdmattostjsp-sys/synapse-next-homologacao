@@ -33,3 +33,101 @@ def load_etp_from_json(path: str = ETP_JSON_PATH) -> Dict[str, Any]:
     except Exception:
         pass
     return {}
+
+# ==========================================================
+# 🤖 Análise Semântica de Insumo (IA Institucional – ETP)
+# ==========================================================
+
+import re
+from pathlib import Path
+from utils.ai_client import AIClient
+
+client = AIClient()
+
+def ler_modelos_etp():
+    """Lê a base de conhecimento institucional (Knowledge Base) para ETP."""
+    base = Path(__file__).resolve().parents[1] / "knowledge" / "etp_models"
+    textos = []
+    if base.exists():
+        for arq in base.glob("*.txt"):
+            try:
+                textos.append(arq.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    return "\n\n".join(textos)
+
+
+def processar_insumo_etp(arquivo, artefato: str = "ETP") -> dict:
+    """
+    Extrai o texto do arquivo enviado (PDF, DOCX ou TXT),
+    realiza análise semântica institucional com base nos modelos
+    e retorna um dicionário com os campos do ETP.
+    """
+    from io import BytesIO
+    import fitz, docx2txt, json
+
+    dados = arquivo.read()
+    arquivo.seek(0)
+    nome = arquivo.name.lower()
+    texto_extraido = ""
+
+    # 1️⃣ Extração de texto
+    try:
+        if nome.endswith(".pdf"):
+            pdf = fitz.open(stream=dados, filetype="pdf")
+            texto_extraido = "".join(p.get_text() for p in pdf)
+        elif nome.endswith(".docx"):
+            texto_extraido = docx2txt.process(BytesIO(dados))
+        elif nome.endswith(".txt"):
+            texto_extraido = dados.decode("utf-8", errors="ignore")
+    except Exception as e:
+        return {"erro": f"Falha ao extrair texto: {e}"}
+
+    if not texto_extraido.strip():
+        return {"erro": "Texto vazio após leitura do insumo."}
+
+    texto_limpo = re.sub(r"\s+", " ", texto_extraido).strip()
+    modelos = ler_modelos_etp()
+
+    # 2️⃣ Prompt institucional
+    system_prompt = (
+        "Você é um agente institucional especializado em Estudo Técnico Preliminar (ETP). "
+        "Analise o texto do insumo e extraia os campos padronizados de um ETP conforme o padrão TJSP."
+    )
+
+    user_prompt = f"""
+Texto do insumo:
+\"\"\"{texto_limpo}\"\"\"
+
+Modelos institucionais de referência:
+\"\"\"{modelos}\"\"\"
+
+Retorne apenas um JSON com os seguintes campos:
+- objeto
+- problema_a_resolver
+- solucao_proposta
+- alternativas_analisadas
+- justificativa_da_escolha
+- resultados_esperados
+- impacto_orcamentario
+"""
+
+    # 3️⃣ Chamada à IA institucional
+    try:
+        response = client.chat([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ])
+        conteudo = response["content"]
+        match = re.search(r"\{.*\}", conteudo, re.DOTALL)
+        campos = json.loads(match.group(0)) if match else {"objeto": texto_limpo[:800]}
+    except Exception as e:
+        campos = {"erro": f"Falha ao processar IA: {e}"}
+
+    print(f"[IA:ETP] Arquivo: {arquivo.name} – Campos: {list(campos.keys())}")
+    return {
+        "artefato": artefato,
+        "nome_arquivo": arquivo.name,
+        "status": "processado",
+        "campos_ai": campos
+    }
