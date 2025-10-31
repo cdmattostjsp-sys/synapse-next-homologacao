@@ -1,18 +1,24 @@
-import sys, os
+# ==========================================================
+# pages/02_📄 DFD – Formalização da Demanda.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==========================================================
+
+import sys, os, json
+import streamlit as st
+from io import BytesIO
+from docx import Document
+
+# Caminhos base e imports institucionais
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if BASE_PATH not in sys.path:
     sys.path.append(BASE_PATH)
-import streamlit as st
+
 from utils.integration_dfd import export_dfd_to_json
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 from utils.agents_bridge import AgentsBridge
-from io import BytesIO
-from docx import Document
-import json
 
 # ==========================================================
-# 📄 DFD – Documento de Formalização da Demanda
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ⚙️ Configuração da Página
 # ==========================================================
 st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide", page_icon="📄")
 aplicar_estilo_global()
@@ -26,37 +32,28 @@ st.divider()
 # ==========================================================
 # 🔍 Detecção e normalização do Insumo Ativo
 # ==========================================================
-insumo = st.session_state.get("last_insumo")
+# Nova integração: lê tanto o formato antigo (last_insumo) quanto o novo (dfd_campos_ai)
+defaults = {}
 
-def _extract_defaults(insumo_obj) -> dict:
-    if not insumo_obj:
-        return {}
-    raw = insumo_obj.get("campos_ai", {}) or {}
-    if isinstance(raw, dict) and "campos_ai" in raw and isinstance(raw["campos_ai"], dict):
-        return raw["campos_ai"]
-    if isinstance(raw, dict):
-        return raw
-    if isinstance(raw, str):
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict) and "campos_ai" in parsed:
-                return parsed["campos_ai"]
-            return parsed
-        except Exception:
-            return {}
-    return {}
+# 🔹 Prioridade 1 – Dados vindos da IA (integração direta da página Insumos)
+if "dfd_campos_ai" in st.session_state and isinstance(st.session_state["dfd_campos_ai"], dict):
+    defaults = st.session_state["dfd_campos_ai"]
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
 
-if insumo and insumo.get("artefato") in {"DFD", "ETP", "TR"}:
-    st.success(f"📎 Insumo ativo detectado: {insumo.get('nome','—')} (Artefato: {insumo.get('artefato','—')})")
-    with st.expander("🧾 Prévia do insumo (texto legível)", expanded=False):
-        st.text((insumo.get("conteudo", "") or "")[:1500])
-    defaults = _extract_defaults(insumo)
+# 🔹 Prioridade 2 – Compatibilidade com formato anterior
+elif "last_insumo_dfd" in st.session_state:
+    last = st.session_state["last_insumo_dfd"]
+    resultado = last.get("resultado", {})
+    defaults = resultado.get("campos_ai", {})
+    st.info(f"📎 Dados carregados a partir do histórico de insumos: {last.get('nome','—')}")
+
+# 🔹 Caso nenhum dado seja encontrado
 else:
     st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
     defaults = {}
 
 # ==========================================================
-# 🎨 Estilo institucional SAAB (azul escuro)
+# 🎨 Estilo institucional SAAB (mantido)
 # ==========================================================
 st.markdown("""
     <style>
@@ -92,7 +89,6 @@ with st.form("form_dfd"):
     riscos = st.text_area("Riscos identificados", value=defaults.get("riscos", ""), height=80)
     alinhamento = st.text_area("Alinhamento estratégico", value=defaults.get("alinhamento_planejamento", ""), height=80)
 
-    # 🔵 Botões padronizados no estilo do Validador de Editais
     col1, col2 = st.columns(2)
     with col1:
         gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
