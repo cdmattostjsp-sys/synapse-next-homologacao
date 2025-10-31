@@ -70,49 +70,50 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["d
 # 🧾 Processamento do upload
 # ==========================================================
 if arquivo and st.button("📤 Enviar insumo"):
-    with st.spinner("Salvando e processando o documento..."):
-        st.info(f"📄 Processando insumo para o artefato **{artefato}**...")
+    status_placeholder = st.empty()
+    status_placeholder.info(f"📄 Processando insumo para o artefato **{artefato}**...")
 
-        try:
-            resultado = processar_insumo_dinamico(arquivo, artefato)
+    try:
+        resultado = processar_insumo_dinamico(arquivo, artefato)
 
-            if "erro" not in resultado:
-                artefato_destino = artefato.upper()
-                campos_ai = resultado.get("campos_ai", {})
+        # ✅ Encerra o status visual antes das mensagens finais
+        status_placeholder.empty()
 
-                # 🔗 Integração direta com session_state (para preenchimento automático)
-                if artefato_destino == "DFD":
-                    st.session_state["dfd_campos_ai"] = campos_ai
-                elif artefato_destino == "ETP":
-                    st.session_state["etp_campos_ai"] = campos_ai
-                elif artefato_destino == "TR":
-                    st.session_state["tr_campos_ai"] = campos_ai
+        if "erro" not in resultado:
+            artefato_destino = artefato.upper()
+            campos_ai = resultado.get("campos_ai", {})
 
-                # 🧾 Registro do upload atual
-                st.session_state[f"last_insumo_{artefato.lower()}"] = {
-                    "nome": arquivo.name,
-                    "artefato": artefato_destino,
-                    "usuario": usuario,
-                    "descricao": descricao,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "resultado": resultado
-                }
+            # 🔗 Integração direta com session_state (para preenchimento automático)
+            if artefato_destino == "DFD":
+                st.session_state["dfd_campos_ai"] = campos_ai
+            elif artefato_destino == "ETP":
+                st.session_state["etp_campos_ai"] = campos_ai
+            elif artefato_destino == "TR":
+                st.session_state["tr_campos_ai"] = campos_ai
 
-                # ✅ Marca status de envio para exibição persistente
-                st.session_state["ultimo_envio_ok"] = f"✅ Insumo '{arquivo.name}' processado e encaminhado com sucesso para o módulo {artefato_destino}."
+            # 🧾 Registro do upload atual
+            st.session_state[f"last_insumo_{artefato.lower()}"] = {
+                "nome": arquivo.name,
+                "artefato": artefato_destino,
+                "usuario": usuario,
+                "descricao": descricao,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "resultado": resultado
+            }
 
-                # ✅ Mensagem persistente antes de redirecionar
-                st.success(st.session_state["ultimo_envio_ok"])
+            # ✅ Mensagem persistente pós-envio
+            msg_ok = f"✅ Insumo '{arquivo.name}' processado e encaminhado com sucesso para o módulo {artefato_destino}."
+            st.session_state["ultimo_envio_ok"] = msg_ok
+            st.success(msg_ok)
 
-                # 🔁 Redirecionamento controlado
-                if artefato_destino in ["DFD", "ETP", "TR"]:
-                    st.info(f"📎 Você pode agora abrir o módulo **{artefato_destino}** para revisar os campos.")
-                    st.stop()  # garante persistência do estado
-            else:
-                st.error(f"Erro: {resultado['erro']}")
+            # 🔁 Sugestão de continuidade
+            st.info(f"📎 Você pode agora abrir o módulo **{artefato_destino}** para revisar os campos.")
+        else:
+            st.error(f"Erro: {resultado['erro']}")
 
-        except Exception as e:
-            st.error(f"Erro no processamento do insumo: {e}")
+    except Exception as e:
+        status_placeholder.empty()
+        st.error(f"Erro no processamento do insumo: {e}")
 
 # ==========================================================
 # 💬 Mensagem persistente pós-envio
@@ -139,4 +140,3 @@ if "last_insumo_tr" in st.session_state:
     st.json(st.session_state["last_insumo_tr"])
 
 st.caption("📎 O histórico é temporário e será limpo ao reiniciar a sessão.")
-
