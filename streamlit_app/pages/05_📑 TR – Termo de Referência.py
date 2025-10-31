@@ -1,197 +1,105 @@
-import sys, os
+# ==============================
+# pages/05_📑 TR – Termo de Referência.py  –  SynapseNext / SAAB TJSP
+# ==============================
+
+import streamlit as st
+from datetime import datetime
+import os, sys
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+
+# ==========================================================
+# 🔍 Importações compatíveis
+# ==========================================================
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if BASE_PATH not in sys.path:
     sys.path.append(BASE_PATH)
-import sys, os
-# ==========================================================
-# 📑 TR – Termo de Referência
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# ==========================================================
 
-import streamlit as st
-from io import BytesIO
-from docx import Document
-from docx.shared import Pt
-from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.agents_bridge import AgentsBridge
-import json, os
+try:
+    from utils.integration_tr import export_tr_to_json
+except ModuleNotFoundError:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    sys.path.insert(0, base_dir)
+    from utils.integration_tr import export_tr_to_json
 
 # ==========================================================
-# ⚙️ Configuração de página
+# ⚙️ Configuração
 # ==========================================================
-st.set_page_config(
-    page_title="📑 TR – Termo de Referência",
-    layout="wide",
-    page_icon="📑",
-)
+st.set_page_config(page_title="📑 Termo de Referência", layout="wide", page_icon="📑")
 aplicar_estilo_global()
 
+# ==========================================================
+# 🏛️ Cabeçalho institucional
+# ==========================================================
 exibir_cabecalho_padrao(
     "📑 Termo de Referência (TR)",
-    "Geração automatizada com IA institucional a partir do ETP e DFD"
+    "Pré-preenchimento automático a partir de insumos + validação IA institucional"
 )
-st.divider()
-
-# ==========================================================
-# 🧩 Defaults e dados de origem
-# ==========================================================
-def _extract_from_last_insumo() -> dict:
-    """Extrai campos de last_insumo.campos_ai (dict ou JSON)."""
-    insumo = st.session_state.get("last_insumo")
-    if not insumo:
-        return {}
-    raw = insumo.get("campos_ai", {}) or {}
-    if isinstance(raw, dict):
-        return raw.get("campos_ai", raw)
-    if isinstance(raw, str):
-        try:
-            parsed = json.loads(raw)
-            return parsed.get("campos_ai", parsed)
-        except Exception:
-            return {}
-    return {}
-
-def _defaults_tr() -> dict:
-    """Prioriza dados: ETP > DFD > Insumo."""
-    last_etp = st.session_state.get("last_etp", {}) or {}
-    last_dfd = st.session_state.get("last_dfd", {}) or {}
-    from_insumo = _extract_from_last_insumo()
-
-    def pick(*keys, default=""):
-        for k in keys:
-            v = last_etp.get(k) or last_dfd.get(k) or from_insumo.get(k)
-            if v:
-                return v
-        return default
-
-    return {
-        "unidade_solicitante": pick("unidade_solicitante"),
-        "responsavel_tecnico": pick("responsavel_tecnico", "responsavel"),
-        "objeto": pick("objeto"),
-        "especificacao_tecnica": "",
-        "quantidade": pick("quantidade"),
-        "estimativa_valor": "",
-        "fonte_recurso": "",
-        "prazo_execucao": "",
-        "criterios_julgamento": "",
-        "riscos": pick("riscos"),
-        "justificativa_tecnica": pick("justificativa", "justificativa_tecnica"),
-        "observacoes_finais": "",
-    }
-
-# ==========================================================
-# 🏛️ Avisos contextuais
-# ==========================================================
-cols = st.columns(3)
-for i, (label, cond, msg_ok, msg_info) in enumerate([
-    ("ETP", "last_etp", "✅ ETP detectado: TR será baseado nele.", "ℹ️ Nenhum ETP detectado."),
-    ("DFD", "last_dfd", "✅ DFD detectado: dados complementares disponíveis.", "ℹ️ Nenhum DFD detectado."),
-    ("Insumo", "last_insumo", "📎 Insumo ativo detectado.", "ℹ️ Nenhum insumo ativo."),
-]):
-    with cols[i]:
-        if st.session_state.get(cond):
-            st.success(msg_ok)
-        else:
-            st.info(msg_info)
 
 st.divider()
 
 # ==========================================================
-# 🧾 Formulário do Termo de Referência
+# 🔗 Verificação de integração ativa
 # ==========================================================
-st.subheader("1️⃣ Entrada – Informações do TR")
+defaults = {}
 
-defaults = _defaults_tr()
-
-with st.form("form_tr"):
-    unidade = st.text_input("Unidade solicitante", value=defaults["unidade_solicitante"])
-    responsavel_tecnico = st.text_input("Responsável técnico", value=defaults["responsavel_tecnico"])
-    objeto = st.text_area("Objeto da contratação", value=defaults["objeto"], height=80)
-    especificacao_tecnica = st.text_area("Especificação técnica detalhada", value=defaults["especificacao_tecnica"], height=140)
-    col1, col2 = st.columns(2)
-    with col1:
-        quantidade = st.text_input("Quantidade / Unidades de medida", value=defaults["quantidade"])
-        prazo_execucao = st.text_input("Prazo de execução", value=defaults["prazo_execucao"])
-    with col2:
-        estimativa_valor = st.text_input("Estimativa de valor (R$)", value=defaults["estimativa_valor"])
-        fonte_recurso = st.text_input("Fonte de recurso", value=defaults["fonte_recurso"])
-    criterios_julgamento = st.text_area("Critérios de julgamento", value=defaults["criterios_julgamento"], height=100)
-    riscos = st.text_area("Riscos identificados", value=defaults["riscos"], height=100)
-    justificativa_tecnica = st.text_area("Justificativa técnica", value=defaults["justificativa_tecnica"], height=100)
-    observacoes_finais = st.text_area("Observações finais", value=defaults["observacoes_finais"], height=80)
-
-    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
-    submitted = st.form_submit_button("💾 Gerar rascunho manual")
+if "tr_campos_ai" in st.session_state:
+    defaults = st.session_state["tr_campos_ai"]
+    st.success("📎 Dados recebidos automaticamente do módulo **INSUMOS** (IA institucional ativa).")
+else:
+    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **INSUMOS**.")
 
 # ==========================================================
-# ⚙️ Geração IA – TR.IA
+# 🧾 Formulário TR – Estrutura institucional
 # ==========================================================
-if gerar_ia:
-    st.info("Executando agente TR institucional...")
-    metadata = {
-        "objeto": objeto,
-        "especificacoes": especificacao_tecnica,
-        "criterios_aceitacao": criterios_julgamento,
-        "prazo_execucao": prazo_execucao,
-        "garantias": observacoes_finais,
-        "riscos": riscos,
-    }
-    try:
-        bridge = AgentsBridge("TR")
-        resultado = bridge.generate(metadata)
-        st.success("✅ Rascunho gerado com sucesso pelo agente TR.IA!")
-        st.json(resultado)
-        st.session_state["last_tr"] = resultado.get("secoes", {})
-    except Exception as e:
-        st.error(f"Erro ao gerar rascunho com IA: {e}")
+st.subheader("📘 Entrada – Termo de Referência")
+
+col1, col2 = st.columns(2)
+with col1:
+    objeto = st.text_area("Objeto da contratação", value=defaults.get("objeto", ""), height=120)
+    justificativa_tecnica = st.text_area("Justificativa técnica", value=defaults.get("justificativa_tecnica", ""), height=120)
+    especificacao_tecnica = st.text_area("Especificações técnicas", value=defaults.get("especificacao_tecnica", ""), height=120)
+with col2:
+    criterios_julgamento = st.text_area("Critérios de julgamento", value=defaults.get("criterios_julgamento", ""), height=120)
+    riscos = st.text_area("Riscos associados", value=defaults.get("riscos", ""), height=120)
+    observacoes_finais = st.text_area("Observações finais", value=defaults.get("observacoes_finais", ""), height=120)
+
+st.divider()
+
+col3, col4, col5 = st.columns(3)
+with col3:
+    prazo_execucao = st.text_input("Prazo de execução", value=defaults.get("prazo_execucao", ""))
+with col4:
+    estimativa_valor = st.text_input("Estimativa de valor (R$)", value=defaults.get("estimativa_valor", ""))
+with col5:
+    fonte_recurso = st.text_input("Fonte de recurso", value=defaults.get("fonte_recurso", ""))
 
 # ==========================================================
-# 💾 Geração manual (formulário)
+# 🧩 Salvamento / Exportação
 # ==========================================================
-if submitted:
+st.divider()
+st.subheader("⚙️ Gerar rascunho com IA institucional")
+
+if st.button("💾 Salvar rascunho TR"):
     tr_data = {
-        "unidade_solicitante": unidade,
-        "responsavel_tecnico": responsavel_tecnico,
-        "objeto": objeto,
-        "especificacao_tecnica": especificacao_tecnica,
-        "quantidade": quantidade,
-        "estimativa_valor": estimativa_valor,
-        "fonte_recurso": fonte_recurso,
-        "prazo_execucao": prazo_execucao,
-        "criterios_julgamento": criterios_julgamento,
-        "riscos": riscos,
-        "justificativa_tecnica": justificativa_tecnica,
-        "observacoes_finais": observacoes_finais,
+        "artefato": "TR",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "campos": {
+            "objeto": objeto,
+            "justificativa_tecnica": justificativa_tecnica,
+            "especificacao_tecnica": especificacao_tecnica,
+            "criterios_julgamento": criterios_julgamento,
+            "riscos": riscos,
+            "observacoes_finais": observacoes_finais,
+            "prazo_execucao": prazo_execucao,
+            "estimativa_valor": estimativa_valor,
+            "fonte_recurso": fonte_recurso,
+        },
     }
-    st.success("✅ Rascunho do TR gerado manualmente!")
-    st.json(tr_data)
-    st.session_state["last_tr"] = tr_data
 
-# ==========================================================
-# 📤 Exportação do TR
-# ==========================================================
-if st.session_state.get("last_tr"):
-    st.divider()
-    st.subheader("📤 Exportação de Documento")
-    tr_data = st.session_state["last_tr"]
+    try:
+        export_tr_to_json(tr_data)
+        st.success("✅ Rascunho salvo com sucesso em `exports/tr_data.json`.")
+    except Exception as e:
+        st.error(f"Erro ao salvar rascunho: {e}")
 
-    doc = Document()
-    doc.add_heading("Termo de Referência (TR)", level=1)
-    for k, v in tr_data.items():
-        p = doc.add_paragraph()
-        p.add_run(f"{k}: ").bold = True
-        p.add_run(str(v) or "—")
-
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    st.download_button("💾 Baixar TR_rascunho.docx", buffer, file_name="TR_rascunho.docx")
-
-    if st.button("📦 Exportar TR (JSON)"):
-        os.makedirs("exports", exist_ok=True)
-        path = "exports/tr_teste.json"
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(tr_data, f, ensure_ascii=False, indent=2)
-        st.success(f"✅ TR exportado com sucesso para {path}")
-
-st.caption("💡 O agente TR.IA gera automaticamente as seções técnicas a partir das informações preenchidas.")
+st.caption("📎 Os dados acima podem ser revisados, salvos ou enviados para os módulos subsequentes (ex: Contrato).")
