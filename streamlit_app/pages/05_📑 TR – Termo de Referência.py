@@ -4,22 +4,12 @@
 
 import streamlit as st
 from datetime import datetime
-import os, sys
+import os, sys, json
+from io import BytesIO
+from docx import Document
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-
-# ==========================================================
-# 🔍 Importações compatíveis
-# ==========================================================
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
-try:
-    from utils.integration_tr import export_tr_to_json
-except ModuleNotFoundError:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    sys.path.insert(0, base_dir)
-    from utils.integration_tr import export_tr_to_json
+from utils.integration_tr import export_tr_to_json, ler_modelos_tr
+from openai import OpenAI
 
 # ==========================================================
 # ⚙️ Configuração
@@ -27,14 +17,16 @@ except ModuleNotFoundError:
 st.set_page_config(page_title="📑 Termo de Referência", layout="wide", page_icon="📑")
 aplicar_estilo_global()
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
+client = OpenAI(api_key=OPENAI_API_KEY)
+
 # ==========================================================
 # 🏛️ Cabeçalho institucional
 # ==========================================================
 exibir_cabecalho_padrao(
     "📑 Termo de Referência (TR)",
-    "Pré-preenchimento automático a partir de insumos + validação IA institucional"
+    "Geração automatizada de artefato institucional com IA e base de conhecimento do TJSP"
 )
-
 st.divider()
 
 # ==========================================================
@@ -74,16 +66,15 @@ with col5:
     fonte_recurso = st.text_input("Fonte de recurso", value=defaults.get("fonte_recurso", ""))
 
 # ==========================================================
-# 🧩 Salvamento / Exportação
+# ⚙️ Botão de Processamento IA
 # ==========================================================
 st.divider()
-st.subheader("⚙️ Gerar rascunho com IA institucional")
+st.subheader("⚙️ Geração de Artefato com IA Institucional")
 
-if st.button("💾 Salvar rascunho TR"):
-    tr_data = {
-        "artefato": "TR",
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "campos": {
+if st.button("🤖 Gerar artefato com IA institucional"):
+    with st.spinner("Gerando artefato completo com base nos dados e modelos do TJSP..."):
+        modelos = ler_modelos_tr()
+        campos = {
             "objeto": objeto,
             "justificativa_tecnica": justificativa_tecnica,
             "especificacao_tecnica": especificacao_tecnica,
@@ -93,13 +84,54 @@ if st.button("💾 Salvar rascunho TR"):
             "prazo_execucao": prazo_execucao,
             "estimativa_valor": estimativa_valor,
             "fonte_recurso": fonte_recurso,
-        },
-    }
+        }
 
-    try:
-        export_tr_to_json(tr_data)
-        st.success("✅ Rascunho salvo com sucesso em `exports/tr_data.json`.")
-    except Exception as e:
-        st.error(f"Erro ao salvar rascunho: {e}")
+        user_prompt = f"""
+Com base nos campos abaixo e nos modelos institucionais do TJSP, elabore o texto completo de um Termo de Referência (TR):
 
-st.caption("📎 Os dados acima podem ser revisados, salvos ou enviados para os módulos subsequentes (ex: Contrato).")
+Campos:
+{json.dumps(campos, ensure_ascii=False, indent=2)}
+
+Modelos institucionais:
+\"\"\"{modelos}\"\"\"
+
+O texto deve seguir o padrão redacional e técnico do TJSP.
+"""
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Você é um redator institucional do Tribunal de Justiça de São Paulo, responsável por elaborar termos de referência padronizados conforme as normas da SAAB/TJSP."},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.3
+            )
+            artefato_tr = response.choices[0].message.content.strip()
+
+            st.session_state["artefato_tr_gerado"] = artefato_tr
+            st.success("✅ Artefato gerado com sucesso! Você pode agora exportá-lo como documento oficial (DOCX).")
+            st.text_area("📄 Pré-visualização do artefato gerado:", artefato_tr, height=300)
+
+        except Exception as e:
+            st.error(f"Erro ao gerar artefato com IA: {e}")
+
+# ==========================================================
+# 💾 Exportação do artefato (DOCX)
+# ==========================================================
+if "artefato_tr_gerado" in st.session_state:
+    artefato_tr = st.session_state["artefato_tr_gerado"]
+    doc = Document()
+    doc.add_heading("TERMO DE REFERÊNCIA", level=1)
+    doc.add_paragraph(artefato_tr)
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    st.download_button(
+        label="📤 Exportar artefato em DOCX",
+        data=buffer,
+        file_name="TR_rascunho.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+st.caption("📎 O artefato acima é um rascunho institucional gerado pela IA com base nos modelos da SAAB/TJSP.")
