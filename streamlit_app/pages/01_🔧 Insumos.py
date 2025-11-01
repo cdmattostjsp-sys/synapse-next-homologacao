@@ -1,142 +1,86 @@
-# ==============================
-# pages/01_🔧 Insumos.py  –  SynapseNext / SAAB TJSP
-# ==============================
+# ==========================================================
+# pages/01_🔧 Insumos.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==========================================================
+# Página de gestão e envio de insumos administrativos
+# Compatível com os módulos DFD, ETP, TR e Edital
+# ==========================================================
 
-import sys, os
-from datetime import datetime
 import streamlit as st
-from pathlib import Path
-from io import BytesIO
-import docx2txt, fitz  # PyMuPDF
+import os
+from datetime import datetime
+from utils.integration_insumos import processar_insumo
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
-# 🔍 Importações compatíveis (atualizadas)
+# ⚙️ Configuração inicial
 # ==========================================================
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
-try:
-    from utils.integration_insumos import processar_insumo_dinamico
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except ModuleNotFoundError:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    sys.path.insert(0, base_dir)
-    from utils.integration_insumos import processar_insumo_dinamico
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-
-# ==========================================================
-# ⚙️ Configuração
-# ==========================================================
-st.set_page_config(page_title="🔧 Insumos", layout="wide", page_icon="🔧")
+st.set_page_config(page_title="🔧 Insumos – Upload e Integração", layout="wide", page_icon="🧩")
 aplicar_estilo_global()
 
-# ==========================================================
-# 🏛️ Cabeçalho institucional
-# ==========================================================
 exibir_cabecalho_padrao(
-    "🔧 Upload de Insumos Institucionais",
-    "Integração inteligente entre artefatos e dados do SynapseNext"
+    "🔧 Módulo de Insumos",
+    "Envie documentos administrativos para processamento e integração automatizada com os módulos DFD, ETP, TR e Edital."
 )
 st.divider()
 
 # ==========================================================
-# 📘 Descrição funcional
+# 📂 Interface de Upload
 # ==========================================================
-st.markdown("""
-O módulo **INSUMOS** permite anexar documentos institucionais (DFD, ETP, TR, Edital, Contrato)  
-que servirão de base para os artefatos gerados automaticamente pelo SynapseNext.  
-Cada upload é registrado e o conteúdo pode ser processado semanticamente pela IA  
-para preenchimento inteligente do artefato correspondente.
-""")
+st.subheader("📎 Envio de documento administrativo")
 
-# ==========================================================
-# 📂 Upload de documento
-# ==========================================================
-st.divider()
-st.subheader("📎 Enviar novo insumo")
-
-col1, col2, col3 = st.columns([2, 2, 1])
-with col1:
-    artefato = st.selectbox("Artefato relacionado", ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"])
-with col2:
-    descricao = st.text_input("Descrição / Observação", placeholder="Ex: Estudo técnico preliminar revisado")
-with col3:
-    usuario = st.text_input("Nome do remetente", placeholder="Ex: Carlos Mattos")
-
-arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["docx", "pdf", "txt"])
+uploaded_file = st.file_uploader(
+    "Selecione o arquivo a ser processado (formatos aceitos: TXT, DOCX, PDF)",
+    type=["txt", "docx", "pdf"]
+)
 
 # ==========================================================
-# 🧾 Processamento do upload
+# 🧭 Seleção do módulo de destino
 # ==========================================================
-if arquivo and st.button("📤 Enviar insumo"):
-    status_placeholder = st.empty()
-    status_placeholder.info(f"📄 Processando insumo para o artefato **{artefato}**...")
-
-    try:
-        resultado = processar_insumo_dinamico(arquivo, artefato)
-
-        # ✅ Encerra o status visual antes das mensagens finais
-        status_placeholder.empty()
-
-        if "erro" not in resultado:
-            artefato_destino = artefato.upper()
-            campos_ai = resultado.get("campos_ai", {})
-
-            # 🔗 Integração direta com session_state (para preenchimento automático)
-            if artefato_destino == "DFD":
-                st.session_state["dfd_campos_ai"] = campos_ai
-            elif artefato_destino == "ETP":
-                st.session_state["etp_campos_ai"] = campos_ai
-            elif artefato_destino == "TR":
-                st.session_state["tr_campos_ai"] = campos_ai
-
-            # 🧾 Registro do upload atual
-            st.session_state[f"last_insumo_{artefato.lower()}"] = {
-                "nome": arquivo.name,
-                "artefato": artefato_destino,
-                "usuario": usuario,
-                "descricao": descricao,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "resultado": resultado
-            }
-
-            # ✅ Mensagem persistente pós-envio
-            msg_ok = f"✅ Insumo '{arquivo.name}' processado e encaminhado com sucesso para o módulo {artefato_destino}."
-            st.session_state["ultimo_envio_ok"] = msg_ok
-            st.success(msg_ok)
-
-            # 🔁 Sugestão de continuidade
-            st.info(f"📎 Você pode agora abrir o módulo **{artefato_destino}** para revisar os campos.")
-        else:
-            st.error(f"Erro: {resultado['erro']}")
-
-    except Exception as e:
-        status_placeholder.empty()
-        st.error(f"Erro no processamento do insumo: {e}")
+artefato_opcoes = ["DFD", "ETP", "TR", "EDITAL"]
+artefato = st.selectbox("Selecione o módulo de destino do insumo:", artefato_opcoes)
 
 # ==========================================================
-# 💬 Mensagem persistente pós-envio
+# 🚀 Botão de processamento
 # ==========================================================
-if "ultimo_envio_ok" in st.session_state:
-    st.success(st.session_state["ultimo_envio_ok"])
+if uploaded_file and artefato:
+    if st.button("🚀 Processar e encaminhar insumo"):
+        with st.spinner(f"Processando insumo para o módulo {artefato}..."):
+            try:
+                resultado = processar_insumo(uploaded_file, artefato)
+                if resultado:
+                    st.success(f"✅ Insumo {artefato} processado com sucesso e encaminhado ao respectivo módulo.")
+                    st.json(resultado)
+                else:
+                    st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
+            except Exception as e:
+                st.error(f"Erro ao processar insumo: {e}")
+else:
+    st.info("Envie um arquivo e selecione o módulo de destino para iniciar o processamento.")
 
 # ==========================================================
-# 🗂️ Histórico de uploads
+# 🧾 Histórico de insumos processados
 # ==========================================================
 st.divider()
-st.subheader("🗂️ Histórico de Insumos (Sessão Atual)")
+st.subheader("📚 Histórico de insumos disponíveis")
 
-if "last_insumo_dfd" in st.session_state:
-    st.markdown("#### 📘 DFD")
-    st.json(st.session_state["last_insumo_dfd"])
+EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+if os.path.exists(EXPORTS_JSON_DIR):
+    arquivos = sorted([f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")], reverse=True)
+    if arquivos:
+        for arquivo in arquivos[:5]:
+            caminho = os.path.join(EXPORTS_JSON_DIR, arquivo)
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = f.read()
+            with st.expander(f"🗂️ {arquivo}"):
+                st.code(dados, language="json")
+    else:
+        st.info("Nenhum insumo processado ainda.")
+else:
+    st.info("Nenhum insumo processado ainda.")
 
-if "last_insumo_etp" in st.session_state:
-    st.markdown("#### 📗 ETP")
-    st.json(st.session_state["last_insumo_etp"])
-
-if "last_insumo_tr" in st.session_state:
-    st.markdown("#### 📙 TR")
-    st.json(st.session_state["last_insumo_tr"])
-
-st.caption("📎 O histórico é temporário e será limpo ao reiniciar a sessão.")
+# ==========================================================
+# 🏁 Rodapé institucional
+# ==========================================================
+st.divider()
+st.caption("📎 Módulo de Insumos – SynapseNext (TJSP/SAAB). Os insumos processados são automaticamente integrados aos módulos DFD, ETP, TR e Edital.")
