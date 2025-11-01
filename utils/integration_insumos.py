@@ -2,147 +2,117 @@
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==========================================================
-# Funções de integração entre o módulo INSUMOS e os módulos
-# DFD / ETP / TR / EDITAL, com persistência em sessão e disco.
+# Funções de integração entre insumos e módulos (DFD, ETP, TR, Edital)
 # ==========================================================
 
+import streamlit as st
 import os
+import io
 import json
 from datetime import datetime
-from typing import Dict, Any
-import streamlit as st
 
 # ==========================================================
-# 🔧 Diretórios de exportação
+# 🧠 Função principal – processamento dinâmico de insumo
 # ==========================================================
-EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
-os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
 
-# ==========================================================
-# 🧩 Função auxiliar – Propagação direta via sessão
-# ==========================================================
-def _propagar_para_modulo(artefato: str, campos_ai: Dict[str, Any]):
-    """Propaga campos processados para o módulo de destino via st.session_state."""
-    chave = f"{artefato.lower()}_campos_ai"
-    st.session_state[chave] = campos_ai
-    st.session_state["last_insumo_destino"] = artefato
-    st.toast(f"📤 Insumo {artefato} encaminhado com sucesso.", icon="✅")
-
-
-# ==========================================================
-# 💾 Salvamento persistente
-# ==========================================================
-def salvar_insumo_processado(artefato: str, descricao: str, campos_ai: Dict[str, Any]) -> bool:
+def processar_insumo(uploaded_file, artefato: str):
     """
-    Salva o insumo processado tanto na sessão quanto em disco (formato JSON).
-    Estrutura padronizada e compatível com os módulos de destino.
+    Processa insumos institucionais e os encaminha ao módulo correspondente.
+    Compatível com DFD, ETP, TR e Edital.
     """
-    try:
-        dados_insumo = {
-            "artefato": artefato,
-            "descricao": descricao,
-            "campos_ai": campos_ai if isinstance(campos_ai, dict) else {},
-            "data_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
 
-        # 🔹 Atualiza sessão
-        chave_sessao = f"{artefato.lower()}_campos_ai"
-        st.session_state[chave_sessao] = dados_insumo["campos_ai"]
+    if not uploaded_file:
+        st.warning("Nenhum arquivo foi enviado.")
+        return None
 
-        # 🔹 Persiste em disco
-        nome_arquivo = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        caminho = os.path.join(EXPORTS_JSON_DIR, nome_arquivo)
-        with open(caminho, "w", encoding="utf-8") as f:
-            json.dump(dados_insumo, f, ensure_ascii=False, indent=2)
+    artefato = artefato.upper().strip()
+    nome_arquivo = uploaded_file.name
+    st.info(f"📄 Processando insumo '{nome_arquivo}' para o módulo {artefato}...")
 
-        st.success(f"✅ Insumo '{artefato}' processado e encaminhado com sucesso.")
-        return True
-
-    except Exception as e:
-        st.error(f"Erro ao salvar insumo processado: {e}")
-        return False
-
-
-# ==========================================================
-# 🧠 Processamento principal do insumo
-# ==========================================================
-def processar_insumo(uploaded_file, artefato: str = "EDITAL") -> Dict[str, Any]:
-    """
-    Processa o arquivo enviado no módulo INSUMOS e identifica
-    campos relevantes para os módulos DFD, ETP, TR ou EDITAL.
-    """
-    artefato = (artefato or "EDITAL").upper()
+    # ==========================================================
+    # 📂 Leitura segura de arquivo (TXT, DOCX, PDF)
+    # ==========================================================
+    extensao = os.path.splitext(nome_arquivo)[1].lower()
+    texto_extraido = ""
 
     try:
-        # 🔹 Lê o conteúdo do arquivo de forma segura (UTF-8)
-        conteudo = uploaded_file.getvalue()
-        texto = conteudo.decode("utf-8", errors="ignore")
+        if extensao == ".txt":
+            texto_extraido = uploaded_file.read().decode("utf-8", errors="ignore")
 
-        # ==========================================================
-        # 🔍 Simulação de extração semântica (substituir por IA real)
-        # ==========================================================
-        campos_norm = {
-            "objeto": f"Objeto identificado a partir do insumo '{uploaded_file.name}'",
-            "unidade_solicitante": "Departamento de Administração e Planejamento",
-            "responsavel_tecnico": "Responsável Institucional (IA)",
-            "justificativa_tecnica": "Justificativa técnica preliminar extraída automaticamente.",
-            "criterios_julgamento": "Menor preço global.",
-            "riscos": "Risco operacional moderado.",
-            "prazo_execucao": "90 dias",
-            "estimativa_valor": "R$ 150.000,00",
-            "fonte_recurso": "Orçamento ordinário TJSP",
-        }
+        elif extensao == ".docx":
+            from docx import Document
+            doc = Document(io.BytesIO(uploaded_file.read()))
+            texto_extraido = "\n".join([p.text for p in doc.paragraphs])
 
-        # ==========================================================
-        # 🧱 Estrutura padronizada do payload
-        # ==========================================================
-        payload = {
-            "nome_arquivo": uploaded_file.name,
-            "artefato": artefato,
-            "texto": texto[:5000],
-            "campos_ai": campos_norm,
-        }
+        elif extensao == ".pdf":
+            from PyPDF2 import PdfReader
+            pdf_reader = PdfReader(io.BytesIO(uploaded_file.read()))
+            texto_extraido = "\n".join([page.extract_text() or "" for page in pdf_reader.pages])
 
-        # ==========================================================
-        # 💾 Persistência
-        # ==========================================================
-        salvar_insumo_processado(
-            artefato=artefato,
-            descricao=f"Insumo {uploaded_file.name} processado automaticamente",
-            campos_ai=campos_norm
-        )
-
-        # ==========================================================
-        # 🔁 Propagação imediata (para preenchimento ao vivo)
-        # ==========================================================
-        _propagar_para_modulo(artefato, campos_norm)
-
-        return payload
+        else:
+            texto_extraido = "⚠️ Formato de arquivo não suportado para extração de texto."
 
     except Exception as e:
-        st.error(f"Erro ao processar insumo: {e}")
-        return {}
+        st.error(f"Erro ao extrair texto do arquivo: {e}")
+        texto_extraido = ""
 
+    # ==========================================================
+    # 🔍 Extração semântica simulada (placeholder IA institucional)
+    # ==========================================================
+    campos_norm = {
+        "objeto": f"Objeto identificado a partir do insumo '{uploaded_file.name}'",
+        "unidade_solicitante": "Departamento de Administração e Planejamento",
+        "responsavel_tecnico": "Responsável Institucional (IA)",
+        "justificativa_tecnica": "Justificativa técnica preliminar extraída automaticamente.",
+        "criterios_julgamento": "Menor preço global.",
+        "riscos": "Risco operacional moderado.",
+        "prazo_execucao": "90 dias",
+        "estimativa_valor": "R$ 150.000,00",
+        "fonte_recurso": "Orçamento ordinário TJSP",
+    }
 
-# ==========================================================
-# 🧾 Função de exportação manual (caso necessário)
-# ==========================================================
-def exportar_insumo_manual(artefato: str, campos_ai: Dict[str, Any]) -> str:
-    """
-    Exporta um insumo manualmente para testes ou auditoria.
-    Retorna o caminho completo do arquivo JSON gerado.
-    """
+    # ==========================================================
+    # 💾 Monta payload final
+    # ==========================================================
+    payload = {
+        "nome_arquivo": uploaded_file.name,
+        "artefato": artefato,
+        "texto": texto_extraido[:8000],  # limitar tamanho
+        "campos_ai": campos_norm,
+        "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    # ==========================================================
+    # 🧭 Atualiza sessão ativa (Streamlit)
+    # ==========================================================
+    if artefato == "DFD":
+        st.session_state["dfd_campos_ai"] = campos_norm
+        st.session_state["last_insumo_dfd"] = payload
+    elif artefato == "ETP":
+        st.session_state["etp_campos_ai"] = campos_norm
+        st.session_state["last_insumo_etp"] = payload
+    elif artefato == "TR":
+        st.session_state["tr_campos_ai"] = campos_norm
+        st.session_state["last_insumo_tr"] = payload
+    elif artefato == "EDITAL":
+        st.session_state["edital_campos_ai"] = campos_norm
+        st.session_state["last_insumo_edital"] = payload
+
+    # ==========================================================
+    # 📦 Exportação de backup em JSON
+    # ==========================================================
+    EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+    os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
+
+    arquivo_saida = os.path.join(EXPORTS_JSON_DIR, f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
     try:
-        dados = {
-            "artefato": artefato,
-            "campos_ai": campos_ai,
-            "data_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        nome_arquivo = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        caminho = os.path.join(EXPORTS_JSON_DIR, nome_arquivo)
-        with open(caminho, "w", encoding="utf-8") as f:
-            json.dump(dados, f, ensure_ascii=False, indent=2)
-        return caminho
+        with open(arquivo_saida, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        st.error(f"Erro ao exportar insumo manual: {e}")
-        return ""
+        st.warning(f"⚠️ Não foi possível salvar o JSON: {e}")
+
+    # ==========================================================
+    # ✅ Retorno final
+    # ==========================================================
+    st.success(f"Insumo '{artefato}' processado e encaminhado com sucesso ao respectivo módulo.")
+    return payload
