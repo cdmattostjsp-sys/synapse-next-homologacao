@@ -1,5 +1,6 @@
 # ==============================
-# pages/05_📑 TR – Termo de Referência.py  –  SynapseNext / SAAB TJSP
+# pages/05_📑 TR – Termo de Referência.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==============================
 
 import streamlit as st
@@ -25,7 +26,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ==========================================================
 exibir_cabecalho_padrao(
     "📑 Termo de Referência (TR)",
-    "Geração automatizada de artefato institucional com IA e base de conhecimento do TJSP"
+    "Pré-preenchimento automático a partir de insumos + geração IA institucional"
 )
 st.divider()
 
@@ -34,11 +35,21 @@ st.divider()
 # ==========================================================
 defaults = {}
 
-if "tr_campos_ai" in st.session_state:
+# 🔹 Prioridade 1 – Dados vindos da integração INSUMOS
+if "tr_campos_ai" in st.session_state and isinstance(st.session_state["tr_campos_ai"], dict):
     defaults = st.session_state["tr_campos_ai"]
-    st.success("📎 Dados recebidos automaticamente do módulo **INSUMOS** (IA institucional ativa).")
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+
+# 🔹 Prioridade 2 – Compatibilidade com formato anterior
+elif "last_insumo_tr" in st.session_state:
+    last = st.session_state["last_insumo_tr"]
+    resultado = last.get("resultado", {})
+    defaults = resultado.get("campos_ai", {})
+    st.info(f"📎 Dados carregados a partir do histórico de insumos: {last.get('nome','—')}")
+
+# 🔹 Caso nenhum dado seja encontrado
 else:
-    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **INSUMOS**.")
+    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **🔧 Insumos**.")
 
 # ==========================================================
 # 🧾 Formulário TR – Estrutura institucional
