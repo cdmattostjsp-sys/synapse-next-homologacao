@@ -3,6 +3,23 @@
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==========================================================
 
+import streamlit as st
+
+st.title("📄 Documento de Formalização da Demanda (DFD)")
+st.caption("Pré-preenchimento automático a partir de insumos + validação IA")
+
+# Detecta se há dados no session_state
+if "dfd_campos_ai" in st.session_state:
+    campos = st.session_state["dfd_campos_ai"]
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+else:
+    campos = {}
+
+# Formulário
+unidade = st.text_input("Unidade solicitante", value=campos.get("unidade_solicitante", ""))
+responsavel = st.text_input("Responsável pela demanda", value=campos.get("responsavel_tecnico", ""))
+objeto = st.text_area("Objeto da contratação", value=campos.get("objeto", ""))
+
 import sys, os, json
 import streamlit as st
 from io import BytesIO
