@@ -1,324 +1,347 @@
-# ==========================================================
-# 📜 integration_edital.py – Minuta do Edital (versão final)
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# ==========================================================
-# Responsável por:
-# 1) Extrair texto de PDF/DOCX/TXT do insumo de EDITAL.
-# 2) Integrar o contexto cumulativo (DFD + ETP + TR).
-# 3) Invocar IA institucional (OpenAI) + modelos da Knowledge Base.
-# 4) Normalizar campos e devolver JSON para pré-preenchimento da página.
-# 5) Gerar DOCX oficial em /exports.
-# ==========================================================
+# ==============================
+# utils/integration_insumos.py
+# SynapseNext – SAAB / TJSP
+# Revisão vNext: integração estável INSUMOS → EDITAL
+# ==============================
+
+from __future__ import annotations
 
 import os
+import io
 import re
 import json
-from io import BytesIO
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Any, Tuple, Optional
+import datetime as dt
+from typing import Dict, Any, Optional
 
-import fitz          # PyMuPDF
-import docx2txt
-from docx import Document
-from openai import OpenAI
+# Importa Streamlit somente em runtime (evita falhas em testes sem Streamlit)
+try:
+    import streamlit as st  # type: ignore
+except Exception:  # pragma: no cover
+    st = None  # Permite testes de unidade sem UI
 
-# -----------------------------
-# ⚙️ OpenAI Client
-# -----------------------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
-client = OpenAI(api_key=OPENAI_API_KEY)
+# ==============================
+# Dependências opcionais de leitura de arquivos
+# ==============================
+# PDF: preferimos PyMuPDF (fitz); fallback para PyPDF2
+try:
+    import fitz  # PyMuPDF
+except Exception:  # pragma: no cover
+    fitz = None
 
-# -----------------------------
-# 📂 Paths
-# -----------------------------
-BASE_PATH = Path(__file__).resolve().parents[1]
-KNOWLEDGE_EDITAL = BASE_PATH / "knowledge" / "edital_models"
-EXPORTS_DIR = BASE_PATH / "exports"
-EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    from PyPDF2 import PdfReader  # fallback PDF
+except Exception:  # pragma: no cover
+    PdfReader = None
+
+# DOCX: preferimos docx2txt; fallback para python-docx
+try:
+    import docx2txt
+except Exception:  # pragma: no cover
+    docx2txt = None
+
+try:
+    import docx  # python-docx
+except Exception:  # pragma: no cover
+    docx = None
+
+# ==============================
+# OpenAI – criação tardia do cliente (opcional)
+# ==============================
+def _get_openai_client():
+    """
+    Cria cliente OpenAI apenas quando necessário.
+    Não falha se não houver chave/pacote – a IA passa a ser opcional.
+    """
+    api_key = None
+    if st and getattr(st, "secrets", None):
+        api_key = st.secrets.get("OPENAI_API_KEY")
+    api_key = api_key or os.getenv("OPENAI_API_KEY")
+
+    try:
+        from openai import OpenAI  # openai>=1.x
+    except Exception:
+        return None, None  # sem pacote
+
+    if not api_key:
+        return None, None  # sem chave
+
+    try:
+        return OpenAI(api_key=api_key), "gpt-4o-mini"
+    except Exception:
+        return None, None
 
 
-# ==========================================================
-# 📚 Leitura dos modelos (Knowledge Base)
-# ==========================================================
-def ler_modelos_edital() -> str:
-    textos = []
-    if KNOWLEDGE_EDITAL.exists():
-        for arq in KNOWLEDGE_EDITAL.glob("*.txt"):
+# ==============================
+# Utilitários de E/S
+# ==============================
+_EXPORTS_DIR = os.path.join("exports", "insumos")
+_EXPORTS_JSON_DIR = os.path.join(_EXPORTS_DIR, "json")
+os.makedirs(_EXPORTS_DIR, exist_ok=True)
+os.makedirs(_EXPORTS_JSON_DIR, exist_ok=True)
+
+
+def salvar_insumo(uploaded_file, artefato: str) -> str:
+    """
+    Persiste o arquivo original em exports/insumos/ com carimbo de data.
+    """
+    ts = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    base_name = f"{ts}__{artefato.upper()}__{uploaded_file.name}"
+    path = os.path.join(_EXPORTS_DIR, base_name)
+    with open(path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    return path
+
+
+def listar_insumos() -> list[str]:
+    """
+    Lista arquivos persistidos em exports/insumos/.
+    """
+    if not os.path.exists(_EXPORTS_DIR):
+        return []
+    return sorted(
+        [f for f in os.listdir(_EXPORTS_DIR) if os.path.isfile(os.path.join(_EXPORTS_DIR, f))],
+        reverse=True
+    )
+
+
+def _dump_json_safely(payload: Dict[str, Any], name_hint: str) -> Optional[str]:
+    try:
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-]+", "_", name_hint)[:120]
+        path = os.path.join(_EXPORTS_JSON_DIR, f"{safe_name}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        return path
+    except Exception:
+        return None
+
+
+# ==============================
+# Extração de texto – PDF / DOCX / TXT
+# ==============================
+def _read_all(uploaded_file) -> bytes:
+    pos = uploaded_file.tell()
+    uploaded_file.seek(0)
+    data = uploaded_file.read()
+    uploaded_file.seek(pos)
+    return data
+
+
+def extrair_texto_arquivo(uploaded_file) -> str:
+    """
+    Extrai texto puro de PDF, DOCX e TXT.
+    Tenta múltiplas bibliotecas para robustez.
+    """
+    nome = uploaded_file.name.lower()
+    data = _read_all(uploaded_file)
+
+    # TXT direto
+    if nome.endswith(".txt"):
+        try:
+            return data.decode("utf-8", errors="ignore")
+        except Exception:
+            return data.decode("latin-1", errors="ignore")
+
+    # PDF
+    if nome.endswith(".pdf"):
+        # 1) PyMuPDF
+        if fitz is not None:
             try:
-                textos.append(arq.read_text(encoding="utf-8"))
+                pdf = fitz.open(stream=data, filetype="pdf")
+                return "".join(page.get_text() for page in pdf)
             except Exception:
                 pass
-    return "\n\n".join(textos)
+        # 2) PyPDF2 (fallback)
+        if PdfReader is not None:
+            try:
+                reader = PdfReader(io.BytesIO(data))
+                texto = []
+                for page in getattr(reader, "pages", []):
+                    try:
+                        texto.append(page.extract_text() or "")
+                    except Exception:
+                        continue
+                return "\n".join(texto)
+            except Exception:
+                pass
+        return ""
 
+    # DOCX
+    if nome.endswith(".docx"):
+        # 1) docx2txt
+        if docx2txt is not None:
+            try:
+                return docx2txt.process(io.BytesIO(data)) or ""
+            except Exception:
+                pass
+        # 2) python-docx
+        if docx is not None:
+            try:
+                document = docx.Document(io.BytesIO(data))
+                return "\n".join(p.text for p in document.paragraphs)
+            except Exception:
+                pass
+        return ""
 
-# ==========================================================
-# 🔗 Integração de contexto (DFD, ETP, TR)
-# ==========================================================
-def integrar_com_contexto(session_state: dict) -> dict:
-    """
-    Constrói um contexto integrado com o que existir na sessão:
-    DFD + ETP + TR. É tolerante à ausência de qualquer um deles.
-    """
-    contexto = {}
-    for chave in ["dfd_campos_ai", "etp_campos_ai", "tr_campos_ai"]:
-        bloco = session_state.get(chave)
-        if isinstance(bloco, dict) and bloco:
-            contexto[chave] = bloco
-    return contexto
-
-
-# ==========================================================
-# 🧾 Extração e limpeza de texto
-# ==========================================================
-def _extrair_texto_arquivo(arquivo) -> str:
-    nome = getattr(arquivo, "name", "").lower()
-    try:
-        if nome.endswith(".pdf"):
-            dados = arquivo.read()
-            arquivo.seek(0)
-            texto = ""
-            with fitz.open(stream=dados, filetype="pdf") as pdf:
-                for p in pdf:
-                    texto += p.get_text("text") + "\n"
-            return _limpar(texto)
-
-        if nome.endswith(".docx"):
-            dados = arquivo.read()
-            arquivo.seek(0)
-            return _limpar(docx2txt.process(BytesIO(dados)))
-
-        if nome.endswith(".txt"):
-            dados = arquivo.read()
-            arquivo.seek(0)
-            return _limpar(dados.decode("utf-8", errors="ignore"))
-    except Exception:
-        pass
+    # Demais extensões não suportadas
     return ""
 
 
-def _limpar(txt: str) -> str:
-    txt = re.sub(r"\s+", " ", txt or "")
-    txt = re.sub(r"[^\w\s.,;:!?()/%\-–—ºª°]", "", txt)
-    return txt.strip()
+# ==============================
+# Normalização de chaves – foco EDITAL
+# ==============================
+_EDITAL_KEYMAP = {
+    # principais
+    "unidade_solicitante": ["unidade", "unidade_solicitante", "setor", "orgao"],
+    "responsavel_tecnico": ["responsavel", "responsavel_tecnico", "gestor", "fiscal"],
+    "objeto": ["objeto", "descricao", "escopo", "especificacao"],
+    "modalidade": ["modalidade", "modalidade_licitacao", "tipo_modalidade"],
+    "regime_execucao": ["regime_execucao", "regime", "modelo_execucao"],
+    "base_legal": ["base_legal", "fundamentacao_legal", "justificativa_legal", "amparo_legal"],
+    "justificativa_modalidade": ["justificativa_modalidade", "motivacao", "justificativa"],
+    "habilitacao": ["habilitacao", "condicoes_participacao", "documentacao_habilitacao"],
+    "criterios_julgamento": ["criterios_julgamento", "criterio", "criterios"],
+    "prazo_execucao": ["prazo_execucao", "prazos", "prazo"],
+    "forma_pagamento": ["forma_pagamento", "pagamento", "condicoes_pagamento"],
+    "penalidades": ["penalidades", "sancoes", "multas", "penalidade"],
+    "observacoes_finais": ["observacoes_finais", "observacoes", "notas", "comentarios"],
+    # auxiliares
+    "cnpj": ["cnpj"],
+    "processo": ["processo", "n_processo", "numero_processo", "proc_adm"],
+}
+
+def _norm_key(key: str) -> Optional[str]:
+    k = key.strip().lower()
+    for target, aliases in _EDITAL_KEYMAP.items():
+        if k == target or k in aliases:
+            return target
+    return None
 
 
-# ==========================================================
-# 🧠 Invocação IA + Normalização de Campos
-# ==========================================================
-def _chamar_ia_edital(texto_insumo: str, modelos: str, contexto: dict) -> Dict[str, Any]:
+def _normalize_for_edital(raw: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Chama a IA institucional para projetar os campos do edital.
-    Retorna um dicionário com os campos (ou fallback mínimo).
+    Converte chaves variadas (vindo da IA/regex) para o conjunto canônico do EDITAL.
+    Mantém apenas chaves reconhecidas, sem inserir valores vazios automaticamente.
     """
-    contexto_json = json.dumps(contexto or {}, ensure_ascii=False, indent=2)
+    out: Dict[str, Any] = {}
+    for k, v in (raw or {}).items():
+        nk = _norm_key(str(k))
+        if nk:
+            out[nk] = v
+    return out
 
-    system_prompt = (
-        "Você é um agente institucional do Tribunal de Justiça do Estado de São Paulo (SAAB/TJSP), "
-        "especializado em minutas de EDITAL conforme a Lei 14.133/2021. "
-        "Extraia e proponha os campos do edital com linguagem padrão SAAB/TJSP."
+
+# ==============================
+# Heurísticas institucionais (regex) – fallback sem IA
+# ==============================
+_RE_CNPJ = re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b")
+_RE_PROCESSO = re.compile(r"(processo(?: administrativo)?\s*[:\-]?\s*)([\w./-]+)", re.I)
+_RE_MODALIDADE = re.compile(r"\b(concorr[eê]ncia|preg[aã]o|tomada de preços|leil[aã]o|dispensa|inexigibilidade)\b", re.I)
+
+def _parser_institucional(texto: str) -> Dict[str, Any]:
+    d: Dict[str, Any] = {}
+    if not texto:
+        return d
+
+    cnpj = _RE_CNPJ.search(texto)
+    if cnpj:
+        d["cnpj"] = cnpj.group(0)
+
+    proc = _RE_PROCESSO.search(texto)
+    if proc:
+        d["processo"] = proc.group(2).strip()
+
+    mod = _RE_MODALIDADE.search(texto)
+    if mod:
+        d["modalidade"] = mod.group(1).strip().lower()
+
+    # Heurísticas simples
+    if "habilita" in texto.lower():
+        d.setdefault("habilitacao", "Conforme condições de participação descritas no edital.")
+    if "julgamento" in texto.lower() or "critério" in texto.lower() or "criterio" in texto.lower():
+        d.setdefault("criterios_julgamento", "Menor preço ou melhor técnica, conforme o caso.")
+    return d
+
+
+# ==============================
+# IA opcional – extração assistida
+# ==============================
+def _analisar_insumo_ia(texto: str, artefato: str) -> Dict[str, Any]:
+    client, model = _get_openai_client()
+    if client is None or not model or not texto.strip():
+        return {}
+
+    prompt = (
+        "Você é um redator técnico do TJSP (SAAB). "
+        f"Extraia, do texto abaixo, os campos relevantes para o artefato '{artefato.upper()}'. "
+        "Priorize chaves do EDITAL quando aplicável: "
+        "['unidade_solicitante','responsavel_tecnico','objeto','modalidade','regime_execucao',"
+        "'base_legal','justificativa_modalidade','habilitacao','criterios_julgamento','prazo_execucao',"
+        "'forma_pagamento','penalidades','observacoes_finais','cnpj','processo'].\n\n"
+        "Responda exclusivamente em JSON válido (um único objeto). "
+        "Se algum campo não for encontrado, omita-o (não invente valores).\n\n"
+        f"TEXTO:\n{texto[:12000]}\n"
     )
-
-    user_prompt = f"""
-Texto do insumo (base):
-\"\"\"{texto_insumo[:10000]}\"\"\"
-
-Contexto cumulativo disponível (DFD, ETP, TR):
-\"\"\"{contexto_json}\"\"\"
-
-Modelos institucionais (Knowledge Base):
-\"\"\"{modelos[:10000]}\"\"\"
-
-Retorne APENAS um JSON com os campos:
-{{
-  "objeto": "",
-  "tipo_licitacao": "",
-  "criterio_julgamento": "",
-  "condicoes_participacao": "",
-  "exigencias_habilitacao": "",
-  "obrigacoes_contratada": "",
-  "prazo_execucao": "",
-  "fontes_recursos": "",
-  "gestor_fiscal": "",
-  "observacoes_gerais": ""
-}}
-"""
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
+            temperature=0.1,
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "system", "content": "Você segue o padrão redacional SAAB/TJSP e a Lei 14.133/2021."},
+                {"role": "user", "content": prompt},
             ],
-            temperature=0.3,
+            max_tokens=800,
         )
-        conteudo = resp.choices[0].message.content.strip()
-        match = re.search(r"\{.*\}", conteudo, re.DOTALL)
-        campos = json.loads(match.group(0)) if match else {}
-    except Exception as e:
-        campos = {"erro_interna": f"Falha IA EDITAL: {e}"}
+        content = resp.choices[0].message.content or ""
+        # Tenta parsear diretamente; se vier dentro de bloco, extrai com regex
+        json_str = content
+        m = re.search(r"\{.*\}", content, re.S)
+        if m:
+            json_str = m.group(0)
+        data = json.loads(json_str)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    return {}
 
-    return campos
 
-
-def _normalizar_campos(campos: Dict[str, Any], contexto: dict) -> Dict[str, str]:
+# ==============================
+# Orquestração principal
+# ==============================
+def processar_insumo(uploaded_file, artefato: str = "EDITAL") -> Dict[str, Any]:
     """
-    Aplica defaults e aproveita dados administrativos vindos do DFD/TR.
-    Também gera 'numero_edital' e 'data_publicacao'.
+    Processa um insumo:
+      1) extrai texto,
+      2) aplica heurísticas institucionais,
+      3) tenta extração por IA (se disponível),
+      4) normaliza chaves para EDITAL,
+      5) atualiza st.session_state["last_insumo"],
+      6) grava JSON em exports/insumos/json/.
+    Retorna o dicionário final (campos_ai).
     """
-    hoje = datetime.now()
-    numero_auto = f"TJSP-PE-{hoje.year}-{hoje.strftime('%m')}{hoje.strftime('%d')}"
-    data_auto = hoje.strftime("%d/%m/%Y")
+    artefato = (artefato or "EDITAL").upper()
+    texto = extrair_texto_arquivo(uploaded_file)
 
-    dfd = (contexto or {}).get("dfd_campos_ai", {})
-    tr = (contexto or {}).get("tr_campos_ai", {})
+    heur = _parser_institucional(texto)
+    via_ia = _analisar_insumo_ia(texto, artefato)
 
-    defaults = {
-        "objeto": dfd.get("objeto") or tr.get("objeto") or "",
-        "tipo_licitacao": "Pregão eletrônico",
-        "criterio_julgamento": tr.get("criterios_de_julgamento") or "Menor preço global",
-        "condicoes_participacao": "",
-        "exigencias_habilitacao": "",
-        "obrigacoes_contratada": tr.get("obrigacoes_da_contratada") or "",
-        "prazo_execucao": tr.get("prazo_execucao") or "",
-        "fontes_recursos": tr.get("fonte_recurso") or "",
-        "gestor_fiscal": dfd.get("responsavel") or "",
-        "observacoes_gerais": "",
-        # administrativos
-        "numero_edital": numero_auto,
-        "data_publicacao": data_auto,
-        "unidade_solicitante": dfd.get("unidade_solicitante") or "",
-        "responsavel": dfd.get("responsavel") or "",
-    }
+    # Merge: IA tem precedência; heurísticas complementam
+    merged: Dict[str, Any] = {**heur, **via_ia} if via_ia else heur
+    campos_norm = _normalize_for_edital(merged)
 
-    normal = {}
-    for k, v in defaults.items():
-        normal[k] = (campos.get(k) or v or "").strip()
-
-    # Higiene mínima
-    for k in list(normal.keys()):
-        normal[k] = re.sub(r"\s+", " ", normal[k]).strip()
-
-    return normal
-
-
-# ==========================================================
-# 🧱 Geração do Rascunho textual + DOCX oficial
-# ==========================================================
-def gerar_rascunho_edital(campos: Dict[str, str], modelos_referencia: str = "") -> str:
-    """
-    Monta um rascunho textual estruturado do edital
-    (usado como pré-visualização na página).
-    """
-    linhas = [
-        f"EDITAL Nº {campos.get('numero_edital','')}",
-        f"Data de Publicação: {campos.get('data_publicacao','')}",
-        "",
-        f"Unidade Solicitante: {campos.get('unidade_solicitante','')}",
-        f"Responsável: {campos.get('responsavel','')}",
-        "",
-        "1. DO OBJETO",
-        campos.get("objeto",""),
-        "",
-        "2. DO TIPO E CRITÉRIO DE JULGAMENTO",
-        f"Tipo de licitação: {campos.get('tipo_licitacao','')}",
-        f"Critério de julgamento: {campos.get('criterio_julgamento','')}",
-        "",
-        "3. DAS CONDIÇÕES DE PARTICIPAÇÃO",
-        campos.get("condicoes_participacao",""),
-        "",
-        "4. DAS EXIGÊNCIAS DE HABILITAÇÃO",
-        campos.get("exigencias_habilitacao",""),
-        "",
-        "5. DAS OBRIGAÇÕES DA CONTRATADA",
-        campos.get("obrigacoes_contratada",""),
-        "",
-        "6. DO PRAZO DE EXECUÇÃO",
-        campos.get("prazo_execucao",""),
-        "",
-        "7. DAS FONTES DE RECURSOS",
-        campos.get("fontes_recursos",""),
-        "",
-        "8. DO GESTOR/FISCAL DO CONTRATO",
-        campos.get("gestor_fiscal",""),
-        "",
-        "9. DAS DISPOSIÇÕES FINAIS",
-        campos.get("observacoes_gerais",""),
-    ]
-    if modelos_referencia:
-        linhas += ["", "ANEXO – ORIENTAÇÕES INSTITUCIONAIS (trecho da KB)", modelos_referencia[:1200] + " …"]
-    return "\n".join(linhas)
-
-
-def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = None) -> str:
-    """
-    Gera o documento oficial (DOCX) do edital e grava em /exports.
-    Retorna o caminho do arquivo gerado.
-    """
-    doc = Document()
-    doc.add_heading(f"EDITAL Nº {campos.get('numero_edital','')}", level=1)
-    doc.add_paragraph(f"Data de Publicação: {campos.get('data_publicacao','')}")
-    doc.add_paragraph(f"Unidade Solicitante: {campos.get('unidade_solicitante','')}")
-    doc.add_paragraph(f"Responsável: {campos.get('responsavel','')}")
-    doc.add_paragraph("")
-
-    def bloco(titulo: str, corpo: str):
-        doc.add_heading(titulo, level=2)
-        doc.add_paragraph(corpo if corpo else "—")
-
-    bloco("1. DO OBJETO", campos.get("objeto",""))
-    bloco("2. DO TIPO E CRITÉRIO DE JULGAMENTO",
-          f"Tipo: {campos.get('tipo_licitacao','')}. Critério: {campos.get('criterio_julgamento','')}.")
-    bloco("3. DAS CONDIÇÕES DE PARTICIPAÇÃO", campos.get("condicoes_participacao",""))
-    bloco("4. DAS EXIGÊNCIAS DE HABILITAÇÃO", campos.get("exigencias_habilitacao",""))
-    bloco("5. DAS OBRIGAÇÕES DA CONTRATADA", campos.get("obrigacoes_contratada",""))
-    bloco("6. DO PRAZO DE EXECUÇÃO", campos.get("prazo_execucao",""))
-    bloco("7. DAS FONTES DE RECURSOS", campos.get("fontes_recursos",""))
-    bloco("8. DO GESTOR/FISCAL DO CONTRATO", campos.get("gestor_fiscal",""))
-    bloco("9. DAS DISPOSIÇÕES FINAIS", campos.get("observacoes_gerais",""))
-
-    if texto_completo:
-        doc.add_page_break()
-        doc.add_heading("ANEXO – RASCUNHO INTEGRAL", level=2)
-        for par in texto_completo.split("\n\n"):
-            doc.add_paragraph(par)
-
-    nome_arquivo = f"Edital_{campos.get('numero_edital','TJSP-PE')}.docx"
-    caminho = str(EXPORTS_DIR / nome_arquivo)
-    doc.save(caminho)
-    return caminho
-
-
-# ==========================================================
-# 🚀 Função principal – chamada a partir da página Insumos
-# ==========================================================
-def processar_insumo_edital(arquivo, contexto_previo: dict = None, artefato: str = "EDITAL") -> dict:
-    """
-    1) Extrai texto do insumo.
-    2) Integra contexto (DFD/ETP/TR).
-    3) Chama IA para estruturar campos.
-    4) Normaliza e gera rascunho + DOCX oficial.
-    5) Retorna dicionário padronizado para a página.
-    """
-    texto = _extrair_texto_arquivo(arquivo)
-    if not texto:
-        return {"erro": "Falha na extração de texto do insumo de EDITAL."}
-
-    modelos = ler_modelos_edital()
-    campos_ia = _chamar_ia_edital(texto, modelos, contexto_previo or {})
-    campos = _normalizar_campos(campos_ia if isinstance(campos_ia, dict) else {}, contexto_previo or {})
-
-    # Rascunho textual + DOCX oficial
-    rascunho = gerar_rascunho_edital(campos, modelos_referencia="")
-    docx_path = gerar_edital_docx(campos, texto_completo=rascunho)
-
-    print(f"[IA:EDITAL] Arquivo: {getattr(arquivo,'name','(sem nome)')} – Campos: {list(campos.keys())}")
-    return {
+    payload_state = {
+        "nome_arquivo": getattr(uploaded_file, "name", "arquivo"),
         "artefato": artefato,
-        "nome_arquivo": getattr(arquivo, "name", ""),
-        "status": "processado",
-        "campos_ai": campos,
-        "docx_path": docx_path,
-        "contexto_usado": list((contexto_previo or {}).keys())
+        "texto": texto,
+        "campos_ai": campos_norm,
     }
+
+    # Atualiza sessão para consumo imediato por EDITAL/TR/ETP
+    if st is not None:
+        st.session_state["last_insumo"] = payload_state
+
+    # Persistência JSON
+    _dump_json_safely(payload_state, f"{artefato}__{payload_state['nome_arquivo']}")
+
+    return campos_norm
