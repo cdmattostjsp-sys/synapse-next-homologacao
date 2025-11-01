@@ -28,16 +28,21 @@ st.divider()
 # ==========================================================
 defaults = {}
 
-if "etp_campos_ai" in st.session_state and st.session_state["etp_campos_ai"]:
+# 🔹 Prioridade 1 – Dados vindos da integração INSUMOS
+if "etp_campos_ai" in st.session_state and isinstance(st.session_state["etp_campos_ai"], dict):
     defaults = st.session_state["etp_campos_ai"]
     st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+
+# 🔹 Prioridade 2 – Compatibilidade com formato anterior
 elif "last_insumo_etp" in st.session_state:
-    result = st.session_state["last_insumo_etp"].get("resultado", {})
-    defaults = result.get("campos_ai", {})
-    if defaults:
-        st.success("📎 Dados carregados a partir do histórico da sessão.")
+    last = st.session_state["last_insumo_etp"]
+    resultado = last.get("resultado", {})
+    defaults = resultado.get("campos_ai", {})
+    st.info(f"📎 Dados carregados a partir do histórico de insumos: {last.get('nome','—')}")
+
+# 🔹 Caso nenhum dado seja encontrado
 else:
-    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
+    st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
 
 # ==========================================================
 # 🎨 Estilo institucional SAAB – botões
