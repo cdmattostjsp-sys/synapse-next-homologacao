@@ -8,7 +8,7 @@ import streamlit as st
 from io import BytesIO
 from docx import Document
 
-# Caminhos base e imports institucionais
+# Caminhos e utilitários institucionais
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if BASE_PATH not in sys.path:
     sys.path.append(BASE_PATH)
@@ -25,31 +25,45 @@ aplicar_estilo_global()
 
 exibir_cabecalho_padrao(
     "📄 Documento de Formalização da Demanda (DFD)",
-    "Pré-preenchimento automático a partir de insumos + validação IA"
+    "Pré-preenchimento automático a partir de insumos + validação IA institucional"
 )
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção e normalização do Insumo Ativo
+# 🔍 Detecção e carregamento de insumos automáticos (com fallback persistente)
 # ==========================================================
+import json, os
 defaults = {}
 
-# 🔹 Dados vindos da IA (integração direta da página Insumos)
-if "dfd_campos_ai" in st.session_state and isinstance(st.session_state["dfd_campos_ai"], dict):
-    defaults = st.session_state["dfd_campos_ai"]
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
-# 🔹 Compatibilidade com formato anterior
-elif "last_insumo_dfd" in st.session_state:
-    last = st.session_state["last_insumo_dfd"]
-    resultado = last.get("resultado", {})
-    defaults = resultado.get("campos_ai", {})
-    st.info(f"📎 Dados carregados a partir do histórico de insumos: {last.get('nome','—')}")
+# Etapa 1 – Sessão ativa
+if "dfd_campos_ai" in st.session_state:
+    defaults = st.session_state.get("dfd_campos_ai", {})
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
 
-# 🔹 Caso nenhum dado seja encontrado
-else:
+# Etapa 2 – Fallback: último insumo salvo
+elif os.path.exists(EXPORTS_JSON_DIR):
+    try:
+        arquivos = sorted(
+            [f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")],
+            reverse=True
+        )
+        if arquivos:
+            caminho = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {})
+            if isinstance(campos, dict):
+                defaults = campos
+                artefato = dados.get("artefato", "—")
+                st.info(f"📎 Último insumo {artefato} carregado automaticamente ({arquivos[0]}).")
+    except Exception as e:
+        st.warning(f"⚠️ Falha ao recuperar insumo persistido: {e}")
+
+# Etapa 3 – Nenhum insumo encontrado
+if not defaults:
     st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
-
 
 # ==========================================================
 # 🎨 Estilo institucional SAAB (mantido)
