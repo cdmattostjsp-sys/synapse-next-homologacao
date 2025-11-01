@@ -31,24 +31,34 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 🔗 Verificação de integração ativa
+# 🔍 Detecção e carregamento de insumos automáticos (com fallback persistente)
 # ==========================================================
 defaults = {}
+EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
-# 🔹 Prioridade 1 – Dados vindos da integração INSUMOS
-if "tr_campos_ai" in st.session_state and isinstance(st.session_state["tr_campos_ai"], dict):
-    defaults = st.session_state["tr_campos_ai"]
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+# Sessão ativa
+if "tr_campos_ai" in st.session_state:
+    defaults = st.session_state.get("tr_campos_ai", {})
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
 
-# 🔹 Prioridade 2 – Compatibilidade com formato anterior
-elif "last_insumo_tr" in st.session_state:
-    last = st.session_state["last_insumo_tr"]
-    resultado = last.get("resultado", {})
-    defaults = resultado.get("campos_ai", {})
-    st.info(f"📎 Dados carregados a partir do histórico de insumos: {last.get('nome','—')}")
+# Fallback: último insumo persistido
+elif os.path.exists(EXPORTS_JSON_DIR):
+    try:
+        arquivos = sorted([f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")], reverse=True)
+        if arquivos:
+            caminho = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {})
+            if isinstance(campos, dict):
+                defaults = campos
+                artefato = dados.get("artefato", "—")
+                st.info(f"📎 Último insumo {artefato} carregado automaticamente ({arquivos[0]}).")
+    except Exception as e:
+        st.warning(f"⚠️ Falha ao recuperar insumo persistido: {e}")
 
-# 🔹 Caso nenhum dado seja encontrado
-else:
+# Nenhum insumo detectado
+if not defaults:
     st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **🔧 Insumos**.")
 
 # ==========================================================
@@ -105,6 +115,7 @@ Campos:
 
 Modelos institucionais:
 \"\"\"{modelos}\"\"\"
+
 
 O texto deve seguir o padrão redacional e técnico do TJSP.
 """
