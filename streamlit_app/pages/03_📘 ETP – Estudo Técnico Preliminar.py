@@ -1,7 +1,7 @@
-# ==============================
+# ==========================================================
 # pages/03_📘 ETP – Estudo Técnico Preliminar.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# ==============================
+# ==========================================================
 
 import sys, os, json
 import streamlit as st
@@ -19,29 +19,39 @@ aplicar_estilo_global()
 
 exibir_cabecalho_padrao(
     "📘 Estudo Técnico Preliminar (ETP)",
-    "Pré-preenchimento automático a partir de insumos + validação IA"
+    "Pré-preenchimento automático a partir de insumos + validação IA institucional"
 )
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção e carregamento de insumos automáticos
+# 🔍 Detecção e carregamento de insumos automáticos (com fallback persistente)
 # ==========================================================
 defaults = {}
+EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
-# 🔹 Prioridade 1 – Dados vindos da integração INSUMOS
-if "etp_campos_ai" in st.session_state and isinstance(st.session_state["etp_campos_ai"], dict):
-    defaults = st.session_state["etp_campos_ai"]
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (IA institucional ativa).")
+# Sessão ativa
+if "etp_campos_ai" in st.session_state:
+    defaults = st.session_state.get("etp_campos_ai", {})
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
 
-# 🔹 Prioridade 2 – Compatibilidade com formato anterior
-elif "last_insumo_etp" in st.session_state:
-    last = st.session_state["last_insumo_etp"]
-    resultado = last.get("resultado", {})
-    defaults = resultado.get("campos_ai", {})
-    st.info(f"📎 Dados carregados a partir do histórico de insumos: {last.get('nome','—')}")
+# Fallback
+elif os.path.exists(EXPORTS_JSON_DIR):
+    try:
+        arquivos = sorted([f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")], reverse=True)
+        if arquivos:
+            caminho = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {})
+            if isinstance(campos, dict):
+                defaults = campos
+                artefato = dados.get("artefato", "—")
+                st.info(f"📎 Último insumo {artefato} carregado automaticamente ({arquivos[0]}).")
+    except Exception as e:
+        st.warning(f"⚠️ Falha ao recuperar insumo persistido: {e}")
 
-# 🔹 Caso nenhum dado seja encontrado
-else:
+# Nenhum insumo
+if not defaults:
     st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
 
 # ==========================================================
