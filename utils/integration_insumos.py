@@ -57,64 +57,59 @@ def processar_insumo(uploaded_file, artefato: str):
         st.error(f"Erro ao extrair texto do arquivo: {e}")
         texto_extraido = ""
 
-    # ==========================================================
-    # 🤖 Extração semântica com IA institucional (OpenAI)
+        # ==========================================================
+    # 🤖 Extração semântica com IA institucional (OpenAI) – versão robusta
     # ==========================================================
     campos_norm = {}
     try:
         from openai import OpenAI
+        import re
 
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
-        if not OPENAI_API_KEY:
-            raise ValueError("Chave da API OpenAI não configurada (OPENAI_API_KEY).")
-
         client = OpenAI(api_key=OPENAI_API_KEY)
 
         prompt = f"""
 Você é um redator institucional do Tribunal de Justiça de São Paulo (SAAB/TJSP).
-Sua função é analisar o conteúdo abaixo e devolver um resumo estruturado
-nos moldes de documentos administrativos oficiais.
+Analise o texto abaixo e devolva APENAS um JSON válido (sem comentários ou texto adicional),
+preenchendo os campos com informações completas e formais.
 
-INSTRUÇÕES:
-- Mantenha o tom formal, técnico e redacional compatível com documentos do TJSP.
-- Preencha todos os campos solicitados, mesmo que parcialmente inferidos.
-- Retorne APENAS um JSON válido, no formato:
+Campos esperados:
+- unidade_solicitante
+- responsavel_tecnico
+- objeto
+- justificativa_tecnica
+- criterios_julgamento
+- riscos
+- prazo_execucao
+- estimativa_valor
+- fonte_recurso
 
-{{
-  "unidade_solicitante": "...",
-  "responsavel_tecnico": "...",
-  "objeto": "...",
-  "justificativa_tecnica": "...",
-  "criterios_julgamento": "...",
-  "riscos": "...",
-  "prazo_execucao": "...",
-  "estimativa_valor": "...",
-  "fonte_recurso": "..."
-}}
-
-CONTEÚDO EXTRAÍDO ({artefato}):
-\"\"\"{texto_extraido[:6000]}\"\"\"
+Texto analisado:
+\"\"\"{texto_extraido[:7000]}\"\"\"
 """
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um analista institucional do TJSP, especialista em artefatos administrativos.",
-                },
+                {"role": "system", "content": "Você é um analista institucional especialista em artefatos administrativos do TJSP."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.25,
+            temperature=0.2
         )
 
         conteudo_ia = response.choices[0].message.content.strip()
-        campos_norm = json.loads(conteudo_ia)
 
-        st.success("✅ Conteúdo processado com IA institucional.")
+        # Garantir que a resposta contenha apenas JSON
+        json_match = re.search(r"\{.*\}", conteudo_ia, re.DOTALL)
+        if json_match:
+            campos_norm = json.loads(json_match.group(0))
+        else:
+            raise ValueError("A resposta da IA não contém JSON válido.")
+
+        st.success("✅ Campos extraídos com IA institucional.")
 
     except Exception as e:
-        st.warning(f"⚠️ Falha ao gerar campos com IA institucional ({e}). Usando preenchimento padrão.")
+        st.warning(f"⚠️ Falha ao processar com IA ({e}). Usando preenchimento padrão.")
         campos_norm = {
             "objeto": f"Objeto identificado a partir do insumo '{uploaded_file.name}'",
             "unidade_solicitante": "Departamento de Administração e Planejamento",
