@@ -89,3 +89,38 @@ def processar_insumo(uploaded_file, artefato: str = "EDITAL") -> Dict[str, Any]:
 
 def processar_insumo_dinamico(uploaded_file, artefato: str = "EDITAL"):
     return processar_insumo(uploaded_file, artefato)
+
+# ==========================================================
+# 🔽 Salvamento e persistência dos insumos processados
+# ==========================================================
+
+def salvar_insumo_processado(artefato, descricao, campos_ai):
+    """
+    Salva o insumo processado tanto na sessão quanto em disco (formato JSON).
+    """
+    try:
+        # Garante estrutura correta
+        dados_insumo = {
+            "artefato": artefato,
+            "descricao": descricao,
+            "campos_ai": campos_ai if isinstance(campos_ai, dict) else {},
+        }
+
+        # Persiste em sessão
+        chave_sessao = f"{artefato.lower()}_campos_ai"
+        st.session_state[chave_sessao] = dados_insumo["campos_ai"]
+
+        # Persiste em disco
+        EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+        os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
+        nome_arquivo = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        caminho = os.path.join(EXPORTS_JSON_DIR, nome_arquivo)
+        with open(caminho, "w", encoding="utf-8") as f:
+            json.dump(dados_insumo, f, ensure_ascii=False, indent=2)
+
+        st.success(f"✅ Insumo '{artefato}' processado e encaminhado com sucesso.")
+        return True
+
+    except Exception as e:
+        st.error(f"Erro ao salvar insumo processado: {e}")
+        return False
