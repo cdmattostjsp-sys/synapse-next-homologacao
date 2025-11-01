@@ -345,3 +345,14 @@ def processar_insumo(uploaded_file, artefato: str = "EDITAL") -> Dict[str, Any]:
     _dump_json_safely(payload_state, f"{artefato}__{payload_state['nome_arquivo']}")
 
     return campos_norm
+
+# ==============================================================
+# 🔁 Compatibilidade retroativa – processar_insumo_dinamico
+# ==============================================================
+
+def processar_insumo_dinamico(uploaded_file, artefato: str = "EDITAL"):
+    """
+    Wrapper de compatibilidade com versões anteriores.
+    Encaminha a chamada para processar_insumo().
+    """
+    return processar_insumo(uploaded_file, artefato=artefato)
