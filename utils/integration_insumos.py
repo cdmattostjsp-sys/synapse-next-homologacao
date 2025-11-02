@@ -1,9 +1,13 @@
 # ==========================================================
+
 # utils/integration_insumos.py
+
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+
 # ==========================================================
-# Funções de integração entre insumos e módulos (DFD, ETP, TR, Edital)
-# com extração textual, IA institucional e persistência local
+
+# Integração híbrida entre o motor original de insumos e o novo engine IA v3
+
 # ==========================================================
 
 import streamlit as st
@@ -12,55 +16,76 @@ import io
 import json
 from datetime import datetime
 
+# Novo motor institucional IA v3
+
+from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
+
 # ==========================================================
-# 🧠 Função principal – processamento dinâmico de insumo
+
+# 🧠 Função principal – processamento dinâmico de insumo (híbrido)
+
 # ==========================================================
 
 def processar_insumo(uploaded_file, artefato: str):
-    """
-    Processa insumos institucionais e os encaminha ao módulo correspondente.
-    Compatível com DFD, ETP, TR e Edital.
-    """
+"""
+Processa insumos institucionais e os encaminha ao módulo correspondente.
+Compatível com DFD, ETP, TR e Edital.
+Agora integrado ao motor institucional IA v3.
+"""
 
-    if not uploaded_file:
-        st.warning("Nenhum arquivo foi enviado.")
-        return None
+```
+if not uploaded_file:
+    st.warning("Nenhum arquivo foi enviado.")
+    return None
 
-    artefato = artefato.upper().strip()
-    nome_arquivo = uploaded_file.name
-    st.info(f"📄 Processando insumo '{nome_arquivo}' para o módulo {artefato}...")
+artefato = artefato.upper().strip()
+nome_arquivo = uploaded_file.name
+st.info(f"📄 Processando insumo '{nome_arquivo}' para o módulo {artefato}...")
 
-    # ==========================================================
-    # 📂 Leitura segura de arquivo (TXT, DOCX, PDF)
-    # ==========================================================
-    extensao = os.path.splitext(nome_arquivo)[1].lower()
+# ==========================================================
+# 📂 Leitura segura de arquivo (TXT, DOCX, PDF)
+# ==========================================================
+extensao = os.path.splitext(nome_arquivo)[1].lower()
+texto_extraido = ""
+
+try:
+    if extensao == ".txt":
+        texto_extraido = uploaded_file.read().decode("utf-8", errors="ignore")
+
+    elif extensao == ".docx":
+        from docx import Document
+        doc = Document(io.BytesIO(uploaded_file.read()))
+        texto_extraido = "\n".join([p.text for p in doc.paragraphs])
+
+    elif extensao == ".pdf":
+        from PyPDF2 import PdfReader
+        pdf_reader = PdfReader(io.BytesIO(uploaded_file.read()))
+        texto_extraido = "\n".join([page.extract_text() or "" for page in pdf_reader.pages])
+
+    else:
+        texto_extraido = "⚠️ Formato de arquivo não suportado para extração de texto."
+
+except Exception as e:
+    st.error(f"Erro ao extrair texto do arquivo: {e}")
     texto_extraido = ""
 
-    try:
-        if extensao == ".txt":
-            texto_extraido = uploaded_file.read().decode("utf-8", errors="ignore")
+# ==========================================================
+# 🤖 Etapa IA – tenta usar o novo engine v3, com fallback para lógica antiga
+# ==========================================================
+campos_norm = {}
+try:
+    st.info("🔍 Acionando motor institucional IA v3...")
+    resultado_ia = processar_insumo_ia(
+        uploaded_file,
+        tipo_artefato=artefato,
+        metadados_form={"origem": "integration_insumos.py", "nome_arquivo": nome_arquivo},
+        filename=nome_arquivo,
+    )
+    campos_norm = resultado_ia.get("campos", {})
+    st.success("✅ Campos inferidos com sucesso pela IA institucional v3.")
 
-        elif extensao == ".docx":
-            from docx import Document
-            doc = Document(io.BytesIO(uploaded_file.read()))
-            texto_extraido = "\n".join([p.text for p in doc.paragraphs])
-
-        elif extensao == ".pdf":
-            from PyPDF2 import PdfReader
-            pdf_reader = PdfReader(io.BytesIO(uploaded_file.read()))
-            texto_extraido = "\n".join([page.extract_text() or "" for page in pdf_reader.pages])
-
-        else:
-            texto_extraido = "⚠️ Formato de arquivo não suportado para extração de texto."
-
-    except Exception as e:
-        st.error(f"Erro ao extrair texto do arquivo: {e}")
-        texto_extraido = ""
-
-        # ==========================================================
-    # 🤖 Extração semântica com IA institucional (OpenAI) – versão robusta
-    # ==========================================================
-    campos_norm = {}
+except Exception as e:
+    st.warning(f"⚠️ Falha ao acionar o motor IA v3 ({e}). Revertendo para modo clássico.")
     try:
         from openai import OpenAI
         import re
@@ -69,25 +94,29 @@ def processar_insumo(uploaded_file, artefato: str):
         client = OpenAI(api_key=OPENAI_API_KEY)
 
         prompt = f"""
+```
+
 Você é um redator institucional do Tribunal de Justiça de São Paulo (SAAB/TJSP).
 Analise o texto abaixo e devolva APENAS um JSON válido (sem comentários ou texto adicional),
 preenchendo os campos com informações completas e formais.
 
 Campos esperados:
-- unidade_solicitante
-- responsavel_tecnico
-- objeto
-- justificativa_tecnica
-- criterios_julgamento
-- riscos
-- prazo_execucao
-- estimativa_valor
-- fonte_recurso
+
+* unidade_solicitante
+* responsavel_tecnico
+* objeto
+* justificativa_tecnica
+* criterios_julgamento
+* riscos
+* prazo_execucao
+* estimativa_valor
+* fonte_recurso
 
 Texto analisado:
-\"\"\"{texto_extraido[:7000]}\"\"\"
+"""{texto_extraido[:7000]}"""
 """
 
+```
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -99,17 +128,17 @@ Texto analisado:
 
         conteudo_ia = response.choices[0].message.content.strip()
 
-        # Garantir que a resposta contenha apenas JSON
+        import re
         json_match = re.search(r"\{.*\}", conteudo_ia, re.DOTALL)
         if json_match:
             campos_norm = json.loads(json_match.group(0))
         else:
             raise ValueError("A resposta da IA não contém JSON válido.")
 
-        st.success("✅ Campos extraídos com IA institucional.")
+        st.success("✅ Campos extraídos com IA (modo clássico).")
 
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao processar com IA ({e}). Usando preenchimento padrão.")
+    except Exception as e2:
+        st.warning(f"⚠️ Falha no modo clássico ({e2}). Aplicando fallback padrão.")
         campos_norm = {
             "objeto": f"Objeto identificado a partir do insumo '{uploaded_file.name}'",
             "unidade_solicitante": "Departamento de Administração e Planejamento",
@@ -122,50 +151,51 @@ Texto analisado:
             "fonte_recurso": "Orçamento ordinário TJSP",
         }
 
-    # ==========================================================
-    # 💾 Monta payload final
-    # ==========================================================
-    payload = {
-        "nome_arquivo": uploaded_file.name,
-        "artefato": artefato,
-        "texto": texto_extraido[:8000],
-        "campos_ai": campos_norm,
-        "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
+# ==========================================================
+# 💾 Monta payload final
+# ==========================================================
+payload = {
+    "nome_arquivo": uploaded_file.name,
+    "artefato": artefato,
+    "texto": texto_extraido[:8000],
+    "campos_ai": campos_norm,
+    "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+}
 
-    # ==========================================================
-    # 🧭 Atualiza sessão ativa (Streamlit)
-    # ==========================================================
-    if artefato == "DFD":
-        st.session_state["dfd_campos_ai"] = campos_norm
-        st.session_state["last_insumo_dfd"] = payload
-    elif artefato == "ETP":
-        st.session_state["etp_campos_ai"] = campos_norm
-        st.session_state["last_insumo_etp"] = payload
-    elif artefato == "TR":
-        st.session_state["tr_campos_ai"] = campos_norm
-        st.session_state["last_insumo_tr"] = payload
-    elif artefato == "EDITAL":
-        st.session_state["edital_campos_ai"] = campos_norm
-        st.session_state["last_insumo_edital"] = payload
+# ==========================================================
+# 🧭 Atualiza sessão ativa (Streamlit)
+# ==========================================================
+if artefato == "DFD":
+    st.session_state["dfd_campos_ai"] = campos_norm
+    st.session_state["last_insumo_dfd"] = payload
+elif artefato == "ETP":
+    st.session_state["etp_campos_ai"] = campos_norm
+    st.session_state["last_insumo_etp"] = payload
+elif artefato == "TR":
+    st.session_state["tr_campos_ai"] = campos_norm
+    st.session_state["last_insumo_tr"] = payload
+elif artefato == "EDITAL":
+    st.session_state["edital_campos_ai"] = campos_norm
+    st.session_state["last_insumo_edital"] = payload
 
-    # ==========================================================
-    # 📦 Exportação de backup em JSON
-    # ==========================================================
-    EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
-    os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
+# ==========================================================
+# 📦 Exportação de backup em JSON
+# ==========================================================
+EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
 
-    arquivo_saida = os.path.join(
-        EXPORTS_JSON_DIR, f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    )
-    try:
-        with open(arquivo_saida, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        st.warning(f"⚠️ Não foi possível salvar o JSON: {e}")
+arquivo_saida = os.path.join(
+    EXPORTS_JSON_DIR, f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+)
+try:
+    with open(arquivo_saida, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+except Exception as e:
+    st.warning(f"⚠️ Não foi possível salvar o JSON: {e}")
 
-    # ==========================================================
-    # ✅ Retorno final
-    # ==========================================================
-    st.success(f"Insumo '{artefato}' processado e encaminhado com sucesso ao respectivo módulo.")
-    return payload
+# ==========================================================
+# ✅ Retorno final
+# ==========================================================
+st.success(f"Insumo '{artefato}' processado e encaminhado com sucesso ao respectivo módulo.")
+return payload
+```
