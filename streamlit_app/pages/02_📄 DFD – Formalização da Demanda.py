@@ -2,191 +2,99 @@
 # pages/02_📄 DFD – Formalização da Demanda.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==========================================================
+# Documento de Formalização da Demanda (DFD)
+# Pré-preenchimento automático via módulo INSUMOS + IA Institucional v3
+# ==========================================================
 
-import sys, os, json
 import streamlit as st
-from io import BytesIO
-from docx import Document
-
-# Caminhos e utilitários institucionais
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
-from utils.integration_dfd import export_dfd_to_json
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.agents_bridge import AgentsBridge
+from utils.integration_dfd import carregar_dfd_para_formulario, export_dfd_to_json
 
 # ==========================================================
-# ⚙️ Configuração da Página
+# ⚙️ Configuração inicial
 # ==========================================================
 st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide", page_icon="📄")
 aplicar_estilo_global()
 
 exibir_cabecalho_padrao(
     "📄 Documento de Formalização da Demanda (DFD)",
-    "Pré-preenchimento automático a partir de insumos + validação IA institucional"
+    "Pré-preenchimento automático a partir de insumos e validação IA institucional."
 )
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção e carregamento de insumos automáticos (com fallback persistente)
+# 📦 Carregamento automático de dados do módulo INSUMOS
 # ==========================================================
-import json, os
-defaults = {}
+dados_ai = carregar_dfd_para_formulario()
 
-EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
-
-# Etapa 1 – Sessão ativa
-if "dfd_campos_ai" in st.session_state:
-    defaults = st.session_state.get("dfd_campos_ai", {})
+if dados_ai:
     st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
+else:
+    st.info("Envie um documento na aba 🔧 **Insumos** para gerar o pré-preenchimento automático.")
 
-# Etapa 2 – Fallback: último insumo salvo
-elif os.path.exists(EXPORTS_JSON_DIR):
-    try:
-        arquivos = sorted(
-            [f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")],
-            reverse=True
-        )
-        if arquivos:
-            caminho = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
-            with open(caminho, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            campos = dados.get("campos_ai", {})
-            if isinstance(campos, dict):
-                defaults = campos
-                artefato = dados.get("artefato", "—")
-                st.info(f"📎 Último insumo {artefato} carregado automaticamente ({arquivos[0]}).")
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao recuperar insumo persistido: {e}")
-
-# Etapa 3 – Nenhum insumo encontrado
-if not defaults:
-    st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
+st.divider()
 
 # ==========================================================
-# 🎨 Estilo institucional SAAB (mantido)
+# 🧾 Entrada – Formulário Institucional
 # ==========================================================
-st.markdown("""
-    <style>
-        div.stButton > button:first-child {
-            background-color: #003366;
-            color: white;
-            border-radius: 8px;
-            height: 2.8em;
-            width: 100%;
-            font-weight: 500;
-            border: none;
-        }
-        div.stButton > button:hover {
-            background-color: #002244;
-            color: white;
-            transition: 0.2s;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.subheader("🧾 1. Entrada – Formulário Institucional")
 
-# ==========================================================
-# 🧾 Formulário Institucional
-# ==========================================================
-st.subheader("1️⃣ Entrada – Formulário Institucional")
+col1, col2 = st.columns(2)
+with col1:
+    unidade = st.text_input(
+        "Unidade solicitante",
+        value=dados_ai.get("unidade_solicitante", "")
+    )
+with col2:
+    responsavel = st.text_input(
+        "Responsável pela demanda",
+        value=dados_ai.get("responsavel", dados_ai.get("responsavel_tecnico", ""))
+    )
 
-with st.form("form_dfd"):
-    unidade = st.text_input("Unidade solicitante", value=defaults.get("unidade_solicitante", ""))
-    responsavel = st.text_input("Responsável pela demanda", value=defaults.get("responsavel", ""))
-    objeto = st.text_area("Objeto da contratação", value=defaults.get("objeto", ""), height=100)
-    justificativa = st.text_area("Justificativa da necessidade", value=defaults.get("justificativa", ""), height=100)
-    quantidade = st.text_area("Quantidade e escopo", value=defaults.get("quantidade", ""), height=80)
-    urgencia = st.text_area("Urgência (se aplicável)", value=defaults.get("urgencia", ""), height=80)
-    riscos = st.text_area("Riscos identificados", value=defaults.get("riscos", ""), height=80)
-    alinhamento = st.text_area("Alinhamento estratégico", value=defaults.get("alinhamento_planejamento", ""), height=80)
+objeto = st.text_area("Objeto da contratação", value=dados_ai.get("objeto", ""), height=100)
+justificativa = st.text_area("Justificativa técnica", value=dados_ai.get("justificativa", ""), height=100)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
-    with col2:
-        submitted = st.form_submit_button("💾 Gerar rascunho manual")
+col3, col4 = st.columns(2)
+with col3:
+    quantidade = st.text_input("Quantidade estimada", value=dados_ai.get("quantidade", ""))
+with col4:
+    urgencia = st.selectbox(
+        "Grau de urgência",
+        ["Baixa", "Média", "Alta"],
+        index=0 if not dados_ai.get("urgencia") else ["Baixa", "Média", "Alta"].index(
+            dados_ai["urgencia"].capitalize()) if dados_ai["urgencia"].capitalize() in ["Baixa", "Média", "Alta"] else 0
+    )
 
-st.caption("💡 O botão '⚙️ Gerar rascunho com IA institucional' usa o agente DFD.IA com base nos metadados preenchidos.")
+riscos = st.text_area("Riscos associados", value=dados_ai.get("riscos", ""), height=100)
+alinhamento = st.text_area("Alinhamento com planejamento estratégico", value=dados_ai.get("alinhamento_planejamento", ""), height=100)
 
 # ==========================================================
-# 💡 Geração IA Institucional
+# 🧩 Montagem final do DFD
 # ==========================================================
-if gerar_ia:
-    st.info("Executando agente DFD institucional...")
-    metadata = {
-        "unidade": unidade,
-        "descricao": objeto,
-        "justificativa": justificativa,
-        "quantidade": quantidade,
-        "riscos": riscos,
-        "responsavel": responsavel,
-        "alinhamento": alinhamento,
-    }
-    try:
-        bridge = AgentsBridge("DFD")
-        resultado = bridge.generate(metadata)
-        st.success("✅ Rascunho gerado com sucesso pelo agente institucional DFD.IA!")
-        st.json(resultado)
-        st.session_state["last_dfd"] = resultado.get("secoes", {})
-    except Exception as e:
-        st.error(f"Erro ao gerar rascunho com IA: {e}")
+dfd_dados = {
+    "unidade_solicitante": unidade,
+    "responsavel": responsavel,
+    "objeto": objeto,
+    "justificativa": justificativa,
+    "quantidade": quantidade,
+    "urgencia": urgencia,
+    "riscos": riscos,
+    "alinhamento_planejamento": alinhamento,
+}
 
 # ==========================================================
-# 💾 Resultado Manual
+# 💾 Botão de exportação e confirmação
 # ==========================================================
-if submitted:
-    dfd_data = {
-        "unidade_solicitante": unidade,
-        "responsavel": responsavel,
-        "objeto": objeto,
-        "justificativa": justificativa,
-        "quantidade": quantidade,
-        "urgencia": urgencia,
-        "riscos": riscos,
-        "alinhamento_planejamento": alinhamento,
-    }
-    st.success("✅ Rascunho de DFD gerado manualmente!")
-    st.json(dfd_data)
-    st.session_state["last_dfd"] = dfd_data
+st.divider()
+if st.button("💾 Salvar e Exportar DFD"):
+    path = export_dfd_to_json(dfd_dados)
+    st.success(f"✅ DFD salvo com sucesso em: `{path}`")
+    st.json(dfd_dados)
+else:
+    st.caption("Após revisar os campos, clique em **Salvar e Exportar DFD** para armazenar o documento.")
 
 # ==========================================================
-# 📤 Exportação
+# 🏁 Rodapé institucional
 # ==========================================================
-if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
-    st.divider()
-    st.subheader("📤 Exportação de Documento")
-    st.info("Baixe o último DFD gerado em formato Word editável.")
-
-    dfd_data = st.session_state["last_dfd"]
-    doc = Document()
-    doc.add_heading("Documento de Formalização da Demanda (DFD)", level=1)
-    for k, v in dfd_data.items():
-        p = doc.add_paragraph()
-        p.add_run(f"{k}: ").bold = True
-        p.add_run(str(v) or "—")
-
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    st.download_button("💾 Baixar DFD_rascunho.docx", buffer, file_name="DFD_rascunho.docx")
-
-    st.markdown("---")
-    if st.button("📦 Exportar DFD (JSON)"):
-        dfd_payload = {
-            "unidade": dfd_data.get("unidade_solicitante", ""),
-            "descricao": dfd_data.get("objeto", ""),
-            "motivacao": dfd_data.get("justificativa", ""),
-            "quantidade": dfd_data.get("quantidade", ""),
-            "responsavel": dfd_data.get("responsavel", ""),
-            "riscos": dfd_data.get("riscos", ""),
-            "alinhamento": dfd_data.get("alinhamento_planejamento", "")
-        }
-        try:
-            path = export_dfd_to_json(dfd_payload)
-            st.success(f"✅ DFD exportado com sucesso para {path}")
-        except Exception as e:
-            st.error(f"Falha ao exportar DFD: {e}")
-
-st.caption("💡 *Dica:* O botão '⚙️ Gerar rascunho com IA institucional' usa o agente DFD.IA com base nos metadados preenchidos.")
+st.divider()
+st.caption("📄 Módulo DFD – SynapseNext (TJSP/SAAB). Integração ativa com IA Institucional v3.")
