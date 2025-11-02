@@ -1,153 +1,115 @@
-# -*- coding: utf-8 -*-
-"""
-utils/integration_etp.py – Exportação/Importação do ETP
-Responsável por:
-- Gravar o arquivo exports/etp_data.json a partir dos metadados do ETP.
-- Ler o arquivo exports/etp_data.json para pré-preencher o módulo TR.
-"""
+# ==========================================================
+# utils/integration_etp.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==========================================================
+# Integração entre o processamento de INSUMOS e o módulo ETP.
+# Recupera automaticamente dados da sessão ativa ou do último JSON salvo.
+# Compatível com o motor IA institucional v3 e persistência híbrida.
+# ==========================================================
 
-import json
+from __future__ import annotations
 import os
-import re
-from typing import Dict, Any
-from pathlib import Path
-from utils.ai_client import AIClient
+import json
+import glob
+import streamlit as st
+from datetime import datetime
 
 # ==========================================================
-# 📂 Diretórios e caminhos de exportação
+# 🧠 Função principal – obter ETP ativo
 # ==========================================================
-EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
-ETP_JSON_PATH = os.path.join(EXPORTS_DIR, "etp_data.json")
-client = AIClient()
+def obter_etp_da_sessao() -> dict:
+    """
+    Recupera o dicionário de campos do ETP ativo.
 
-# ==========================================================
-# 📤 Funções utilitárias
-# ==========================================================
-def ensure_exports_dir(path: str = EXPORTS_DIR) -> None:
-    os.makedirs(path, exist_ok=True)
+    Prioridades:
+    1️⃣ st.session_state["etp_campos_ai"]
+    2️⃣ exports/insumos/json/ETP_ultimo.json
+    3️⃣ Último arquivo ETP_*.json no diretório de insumos
+    """
 
-def export_etp_to_json(data: Dict[str, Any], path: str = ETP_JSON_PATH) -> str:
-    ensure_exports_dir(os.path.dirname(path))
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return path
+    # 1️⃣ Sessão ativa
+    if "etp_campos_ai" in st.session_state and st.session_state["etp_campos_ai"]:
+        return st.session_state["etp_campos_ai"]
 
-def load_etp_from_json(path: str = ETP_JSON_PATH) -> Dict[str, Any]:
+    # 2️⃣ Último insumo salvo (ETP_ultimo.json)
+    base_dir = os.path.join("exports", "insumos", "json")
+    ultimo_json = os.path.join(base_dir, "ETP_ultimo.json")
+
+    if os.path.exists(ultimo_json):
+        try:
+            with open(ultimo_json, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
+            if campos:
+                st.session_state["etp_campos_ai"] = campos
+                return campos
+        except Exception as e:
+            st.warning(f"⚠️ Falha ao ler ETP_ultimo.json: {e}")
+
+    # 3️⃣ Busca o arquivo mais recente (fallback final)
     try:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        pass
+        arquivos = sorted(
+            glob.glob(os.path.join(base_dir, "ETP_*.json")),
+            key=os.path.getmtime,
+            reverse=True,
+        )
+        for arquivo in arquivos:
+            if "ETP_ultimo.json" in arquivo:
+                continue
+            with open(arquivo, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
+            if campos:
+                st.session_state["etp_campos_ai"] = campos
+                return campos
+    except Exception as e:
+        st.warning(f"⚠️ Nenhum ETP válido encontrado ({e})")
+
+    # 4️⃣ Fallback seguro
     return {}
 
-# ==========================================================
-# 🧠 Base de conhecimento institucional (ETP)
-# ==========================================================
-def ler_modelos_etp() -> str:
-    """Lê a base de conhecimento institucional (Knowledge Base) para ETP."""
-    base = Path(__file__).resolve().parents[1] / "knowledge" / "etp_models"
-    textos = []
-    if base.exists():
-        for arq in base.glob("*.txt"):
-            try:
-                textos.append(arq.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-    return "\n\n".join(textos)
 
 # ==========================================================
-# 🤖 Processamento de Insumo – ETP
+# 💾 Função auxiliar – salvar ETP gerado pelo formulário
 # ==========================================================
-def processar_insumo_etp(arquivo, artefato: str = "ETP") -> dict:
+def salvar_etp_em_json(campos_etp: dict, origem: str = "formulario") -> str:
     """
-    Extrai o texto do arquivo enviado (PDF, DOCX ou TXT),
-    realiza análise semântica institucional e retorna campos estruturados.
+    Salva o conteúdo atual do formulário ETP em /exports/insumos/json.
+    Utilizado tanto para IA quanto para preenchimento manual.
     """
-    from io import BytesIO
-    import fitz, docx2txt
+    base_dir = os.path.join("exports", "insumos", "json")
+    os.makedirs(base_dir, exist_ok=True)
 
-    dados = arquivo.read()
-    arquivo.seek(0)
-    nome = arquivo.name.lower()
-    texto_extraido = ""
-
-    # 1️⃣ Extração de texto
-    try:
-        if nome.endswith(".pdf"):
-            pdf = fitz.open(stream=dados, filetype="pdf")
-            texto_extraido = "".join(p.get_text() for p in pdf)
-        elif nome.endswith(".docx"):
-            texto_extraido = docx2txt.process(BytesIO(dados))
-        elif nome.endswith(".txt"):
-            texto_extraido = dados.decode("utf-8", errors="ignore")
-    except Exception as e:
-        return {"erro": f"Falha ao extrair texto: {e}"}
-
-    if not texto_extraido.strip():
-        return {"erro": "Texto vazio após leitura do insumo."}
-
-    texto_limpo = re.sub(r"\s+", " ", texto_extraido).strip()
-    modelos = ler_modelos_etp()
-
-    # 2️⃣ Prompt institucional
-    system_prompt = (
-        "Você é um agente institucional especializado em Estudo Técnico Preliminar (ETP). "
-        "Analise o texto do insumo e extraia os campos padronizados conforme o modelo do TJSP."
-    )
-
-    user_prompt = f"""
-Texto do insumo:
-\"\"\"{texto_limpo}\"\"\"
-
-Modelos institucionais de referência:
-\"\"\"{modelos}\"\"\"
-
-Retorne apenas um JSON com os seguintes campos:
-- objeto
-- problema_a_resolver
-- solucao_proposta
-- alternativas_analisadas
-- justificativa_da_escolha
-- resultados_esperados
-- impacto_orcamentario
-"""
-
-    # 3️⃣ Chamada à IA institucional
-    try:
-        response = client.chat([
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ])
-        conteudo = response["content"]
-        match = re.search(r"\{.*\}", conteudo, re.DOTALL)
-        campos = json.loads(match.group(0)) if match else {"objeto": texto_limpo[:800]}
-    except Exception as e:
-        campos = {"erro": f"Falha ao processar IA: {e}"}
-
-    # ==========================================================
-    # 🔄 Normalização dos campos para compatibilidade com o front-end
-    # ==========================================================
-    campos_ai = {
-        "requisitos": campos.get("solucao_proposta", campos.get("objeto", "")),
-        "custos": campos.get("impacto_orcamentario", "A definir com base no orçamento institucional."),
-        "riscos": campos.get("problema_a_resolver", "Sem riscos relevantes identificados."),
-        "responsavel_tecnico": campos.get("responsavel_tecnico", "Responsável técnico a designar.")
+    payload = {
+        "artefato": "ETP",
+        "origem": origem,
+        "campos_ai": campos_etp,
+        "data_salvamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    # Garante que nenhum campo fique vazio
-    for k, v in campos_ai.items():
-        if not v:
-            campos_ai[k] = "—"
+    arquivo_ultimo = os.path.join(base_dir, "ETP_ultimo.json")
+    arquivo_timestamp = os.path.join(base_dir, f"ETP_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
 
-    print(f"[IA:ETP] Arquivo: {arquivo.name} – Campos normalizados: {list(campos_ai.keys())}")
+    try:
+        with open(arquivo_ultimo, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        with open(arquivo_timestamp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        st.session_state["etp_campos_ai"] = campos_etp
+        return arquivo_ultimo
+    except Exception as e:
+        st.warning(f"⚠️ Falha ao salvar ETP: {e}")
+        return ""
 
-    # ==========================================================
-    # 📦 Retorno final compatível com SynapseNext
-    # ==========================================================
-    return {
-        "artefato": artefato,
-        "nome_arquivo": arquivo.name,
-        "status": "processado",
-        "campos_ai": campos_ai
-    }
+
+# ==========================================================
+# 🧩 Função utilitária – status legível
+# ==========================================================
+def status_etp():
+    """Retorna uma string de status para exibição no topo do módulo ETP."""
+    if "etp_campos_ai" in st.session_state and st.session_state["etp_campos_ai"]:
+        return "✅ Dados carregados automaticamente (sessão ativa ou JSON)"
+    base_dir = os.path.join("exports", "insumos", "json")
+    if os.path.exists(os.path.join(base_dir, "ETP_ultimo.json")):
+        return "🗂️ Dados disponíveis no último processamento de INSUMOS."
+    return "⚠️ Nenhum ETP ativo encontrado – envie um insumo em '🔧 Insumos'."
