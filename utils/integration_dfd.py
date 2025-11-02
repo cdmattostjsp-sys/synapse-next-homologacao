@@ -1,118 +1,114 @@
-# -*- coding: utf-8 -*-
 # ==========================================================
 # utils/integration_dfd.py
-# SynapseNext – Integração com motor IA institucional v3
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==========================================================
+# Módulo de integração entre o processamento de INSUMOS e o formulário DFD.
+# Recupera automaticamente dados da sessão ativa ou do último JSON salvo.
+# Compatível com motor IA institucional v3.
 # ==========================================================
 
 from __future__ import annotations
-import json
 import os
-import re
-from typing import Dict, Any
-from pathlib import Path
+import json
+import glob
 import streamlit as st
-from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
+from datetime import datetime
 
 # ==========================================================
-# 📁 Diretórios e utilitários JSON
+# 🧠 Função principal – obter DFD ativo
 # ==========================================================
-EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
-DFD_JSON_PATH = os.path.join(EXPORTS_DIR, "dfd_data.json")
-
-def ensure_exports_dir(path: str = EXPORTS_DIR) -> None:
-    """Garante que o diretório de exportação exista."""
-    os.makedirs(path, exist_ok=True)
-
-def export_dfd_to_json(data: Dict[str, Any], path: str = DFD_JSON_PATH) -> str:
-    """Salva metadados do DFD (dict) em JSON UTF-8. Retorna o caminho salvo."""
-    ensure_exports_dir(os.path.dirname(path))
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return path
-
-def load_dfd_from_json(path: str = DFD_JSON_PATH) -> Dict[str, Any]:
-    """Lê o arquivo JSON se existir; caso contrário, retorna {}."""
-    try:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        pass
-    return {}
-
-# ==========================================================
-# 🧠 Integração com motor IA institucional v3
-# ==========================================================
-def obter_dfd_da_sessao() -> Dict[str, Any]:
+def obter_dfd_da_sessao() -> dict:
     """
-    Recupera dados de DFD processados via IA (st.session_state).
-    Se não houver, tenta carregar do arquivo JSON mais recente salvo.
+    Recupera o dicionário de campos do DFD ativo.
+
+    Prioridades:
+    1️⃣ st.session_state["dfd_campos_ai"]
+    2️⃣ exports/insumos/json/DFD_ultimo.json
+    3️⃣ Último arquivo DFD_*.json no diretório de insumos
     """
-    # 1️⃣ Tenta sessão ativa
+
+    # 1️⃣ Verifica sessão ativa
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return st.session_state["dfd_campos_ai"]
 
-    # 2️⃣ Tenta insumo DFD salvo anteriormente na sessão
-    if "last_insumo_dfd" in st.session_state:
-        dados = st.session_state["last_insumo_dfd"]
-        return dados.get("campos_ai", {})
+    # 2️⃣ Tenta carregar o último insumo salvo (DFD_ultimo.json)
+    base_dir = os.path.join("exports", "insumos", "json")
+    ultimo_json = os.path.join(base_dir, "DFD_ultimo.json")
 
-    # 3️⃣ Tenta JSON exportado (último arquivo do módulo Insumos)
-    EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
-    if os.path.exists(EXPORTS_JSON_DIR):
+    if os.path.exists(ultimo_json):
+        try:
+            with open(ultimo_json, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
+            if campos:
+                st.session_state["dfd_campos_ai"] = campos
+                return campos
+        except Exception as e:
+            st.warning(f"⚠️ Falha ao ler DFD_ultimo.json: {e}")
+
+    # 3️⃣ Busca o arquivo DFD mais recente (fallback final)
+    try:
         arquivos = sorted(
-            [f for f in os.listdir(EXPORTS_JSON_DIR) if f.startswith("DFD_") and f.endswith(".json")],
-            reverse=True
+            glob.glob(os.path.join(base_dir, "DFD_*.json")),
+            key=os.path.getmtime,
+            reverse=True,
         )
-        if arquivos:
-            ultimo_arquivo = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
-            try:
-                with open(ultimo_arquivo, "r", encoding="utf-8") as f:
-                    return json.load(f).get("campos_ai", {})
-            except Exception:
-                pass
+        for arquivo in arquivos:
+            if "DFD_ultimo.json" in arquivo:
+                continue
+            with open(arquivo, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
+            if campos:
+                st.session_state["dfd_campos_ai"] = campos
+                return campos
+    except Exception as e:
+        st.warning(f"⚠️ Nenhum DFD válido encontrado ({e})")
 
-    # 4️⃣ Se nada encontrado
+    # 4️⃣ Fallback seguro
     return {}
 
+
 # ==========================================================
-# 🤖 Processamento clássico (fallback)
+# 💾 Função auxiliar – salvar DFD gerado pelo formulário
 # ==========================================================
-def processar_insumo(arquivo, artefato: str = "DFD") -> dict:
+def salvar_dfd_em_json(campos_dfd: dict, origem: str = "formulario") -> str:
     """
-    Extrai texto e realiza inferência institucional usando o motor v3.
-    Mantém compatibilidade com o pipeline clássico.
+    Salva o conteúdo atual do formulário DFD em /exports/insumos/json.
+    Utilizado tanto para IA quanto para preenchimento manual.
     """
+    base_dir = os.path.join("exports", "insumos", "json")
+    os.makedirs(base_dir, exist_ok=True)
+
+    payload = {
+        "artefato": "DFD",
+        "origem": origem,
+        "campos_ai": campos_dfd,
+        "data_salvamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    arquivo_ultimo = os.path.join(base_dir, "DFD_ultimo.json")
+    arquivo_timestamp = os.path.join(base_dir, f"DFD_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+
     try:
-        resultado = processar_insumo_ia(
-            uploaded_file=arquivo,
-            tipo_artefato=artefato,
-            metadados_form={"origem": "integration_dfd.py"},
-            filename=getattr(arquivo, "name", None)
-        )
-        campos = resultado.get("campos", {})
-        st.session_state["dfd_campos_ai"] = campos
-        export_dfd_to_json(campos)
-        return {
-            "artefato": artefato,
-            "status": "processado",
-            "campos_ai": campos
-        }
+        with open(arquivo_ultimo, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        with open(arquivo_timestamp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        st.session_state["dfd_campos_ai"] = campos_dfd
+        return arquivo_ultimo
     except Exception as e:
-        return {"erro": f"Falha no motor institucional IA v3: {e}"}
+        st.warning(f"⚠️ Falha ao salvar DFD: {e}")
+        return ""
 
 # ==========================================================
-# 🧩 Função pública principal
+# 🧩 Função utilitária – status legível
 # ==========================================================
-def carregar_dfd_para_formulario() -> Dict[str, Any]:
-    """
-    Retorna o dicionário de campos para pré-preenchimento do formulário DFD.
-    Usa primeiro os dados da sessão ativa, depois fallback para arquivo.
-    """
-    dados = obter_dfd_da_sessao()
-    if not dados:
-        st.info("🔍 Nenhum DFD ativo na sessão. Utilize a aba Insumos para processar um documento.")
-        return {}
-
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa ou arquivo salvo).")
-    return dados
+def status_dfd():
+    """Retorna uma string de status para exibição no topo do módulo DFD."""
+    if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
+        return "✅ Dados carregados automaticamente (sessão ativa ou JSON)"
+    base_dir = os.path.join("exports", "insumos", "json")
+    if os.path.exists(os.path.join(base_dir, "DFD_ultimo.json")):
+        return "🗂️ Dados disponíveis no último processamento de INSUMOS."
+    return "⚠️ Nenhum DFD ativo encontrado – envie um insumo em '🔧 Insumos'."
