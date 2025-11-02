@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
-"""
-utils/integration_dfd.py – Exportação/Importação e Análise Semântica do DFD
-
-Responsável por:
-1. Gravar e ler o arquivo exports/dfd_data.json (integração com ETP).
-2. Analisar semanticamente insumos (PDF/DOCX/TXT) para preencher o DFD.
-"""
+# ==========================================================
+# utils/integration_dfd.py
+# SynapseNext – Integração com motor IA institucional v3
+# ==========================================================
 
 from __future__ import annotations
-import json, os, re
+import json
+import os
+import re
 from typing import Dict, Any
 from pathlib import Path
+import streamlit as st
 
 # ==========================================================
-# 🔧 Funções de exportação / importação JSON
+# 📁 Diretórios e utilitários JSON
 # ==========================================================
-
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
 DFD_JSON_PATH = os.path.join(EXPORTS_DIR, "dfd_data.json")
 
@@ -41,96 +40,60 @@ def load_dfd_from_json(path: str = DFD_JSON_PATH) -> Dict[str, Any]:
     return {}
 
 # ==========================================================
-# 🤖 Análise Semântica de Insumo (IA Institucional)
+# 🧠 Integração com motor IA institucional v3
 # ==========================================================
+from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
 
-from utils.ai_client import AIClient
-client = AIClient()
+def obter_dfd_da_sessao() -> Dict[str, Any]:
+    """
+    Recupera dados de DFD processados via IA (st.session_state).
+    Se não houver, tenta carregar do arquivo JSON exportado.
+    """
+    if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
+        return st.session_state["dfd_campos_ai"]
+    if "last_insumo_dfd" in st.session_state:
+        dados = st.session_state["last_insumo_dfd"]
+        return dados.get("campos_ai", {})
+    return load_dfd_from_json()
 
-def ler_modelos_dfd():
-    """Lê modelos de referência institucional (Knowledge Base)"""
-    base = Path(__file__).resolve().parents[1] / "knowledge" / "dfd_models"
-    textos = []
-    if base.exists():
-        for arq in base.glob("*.txt"):
-            try:
-                textos.append(arq.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-    return "\n\n".join(textos)
-
+# ==========================================================
+# 🤖 Processamento clássico (fallback)
+# ==========================================================
 def processar_insumo(arquivo, artefato: str = "DFD") -> dict:
     """
-    Extrai texto de insumo PDF/DOCX/TXT e realiza análise semântica institucional
-    para preenchimento automático do Documento de Formalização da Demanda (DFD).
+    Extrai texto e realiza inferência institucional usando o motor v3.
+    Mantém compatibilidade com o pipeline clássico.
     """
-    from io import BytesIO
-    import fitz, docx2txt
-
-    dados = arquivo.read()
-    arquivo.seek(0)
-    nome = arquivo.name.lower()
-    texto_extraido = ""
-
-    # 1️⃣ Extração de texto
     try:
-        if nome.endswith(".pdf"):
-            pdf = fitz.open(stream=dados, filetype="pdf")
-            texto_extraido = "".join(p.get_text() for p in pdf)
-        elif nome.endswith(".docx"):
-            texto_extraido = docx2txt.process(BytesIO(dados))
-        elif nome.endswith(".txt"):
-            texto_extraido = dados.decode("utf-8", errors="ignore")
+        resultado = processar_insumo_ia(
+            uploaded_file=arquivo,
+            tipo_artefato=artefato,
+            metadados_form={"origem": "integration_dfd.py"},
+            filename=getattr(arquivo, "name", None)
+        )
+        campos = resultado.get("campos", {})
+        st.session_state["dfd_campos_ai"] = campos
+        export_dfd_to_json(campos)
+        return {
+            "artefato": artefato,
+            "status": "processado",
+            "campos_ai": campos
+        }
     except Exception as e:
-        return {"erro": f"Falha ao extrair texto: {e}"}
+        return {"erro": f"Falha no motor institucional IA v3: {e}"}
 
-    if not texto_extraido.strip():
-        return {"erro": "Texto vazio após leitura do insumo."}
+# ==========================================================
+# 🧩 Função pública principal
+# ==========================================================
+def carregar_dfd_para_formulario() -> Dict[str, Any]:
+    """
+    Retorna o dicionário de campos para pré-preenchimento do formulário DFD.
+    Usa primeiro os dados da sessão ativa, depois fallback para arquivo.
+    """
+    dados = obter_dfd_da_sessao()
+    if not dados:
+        st.info("🔍 Nenhum DFD ativo na sessão. Utilize a aba Insumos para processar um documento.")
+        return {}
 
-    texto_limpo = re.sub(r"\s+", " ", texto_extraido).strip()
-    modelos = ler_modelos_dfd()
-
-    # 2️⃣ Prompt institucional
-    system_prompt = (
-        "Você é um agente institucional do Tribunal de Justiça de São Paulo, "
-        "especializado em analisar documentos administrativos e extrair informações "
-        "para preencher um Documento de Formalização da Demanda (DFD)."
-    )
-
-    user_prompt = f"""
-Texto do insumo:
-\"\"\"{texto_limpo}\"\"\"
-
-Modelos institucionais de referência:
-\"\"\"{modelos}\"\"\"
-
-Retorne apenas um JSON com os seguintes campos:
-- unidade_solicitante
-- responsavel
-- objeto
-- justificativa
-- quantidade
-- urgencia
-- riscos
-- alinhamento_planejamento
-"""
-
-    # 3️⃣ Chamada à IA institucional
-    try:
-        response = client.chat([
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ])
-        conteudo = response["content"]
-        match = re.search(r"\{.*\}", conteudo, re.DOTALL)
-        campos = json.loads(match.group(0)) if match else {"objeto": texto_limpo[:800]}
-    except Exception as e:
-        campos = {"erro": f"Falha ao processar IA: {e}"}
-
-    print(f"[IA:DFD] Arquivo: {arquivo.name} – Campos: {list(campos.keys())}")
-    return {
-        "artefato": artefato,
-        "nome_arquivo": arquivo.name,
-        "status": "processado",
-        "campos_ai": campos
-    }
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
+    return dados
