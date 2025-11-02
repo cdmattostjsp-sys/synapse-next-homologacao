@@ -11,6 +11,7 @@ import re
 from typing import Dict, Any
 from pathlib import Path
 import streamlit as st
+from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
 
 # ==========================================================
 # 📁 Diretórios e utilitários JSON
@@ -42,19 +43,37 @@ def load_dfd_from_json(path: str = DFD_JSON_PATH) -> Dict[str, Any]:
 # ==========================================================
 # 🧠 Integração com motor IA institucional v3
 # ==========================================================
-from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
-
 def obter_dfd_da_sessao() -> Dict[str, Any]:
     """
     Recupera dados de DFD processados via IA (st.session_state).
-    Se não houver, tenta carregar do arquivo JSON exportado.
+    Se não houver, tenta carregar do arquivo JSON mais recente salvo.
     """
+    # 1️⃣ Tenta sessão ativa
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return st.session_state["dfd_campos_ai"]
+
+    # 2️⃣ Tenta insumo DFD salvo anteriormente na sessão
     if "last_insumo_dfd" in st.session_state:
         dados = st.session_state["last_insumo_dfd"]
         return dados.get("campos_ai", {})
-    return load_dfd_from_json()
+
+    # 3️⃣ Tenta JSON exportado (último arquivo do módulo Insumos)
+    EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+    if os.path.exists(EXPORTS_JSON_DIR):
+        arquivos = sorted(
+            [f for f in os.listdir(EXPORTS_JSON_DIR) if f.startswith("DFD_") and f.endswith(".json")],
+            reverse=True
+        )
+        if arquivos:
+            ultimo_arquivo = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
+            try:
+                with open(ultimo_arquivo, "r", encoding="utf-8") as f:
+                    return json.load(f).get("campos_ai", {})
+            except Exception:
+                pass
+
+    # 4️⃣ Se nada encontrado
+    return {}
 
 # ==========================================================
 # 🤖 Processamento clássico (fallback)
@@ -95,5 +114,5 @@ def carregar_dfd_para_formulario() -> Dict[str, Any]:
         st.info("🔍 Nenhum DFD ativo na sessão. Utilize a aba Insumos para processar um documento.")
         return {}
 
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
+    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa ou arquivo salvo).")
     return dados
