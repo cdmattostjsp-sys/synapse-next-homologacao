@@ -3,12 +3,17 @@
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==========================================================
 
-import sys, os, json
-import streamlit as st
+import os
+import json
 from io import BytesIO
 from docx import Document
+import streamlit as st
+
+# ==========================================================
+# 📦 Imports institucionais
+# ==========================================================
 from utils.agents_bridge import AgentsBridge
-from utils.integration_etp import export_etp_to_json
+from utils.integration_etp import obter_etp_da_sessao, status_etp, salvar_etp_em_json
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
@@ -24,34 +29,14 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção e carregamento de insumos automáticos (com fallback persistente)
+# 🔍 Carregamento automático (sessão + fallback persistente)
 # ==========================================================
-defaults = {}
-EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+st.info(status_etp())
+defaults = obter_etp_da_sessao()
 
-# Sessão ativa
-if "etp_campos_ai" in st.session_state:
-    defaults = st.session_state.get("etp_campos_ai", {})
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
-
-# Fallback
-elif os.path.exists(EXPORTS_JSON_DIR):
-    try:
-        arquivos = sorted([f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")], reverse=True)
-        if arquivos:
-            caminho = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
-            with open(caminho, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            campos = dados.get("campos_ai", {})
-            if isinstance(campos, dict):
-                defaults = campos
-                artefato = dados.get("artefato", "—")
-                st.info(f"📎 Último insumo {artefato} carregado automaticamente ({arquivos[0]}).")
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao recuperar insumo persistido: {e}")
-
-# Nenhum insumo
-if not defaults:
+if defaults:
+    st.success("📎 Campos do ETP carregados automaticamente do módulo INSUMOS.")
+else:
     st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
 
 # ==========================================================
@@ -111,6 +96,7 @@ if gerar_ia:
         st.success("✅ Rascunho gerado com sucesso pelo agente ETP.IA!")
         st.json(resultado)
         st.session_state["last_etp"] = resultado.get("secoes", {})
+        salvar_etp_em_json(st.session_state["last_etp"], origem="ia_etp")
     except Exception as e:
         st.error(f"Erro ao gerar rascunho com IA: {e}")
 
@@ -127,6 +113,7 @@ if gerar_manual:
     st.success("✅ Rascunho de ETP gerado manualmente!")
     st.json(etp_data)
     st.session_state["last_etp"] = etp_data
+    salvar_etp_em_json(etp_data, origem="manual")
 
 # ==========================================================
 # 📤 Exportação do Documento
@@ -151,14 +138,8 @@ if "last_etp" in st.session_state and st.session_state["last_etp"]:
 
     st.markdown("---")
     if st.button("📦 Exportar ETP (JSON)"):
-        etp_payload = {
-            "requisitos": etp_data.get("requisitos", ""),
-            "custos": etp_data.get("custos", ""),
-            "riscos": etp_data.get("riscos", ""),
-            "responsavel_tecnico": etp_data.get("responsavel_tecnico", "")
-        }
         try:
-            path = export_etp_to_json(etp_payload)
+            path = salvar_etp_em_json(etp_data, origem="exportacao_manual")
             st.success(f"✅ ETP exportado com sucesso para {path}")
         except Exception as e:
             st.error(f"Falha ao exportar ETP: {e}")
