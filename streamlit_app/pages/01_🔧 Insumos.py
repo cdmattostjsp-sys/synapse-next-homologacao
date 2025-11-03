@@ -2,15 +2,18 @@
 # pages/01_🔧 Insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # ==========================================================
-# Página de gestão e envio de insumos administrativos
-# Compatível com os módulos DFD, ETP, TR e Edital
-# ==========================================================
 
-import streamlit as st
 import os
-from datetime import datetime
-from utils.integration_insumos import processar_insumo
-from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+import json
+import streamlit as st
+from pathlib import Path
+from io import BytesIO
+
+# ==========================================================
+# 📦 Imports institucionais (ajustados para SynapseNext v3)
+# ==========================================================
+from streamlit_app.utils.integration_insumos import processar_insumo
+from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
 # ⚙️ Configuração inicial
