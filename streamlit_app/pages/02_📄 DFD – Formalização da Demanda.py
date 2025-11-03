@@ -9,11 +9,11 @@ from pathlib import Path
 import json
 import io
 import time
+import sys
 
 # -----------------------------------------------------------------------------
-# 🔧 Compatibilidade institucional de caminhos (local + cloud)
+# 🔧 Ajuste de compatibilidade institucional de caminhos
 # -----------------------------------------------------------------------------
-import sys
 base_path = Path(__file__).resolve().parents[2]
 if str(base_path) not in sys.path:
     sys.path.insert(0, str(base_path))
@@ -22,22 +22,25 @@ if str(base_path) not in sys.path:
 # 📦 Ajuste resiliente para AgentsBridge (DFD)
 # ==========================================================
 try:
-    from utils.agents_bridge import AgentsBridge  # Ambiente local (Codespaces)
+    from utils.agents_bridge import AgentsBridge  # Ambiente local
 except ModuleNotFoundError:
     from streamlit_app.utils.agents_bridge import AgentsBridge  # Streamlit Cloud
 
-# -----------------------------------------------------------------------------
-# 📦 Imports adicionais
-# -----------------------------------------------------------------------------
+# ==========================================================
+# 📦 Importação resiliente para integração DFD
+# ==========================================================
+try:
+    from utils.integration_dfd import processar_insumo_dfd  # Ambiente Cloud
+except ModuleNotFoundError:
+    from streamlit_app.utils.integration_dfd import processar_insumo_dfd  # Ambiente local
+
+# ==========================================================
+# 📦 Importação resiliente para UI Components
+# ==========================================================
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except ModuleNotFoundError:
     from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-
-try:
-    from streamlit_app.utils.integration_dfd import processar_insumo_dfd
-except ModuleNotFoundError:
-    from utils.integration_dfd import processar_insumo_dfd
 
 # -----------------------------------------------------------------------------
 # 🧭 Configuração inicial da página
@@ -53,7 +56,7 @@ EXPORTS_DIR = Path(__file__).resolve().parents[2] / "exports"
 DFD_JSON_PATH = EXPORTS_DIR / "dfd_data.json"
 
 # -----------------------------------------------------------------------------
-# ⚙️ Interface principal
+# ⚙️ Etapa 1 – Envio e processamento do insumo
 # -----------------------------------------------------------------------------
 st.markdown("### 🧩 Etapa 1 – Envio do Documento")
 arquivo = st.file_uploader("Envie o arquivo de Formalização da Demanda (DFD)", type=["pdf", "docx", "txt"])
@@ -70,7 +73,7 @@ if arquivo:
                 campos_ai = resultado.get("campos_ai", {})
                 st.json(campos_ai)
 
-                # Salva resultado em JSON institucional
+                # Salva resultado institucional
                 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
                 with open(DFD_JSON_PATH, "w", encoding="utf-8") as f:
                     json.dump(resultado, f, ensure_ascii=False, indent=2)
@@ -110,6 +113,6 @@ st.markdown("""
 ---
 <p style='text-align:center;color:#666;font-size:0.9rem'>
 DFD – Formalização da Demanda • SynapseNext v5.0 (Institucional)<br>
-Ambiente validado em {:%d/%m/%Y %H:%M:%S}
+Ambiente validado em execução no Streamlit Cloud.
 </p>
-""".format(time.localtime().tm_year), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
