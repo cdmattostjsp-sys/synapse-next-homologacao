@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-utils/integration_tr.py – Exportação/Importação do TR
+streamlit_app/utils/integration_tr.py – Exportação/Importação do TR
 Responsável por:
 - Gravar o arquivo exports/tr_data.json a partir dos metadados do TR.
 - Ler o arquivo exports/tr_data.json para pré-preencher o módulo Contrato.
+- Processar insumos (PDF, DOCX, TXT) usando IA institucional para extrair campos do TR.
 """
 
 import json
@@ -11,15 +12,29 @@ import os
 import re
 from typing import Dict, Any
 from pathlib import Path
-from utils.ai_client import AIClient
+
+# ⚠️ IMPORT CORRIGIDO:
+# o ai_client está na pasta raiz utils/, não em streamlit_app/utils/
+try:
+    from utils.ai_client import AIClient
+except Exception:
+    AIClient = None
 
 # ==========================================================
 # 📂 Diretórios e caminhos de exportação
 # ==========================================================
+# Este caminho aponta para: /workspaces/synapse-next/streamlit_app/exports/tr_data.json
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
 TR_JSON_PATH = os.path.join(EXPORTS_DIR, "tr_data.json")
 
-client = AIClient()
+# Cliente de IA institucional (opcional – se falhar, continuamos sem IA)
+client = None
+if AIClient is not None:
+    try:
+        client = AIClient()
+    except Exception:
+        client = None
+
 
 # ==========================================================
 # 📤 Utilitários de exportação
@@ -27,13 +42,17 @@ client = AIClient()
 def ensure_exports_dir(path: str = EXPORTS_DIR) -> None:
     os.makedirs(path, exist_ok=True)
 
+
 def export_tr_to_json(data: Dict[str, Any], path: str = TR_JSON_PATH) -> str:
+    """Exporta os metadados do TR para JSON, usado por outros módulos (ex.: Contrato)."""
     ensure_exports_dir(os.path.dirname(path))
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return path
 
+
 def load_tr_from_json(path: str = TR_JSON_PATH) -> Dict[str, Any]:
+    """Carrega o último TR exportado para reaproveitamento."""
     try:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
@@ -42,20 +61,39 @@ def load_tr_from_json(path: str = TR_JSON_PATH) -> Dict[str, Any]:
         pass
     return {}
 
+
 # ==========================================================
 # 🧠 Base de conhecimento institucional (Knowledge Base)
 # ==========================================================
 def ler_modelos_tr() -> str:
-    """Lê os modelos textuais da pasta knowledge/tr_models."""
-    base = Path(__file__).resolve().parents[1] / "knowledge" / "tr_models"
+    """
+    Lê os modelos textuais de TR.
+    Na sua árvore atual não há exatamente 'knowledge/tr_models', então buscamos em:
+    - knowledge/tr_models
+    - knowledge/TR
+    - knowledge_base/TR
+    Devolvemos um único texto concatenado.
+    """
     textos = []
-    if base.exists():
-        for arq in base.glob("*.txt"):
-            try:
-                textos.append(arq.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+
+    base_dir = Path(__file__).resolve().parents[1]
+
+    candidatos = [
+        base_dir / "knowledge" / "tr_models",
+        base_dir / "knowledge" / "TR",
+        base_dir / "knowledge_base" / "TR",
+    ]
+
+    for base in candidatos:
+        if base.exists() and base.is_dir():
+            for arq in base.glob("*.txt"):
+                try:
+                    textos.append(arq.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
     return "\n\n".join(textos)
+
 
 # ==========================================================
 # 🤖 Processamento de Insumo – IA Institucional TR
@@ -64,16 +102,27 @@ def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
     """
     Extrai o texto do arquivo enviado (PDF, DOCX ou TXT),
     realiza análise semântica e retorna campos padronizados do TR.
+
+    Retorno padrão:
+    {
+        "artefato": "TR",
+        "nome_arquivo": "...",
+        "status": "processado",
+        "campos_ai": { ... }
+    }
     """
     from io import BytesIO
-    import fitz, docx2txt
+
+    # dependências de leitura – estão sendo usadas em outros pontos do projeto
+    import fitz
+    import docx2txt
 
     dados = arquivo.read()
     arquivo.seek(0)
     nome = arquivo.name.lower()
     texto_extraido = ""
 
-    # 1️⃣ Extração de texto
+    # 1️⃣ Extração de texto do insumo
     try:
         if nome.endswith(".pdf"):
             pdf = fitz.open(stream=dados, filetype="pdf")
@@ -91,7 +140,31 @@ def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
     texto_limpo = re.sub(r"\s+", " ", texto_extraido).strip()
     modelos = ler_modelos_tr()
 
-    # 2️⃣ Prompt institucional
+    # Se não temos cliente de IA disponível, devolvemos um fallback
+    if client is None:
+        # normalização mínima para a página TR
+        campos_ai = {
+            "objeto": texto_limpo[:500],
+            "justificativa_tecnica": "Conteúdo extraído do insumo. Refine com a IA quando disponível.",
+            "especificacao_tecnica": "",
+            "criterios_julgamento": "",
+            "riscos": "Sem riscos adicionais identificados.",
+            "observacoes_finais": "",
+            "prazo_execucao": "",
+            "estimativa_valor": "",
+            "fonte_recurso": "",
+        }
+        for k, v in campos_ai.items():
+            if not v:
+                campos_ai[k] = "—"
+        return {
+            "artefato": artefato,
+            "nome_arquivo": arquivo.name,
+            "status": "processado_sem_ia",
+            "campos_ai": campos_ai,
+        }
+
+    # 2️⃣ Prompt institucional para IA
     system_prompt = (
         "Você é um agente institucional do Tribunal de Justiça de São Paulo, especializado em Termos de Referência (TR). "
         "Analise o texto do insumo e extraia os campos padronizados conforme os modelos institucionais do TJSP."
@@ -101,8 +174,10 @@ def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
 Texto do insumo:
 \"\"\"{texto_limpo}\"\"\"
 
+
 Modelos de referência:
 \"\"\"{modelos}\"\"\"
+
 
 Retorne apenas um JSON com os seguintes campos:
 - objeto
@@ -117,10 +192,12 @@ Retorne apenas um JSON com os seguintes campos:
 
     # 3️⃣ Chamada à IA institucional
     try:
-        response = client.chat([
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ])
+        response = client.chat(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+        )
         conteudo = response["content"]
         match = re.search(r"\{.*\}", conteudo, re.DOTALL)
         campos = json.loads(match.group(0)) if match else {"objeto": texto_limpo[:800]}
@@ -139,10 +216,10 @@ Retorne apenas um JSON com os seguintes campos:
         "observacoes_finais": "",
         "prazo_execucao": campos.get("prazo_execucao", ""),
         "estimativa_valor": campos.get("estimativa_valor", ""),
-        "fonte_recurso": campos.get("fonte_recurso", "")
+        "fonte_recurso": campos.get("fonte_recurso", ""),
     }
 
-    # Fallback seguro
+    # Fallback seguro – garante que nenhum campo fique vazio
     for k, v in campos_ai.items():
         if not v:
             campos_ai[k] = "—"
@@ -156,5 +233,5 @@ Retorne apenas um JSON com os seguintes campos:
         "artefato": artefato,
         "nome_arquivo": arquivo.name,
         "status": "processado",
-        "campos_ai": campos_ai
+        "campos_ai": campos_ai,
     }
