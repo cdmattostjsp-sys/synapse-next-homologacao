@@ -10,9 +10,9 @@ from docx import Document
 import streamlit as st
 
 # ==========================================================
-# 📦 Imports institucionais (ajustados para SynapseNext v3)
+# 📦 Imports institucionais (ajustados para SynapseNext v3 – ambiente de produção)
 # ==========================================================
-from streamlit_app.utils.agents_bridge import AgentsBridge
+from utils.agents_bridge import AgentsBridge  # raiz do projeto
 from streamlit_app.utils.integration_dfd import obter_dfd_da_sessao, status_dfd, salvar_dfd_em_json
 from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
