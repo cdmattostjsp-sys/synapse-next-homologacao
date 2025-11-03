@@ -1,130 +1,154 @@
-# -*- coding: utf-8 -*-
-# =============================================================================
-# SynapseNext – SAAB/TJSP
-# Página: DFD – Formalização da Demanda (vNext)
-# =============================================================================
+# ==========================================================
+# pages/02_📄 DFD – Formalização da Demanda.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# ==========================================================
 
+import os
+import json
 import streamlit as st
 from pathlib import Path
-import json
-import sys
-import os
+from io import BytesIO
+from docx import Document
 
-# -------------------------------------------------------------------------
-# 🧠 Path Resolver – compatível com Streamlit Cloud e Codespaces
-# -------------------------------------------------------------------------
-BASE_PATH = Path(__file__).resolve().parents[2]
-UTILS_PATH = BASE_PATH / "streamlit_app" / "utils"
+# ==========================================================
+# 📦 Imports institucionais
+# ==========================================================
+from utils.agents_bridge import AgentsBridge
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
-if str(UTILS_PATH) not in sys.path:
-    sys.path.insert(0, str(UTILS_PATH))
-
-# -------------------------------------------------------------------------
-# 📦 Importações institucionais (com fallback seguro)
-# -------------------------------------------------------------------------
-try:
-    from utils.agents_bridge import AgentsBridge
-except ModuleNotFoundError:
-    from streamlit_app.utils.agents_bridge import AgentsBridge
-
-try:
-    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-except ModuleNotFoundError:
-    aplicar_estilo_global = lambda: None
-    exibir_cabecalho_padrao = lambda t: st.title(t)
-
-# -------------------------------------------------------------------------
-# 🧭 Configuração da página
-# -------------------------------------------------------------------------
-st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide")
+# ==========================================================
+# ⚙️ Configuração inicial
+# ==========================================================
+st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide", page_icon="📄")
 aplicar_estilo_global()
-exibir_cabecalho_padrao("📄 DFD – Formalização da Demanda")
 
-EXPORTS_DIR = BASE_PATH / "exports"
-DFD_JSON_PATH = EXPORTS_DIR / "dfd_data.json"
-EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+exibir_cabecalho_padrao(
+    "📄 Formalização da Demanda (DFD)",
+    "Registro institucional da demanda e geração de rascunho com IA"
+)
+st.divider()
 
-# -------------------------------------------------------------------------
-# 🧩 Etapa 1 – Formulário de Metadados
-# -------------------------------------------------------------------------
-st.markdown("### 🧩 Etapa 1 – Preenchimento dos Dados Institucionais")
+# ==========================================================
+# 🧾 Formulário DFD
+# ==========================================================
+st.subheader("1️⃣ Entrada – Formalização da Demanda")
 
 with st.form("form_dfd"):
     col1, col2 = st.columns(2)
     with col1:
-        st.text_input("Unidade Demandante", key="dfd_unidade", placeholder="Ex.: Secretaria de Administração e Abastecimento – SAAB")
-        st.text_input("Responsável pela Demanda", key="dfd_responsavel")
-        st.text_input("Prazo Estimado para Atendimento", key="dfd_prazo")
+        unidade = st.text_input("Unidade Demandante", placeholder="Ex.: Secretaria de Administração e Abastecimento – SAAB")
+        responsavel = st.text_input("Responsável pela Demanda")
+        prazo = st.text_input("Prazo Estimado para Atendimento")
     with col2:
-        st.text_area("Descrição da Necessidade", key="dfd_descricao", height=120)
-        st.text_area("Motivação da Contratação", key="dfd_motivacao", height=120)
-        st.number_input("Estimativa de Valor (R$)", key="dfd_estimativa_valor", min_value=0.0, step=1000.0)
+        descricao = st.text_area("Descrição da Necessidade", height=100)
+        motivacao = st.text_area("Motivação da Contratação", height=100)
+        estimativa_valor = st.number_input("Estimativa de Valor (R$)", min_value=0.0, step=1000.0)
 
-    submitted = st.form_submit_button("💾 Salvar Dados")
+    colb1, colb2 = st.columns(2)
+    with colb1:
+        gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
+    with colb2:
+        salvar_manual = st.form_submit_button("💾 Salvar dados manualmente")
 
-if submitted:
-    st.session_state["DFD_METADATA"] = {
-        "unidade": st.session_state.get("dfd_unidade"),
-        "descricao": st.session_state.get("dfd_descricao"),
-        "motivacao": st.session_state.get("dfd_motivacao"),
-        "prazo": st.session_state.get("dfd_prazo"),
-        "estimativa_valor": st.session_state.get("dfd_estimativa_valor"),
-        "responsavel": st.session_state.get("dfd_responsavel"),
-    }
-    st.success("✅ Dados do DFD armazenados na sessão.")
-
-# -------------------------------------------------------------------------
-# 🤖 Etapa 2 – Geração de Rascunho Inteligente (IA Institucional)
-# -------------------------------------------------------------------------
-st.divider()
-st.markdown("### 🤖 Etapa 2 – Geração Automática com IA Institucional")
-
-if st.button("⚙️ Gerar rascunho com IA (DFD)"):
-    metadata = st.session_state.get("DFD_METADATA", {})
-    if not metadata:
-        st.warning("Por favor, preencha e salve o formulário antes de gerar o rascunho.")
-    else:
-        try:
-            bridge = AgentsBridge("DFD")
-            doc = bridge.generate(metadata)
-            st.session_state["DFD_AI"] = doc
-            st.success("Rascunho do DFD gerado com sucesso!")
-            with st.expander("📄 Prévia do Rascunho (JSON)", expanded=False):
-                st.json(doc)
-
-            # salva o arquivo JSON institucional
-            with open(DFD_JSON_PATH, "w", encoding="utf-8") as f:
-                json.dump(doc, f, ensure_ascii=False, indent=2)
-            st.info(f"💾 Arquivo salvo: {DFD_JSON_PATH.name}")
-
-        except Exception as e:
-            st.error(f"❌ Falha ao gerar rascunho com IA institucional: {e}")
-
-# -------------------------------------------------------------------------
-# 📤 Etapa 3 – Exportação
-# -------------------------------------------------------------------------
-st.divider()
-st.markdown("### 📤 Etapa 3 – Exportar Documento")
-
-if DFD_JSON_PATH.exists():
-    with open(DFD_JSON_PATH, "rb") as f:
-        st.download_button(
-            label="📤 Exportar DFD (JSON)",
-            data=f,
-            file_name="dfd_data.json",
-            mime="application/json"
-        )
-else:
-    st.info("Nenhum rascunho foi gerado ainda.")
-
-# -------------------------------------------------------------------------
-# 🕒 Rodapé Institucional
-# -------------------------------------------------------------------------
+# ==========================================================
+# 🎨 Estilo institucional SAAB – botões
+# ==========================================================
 st.markdown("""
----
-<p style='text-align:center;color:#666;font-size:0.9rem'>
-DFD – Formalização da Demanda • SynapseNext vNext<br>
-Secretaria de Administração e Abastecimento – SAAB/TJSP<br>
-Ambiente validado em execução no Streamlit Cloud.
-</p>
+<style>
+div.stButton > button:first-child {
+    background-color: #003366 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    height: 2.8em !important;
+    font-weight: 500 !important;
+}
+div.stButton > button:first-child:hover {
+    background-color: #002244 !important;
+    color: white !important;
+    transition: 0.2s;
+}
+</style>
 """, unsafe_allow_html=True)
+
+# ==========================================================
+# 🤖 Geração IA Institucional
+# ==========================================================
+if gerar_ia:
+    st.info("Executando agente DFD institucional...")
+    metadata = {
+        "unidade": unidade,
+        "responsavel": responsavel,
+        "prazo": prazo,
+        "descricao": descricao,
+        "motivacao": motivacao,
+        "estimativa_valor": estimativa_valor,
+    }
+    try:
+        bridge = AgentsBridge("DFD")
+        resultado = bridge.generate(metadata)
+        st.success("✅ Rascunho gerado com sucesso pelo agente DFD.IA!")
+        st.json(resultado)
+        st.session_state["last_dfd"] = resultado.get("secoes", {})
+
+        # salva JSON institucional
+        exports_dir = Path("exports")
+        exports_dir.mkdir(exist_ok=True)
+        json_path = exports_dir / "dfd_data.json"
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(resultado, f, ensure_ascii=False, indent=2)
+        st.info(f"💾 Arquivo exportado: {json_path}")
+
+    except Exception as e:
+        st.error(f"Erro ao gerar rascunho com IA: {e}")
+
+# ==========================================================
+# 💾 Salvamento manual (fallback)
+# ==========================================================
+if salvar_manual:
+    dfd_data = {
+        "unidade": unidade,
+        "responsavel": responsavel,
+        "prazo": prazo,
+        "descricao": descricao,
+        "motivacao": motivacao,
+        "estimativa_valor": estimativa_valor
+    }
+    st.success("✅ Dados do DFD salvos manualmente.")
+    st.json(dfd_data)
+    st.session_state["last_dfd"] = dfd_data
+
+# ==========================================================
+# 📤 Exportação do Documento
+# ==========================================================
+if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
+    st.divider()
+    st.subheader("📤 Exportação de Documento")
+    st.info("Baixe o último DFD gerado em formato Word editável.")
+
+    dfd_data = st.session_state["last_dfd"]
+    doc = Document()
+    doc.add_heading("Formalização da Demanda (DFD)", level=1)
+    for k, v in dfd_data.items():
+        p = doc.add_paragraph()
+        p.add_run(f"{k}: ").bold = True
+        p.add_run(str(v) or "—")
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    st.download_button("💾 Baixar DFD_rascunho.docx", buffer, file_name="DFD_rascunho.docx")
+
+    st.markdown("---")
+    if st.button("📦 Exportar DFD (JSON)"):
+        try:
+            exports_dir = Path("exports")
+            exports_dir.mkdir(exist_ok=True)
+            json_path = exports_dir / "dfd_data.json"
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(dfd_data, f, ensure_ascii=False, indent=2)
+            st.success(f"✅ DFD exportado com sucesso para {json_path}")
+        except Exception as e:
+            st.error(f"Falha ao exportar DFD: {e}")
+
+st.caption("💡 *Dica:* O botão '⚙️ Gerar rascunho com IA institucional' usa o agente DFD.IA para gerar automaticamente o texto técnico.")
