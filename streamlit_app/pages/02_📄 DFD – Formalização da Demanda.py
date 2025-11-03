@@ -26,19 +26,19 @@ if str(STREAMLIT_UTILS) not in sys.path:
 # 📦 Importações resilientes
 # -------------------------------------------------------------------------
 try:
-    from integration_dfd import processar_insumo_dfd  # Ambiente Streamlit Cloud
+    from utils.integration_dfd import processar_insumo_dfd  # ✅ Caminho correto no Streamlit Cloud
 except ModuleNotFoundError:
-    from streamlit_app.utils.integration_dfd import processar_insumo_dfd  # Ambiente local
+    from streamlit_app.utils.integration_dfd import processar_insumo_dfd  # Ambiente local (Codespaces)
 
 try:
-    from agents_bridge import AgentsBridge  # Ambiente Streamlit Cloud
+    from utils.agents_bridge import AgentsBridge  # ✅ Caminho correto no Streamlit Cloud
 except ModuleNotFoundError:
-    from streamlit_app.utils.agents_bridge import AgentsBridge  # Ambiente local
+    from streamlit_app.utils.agents_bridge import AgentsBridge  # Ambiente local (Codespaces)
 
 try:
-    from ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+    from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao  # ✅ Cloud
 except ModuleNotFoundError:
-    from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+    from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao  # Local
 
 # -------------------------------------------------------------------------
 # 🧭 Configuração da página
