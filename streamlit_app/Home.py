@@ -5,8 +5,22 @@
 # ==============================================================
 # Versão institucional vNext+ – Novembro/2025
 # ==============================================================
-import streamlit as st
+
+# --------------------------------------------------------------
+# 🔧 Correção de contexto de execução para Streamlit Cloud
+# --------------------------------------------------------------
+import sys
 from pathlib import Path
+
+# Garante que a pasta raiz do projeto seja reconhecida pelo Python
+base_path = Path(__file__).resolve().parents[1]
+if str(base_path) not in sys.path:
+    sys.path.insert(0, str(base_path))
+
+# --------------------------------------------------------------
+# Imports principais
+# --------------------------------------------------------------
+import streamlit as st
 import base64
 from datetime import datetime
 
@@ -22,7 +36,7 @@ st.set_page_config(
 # --------------------------------------------------------------
 # Caminho da imagem institucional (bandeira TJSP)
 # --------------------------------------------------------------
-LOGO_PATH = Path(__file__).resolve().parents[1] / "utils" / "assets" / "tjsp_logo.png"
+LOGO_PATH = base_path / "assets" / "tjsp_logo.png"
 
 def get_base64_image(path: Path) -> str:
     """Retorna imagem em base64 para exibição inline"""
