@@ -30,9 +30,11 @@ except ModuleNotFoundError:
 # 📦 Importação resiliente para integração DFD
 # ==========================================================
 try:
-    from utils.integration_dfd import processar_insumo_dfd  # Ambiente Cloud
+    # Ambiente Streamlit Cloud (padrão)
+    from streamlit_app.utils.integration_dfd import processar_insumo_dfd
 except ModuleNotFoundError:
-    from streamlit_app.utils.integration_dfd import processar_insumo_dfd  # Ambiente local
+    # Ambiente Codespaces / local
+    from utils.integration_dfd import processar_insumo_dfd
 
 # ==========================================================
 # 📦 Importação resiliente para UI Components
