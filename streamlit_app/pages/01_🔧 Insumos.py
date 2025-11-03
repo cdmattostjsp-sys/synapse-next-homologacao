@@ -10,10 +10,10 @@ from pathlib import Path
 from io import BytesIO
 
 # ==========================================================
-# 📦 Imports institucionais (ajustados para SynapseNext v3)
+# 📦 Imports institucionais (ajustados para execução em produção – Streamlit Cloud)
 # ==========================================================
-from streamlit_app.utils.integration_insumos import processar_insumo
-from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from utils.integration_insumos import processar_insumo
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
 # ⚙️ Configuração inicial
