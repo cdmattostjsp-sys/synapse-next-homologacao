@@ -10,11 +10,11 @@ from docx import Document
 import streamlit as st
 
 # ==========================================================
-# 📦 Imports institucionais
+# 📦 Imports institucionais (ajustados para SynapseNext v3)
 # ==========================================================
-from utils.agents_bridge import AgentsBridge
-from utils.integration_dfd import obter_dfd_da_sessao, status_dfd, salvar_dfd_em_json
-from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from streamlit_app.utils.agents_bridge import AgentsBridge
+from streamlit_app.utils.integration_dfd import obter_dfd_da_sessao, status_dfd, salvar_dfd_em_json
+from streamlit_app.utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
 # ⚙️ Configuração inicial
