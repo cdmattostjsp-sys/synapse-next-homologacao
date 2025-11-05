@@ -1,14 +1,13 @@
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-# ==============================
+# ==========================================================
 # pages/01_🔧 Insumos.py  –  SynapseNext / SAAB TJSP
-# ==============================
+# Revisão: Engenheiro Synapse – INC-2025-11-06-AI-PIPELINE-FIX
+# ==========================================================
 
-import streamlit as st
-from datetime import datetime
+import sys, os, json, fitz, docx2txt
 from io import BytesIO
+from datetime import datetime
 from pathlib import Path
-import sys, os, docx2txt, fitz  # PyMuPDF
+import streamlit as st
 
 # ==========================================================
 # 🔍 Importações compatíveis
@@ -28,6 +27,14 @@ except ModuleNotFoundError:
 st.set_page_config(page_title="🔧 Insumos", layout="wide", page_icon="🔧")
 aplicar_estilo_global()
 
+# --- Protege o estado da sessão
+if "dfd_campos_ai" not in st.session_state:
+    st.session_state["dfd_campos_ai"] = {}
+
+# --- Garante estrutura de diretórios
+EXPORTS_JSON_DIR = Path("exports") / "insumos" / "json"
+EXPORTS_JSON_DIR.mkdir(parents=True, exist_ok=True)
+
 # ==========================================================
 # 🏛️ Cabeçalho institucional
 # ==========================================================
@@ -37,9 +44,6 @@ exibir_cabecalho_padrao(
 )
 st.divider()
 
-# ==========================================================
-# 📘 Descrição funcional
-# ==========================================================
 st.markdown("""
 O módulo **INSUMOS** permite anexar documentos institucionais (DFD, ETP, TR, Edital, Contrato)  
 que servirão de base para os artefatos gerados automaticamente pelo SynapseNext.  
@@ -68,10 +72,14 @@ arquivo = st.file_uploader("Selecione o arquivo (DOCX, PDF, TXT etc.)", type=["d
 # ==========================================================
 if arquivo and st.button("📤 Enviar insumo"):
     with st.spinner("Salvando e processando o documento..."):
-        caminho_salvo = salvar_insumo(arquivo, artefato)
-        st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
+        try:
+            caminho_salvo = salvar_insumo(arquivo, artefato)
+            st.success(f"Insumo '{arquivo.name}' salvo com sucesso em {caminho_salvo}")
+        except Exception as e:
+            st.error(f"Erro ao salvar insumo: {e}")
+            st.stop()
 
-        # Extração preliminar de texto
+        # Extração de texto
         texto_extraido = ""
         try:
             nome = arquivo.name.lower()
@@ -85,9 +93,9 @@ if arquivo and st.button("📤 Enviar insumo"):
             elif nome.endswith(".txt"):
                 texto_extraido = dados.decode("utf-8", errors="ignore")
         except Exception as e:
-            st.error(f"Erro ao extrair texto do arquivo: {e}")
+            st.error(f"Erro ao extrair texto: {e}")
 
-        # Processamento com IA e parser institucional
+        # Processamento com IA
         campos_ai = {}
         if texto_extraido.strip():
             try:
@@ -99,7 +107,7 @@ if arquivo and st.button("📤 Enviar insumo"):
             st.warning("⚠️ Não foi possível extrair texto legível do arquivo enviado.")
 
         # ======================================================
-        # 💾 Registro seletivo por artefato
+        # 💾 Registro e exportação
         # ======================================================
         chave = f"last_insumo_{artefato.lower()}"
         st.session_state[chave] = {
@@ -111,6 +119,17 @@ if arquivo and st.button("📤 Enviar insumo"):
             "descricao": descricao,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
+
+        # --- salva JSON em pasta institucional
+        try:
+            nome_base = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            ultimo_json = EXPORTS_JSON_DIR / f"{artefato}_ultimo.json"
+            with open(ultimo_json, "w", encoding="utf-8") as f:
+                json.dump({"campos_ai": campos_ai}, f, ensure_ascii=False, indent=2)
+            st.session_state["dfd_campos_ai"] = campos_ai
+            st.success(f"📦 Dados do insumo exportados para {ultimo_json.name}")
+        except Exception as e:
+            st.error(f"Erro ao salvar dados processados: {e}")
 
         st.success(f"📎 Insumo armazenado e disponível para o artefato **{artefato}**.")
 
