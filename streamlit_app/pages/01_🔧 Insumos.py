@@ -1,16 +1,16 @@
 # ==========================================================
 # pages/01_🔧 Insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# Revisão: Engenheiro Synapse – INC-2025-11-05-INSUMOS-UPLOAD
 # ==========================================================
 
 import os
 import json
 import streamlit as st
 from pathlib import Path
-from io import BytesIO
 
 # ==========================================================
-# 📦 Imports institucionais (ajustados para execução em produção – Streamlit Cloud)
+# 📦 Imports institucionais
 # ==========================================================
 from utils.integration_insumos import processar_insumo
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
@@ -33,21 +33,24 @@ st.divider()
 st.subheader("📎 Envio de documento administrativo")
 
 uploaded_file = st.file_uploader(
-    "Selecione o arquivo a ser processado (formatos aceitos: TXT, DOCX, PDF)",
-    type=["txt", "docx", "pdf"]
+    "Selecione o arquivo de insumo (formatos aceitos: TXT, DOCX, PDF)",
+    type=["txt", "docx", "pdf"],
+    key="insumo_upload"
 )
 
 # ==========================================================
 # 🧭 Seleção do módulo de destino
 # ==========================================================
 artefato_opcoes = ["DFD", "ETP", "TR", "EDITAL"]
-artefato = st.selectbox("Selecione o módulo de destino do insumo:", artefato_opcoes)
+artefato = st.selectbox("Selecione o módulo de destino do insumo:", artefato_opcoes, key="insumo_destino")
 
 # ==========================================================
-# 🚀 Botão de processamento
+# 🚀 Processamento automático (sem perda de estado)
 # ==========================================================
-if uploaded_file and artefato:
-    if st.button("🚀 Pré-preencher com IA e encaminhar"):
+if uploaded_file is not None:
+    st.success(f"📄 Arquivo detectado: {uploaded_file.name}")
+
+    if st.button(f"🚀 Processar e encaminhar para {artefato}", key="btn_processar_insumo"):
         with st.spinner(f"Processando insumo para o módulo {artefato}..."):
             try:
                 resultado = processar_insumo(uploaded_file, artefato)
@@ -56,9 +59,9 @@ if uploaded_file and artefato:
                 else:
                     st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
             except Exception as e:
-                st.error(f"Erro ao processar insumo: {e}")
+                st.error(f"❌ Erro ao processar insumo: {e}")
 else:
-    st.info("Envie um arquivo e selecione o módulo de destino para iniciar o processamento.")
+    st.info("Aguardando seleção de arquivo para iniciar o processamento.")
 
 # ==========================================================
 # 🧾 Histórico de insumos processados
@@ -67,15 +70,19 @@ st.divider()
 st.subheader("📚 Histórico de insumos disponíveis")
 
 EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
+
 if os.path.exists(EXPORTS_JSON_DIR):
     arquivos = sorted([f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")], reverse=True)
     if arquivos:
         for arquivo in arquivos[:5]:
             caminho = os.path.join(EXPORTS_JSON_DIR, arquivo)
-            with open(caminho, "r", encoding="utf-8") as f:
-                dados = f.read()
-            with st.expander(f"🗂️ {arquivo}"):
-                st.code(dados, language="json")
+            try:
+                with open(caminho, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+                with st.expander(f"🗂️ {arquivo}"):
+                    st.json(dados)
+            except Exception:
+                st.warning(f"⚠️ Não foi possível ler o arquivo {arquivo}.")
     else:
         st.info("Nenhum insumo processado ainda.")
 else:
@@ -85,4 +92,7 @@ else:
 # 🏁 Rodapé institucional
 # ==========================================================
 st.divider()
-st.caption("📎 Módulo de Insumos – SynapseNext (TJSP/SAAB). Os insumos processados são automaticamente integrados aos módulos DFD, ETP, TR e Edital.")
+st.caption(
+    "📎 Módulo de Insumos – SynapseNext (TJSP/SAAB). "
+    "Os insumos processados são automaticamente integrados aos módulos DFD, ETP, TR e Edital."
+)
