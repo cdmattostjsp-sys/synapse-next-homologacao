@@ -15,6 +15,7 @@ Observações:
 """
 
 import os
+import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -67,28 +68,53 @@ class AIClient:
         self.client = OpenAI(api_key=self.api_key)
         print(f"[AIClient] ✅ Cliente OpenAI inicializado com modelo '{self.model}'")
 
+    # ===============================================================
+    # 🔹 Método principal de chamada padronizada
+    # ===============================================================
     def chat(
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 0.2,
-        response_format: Optional[Dict[str, Any]] = None,
+        response_format: Optional[str] = "json_object",
         max_output_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Executa uma chamada de chat ao modelo configurado."""
-        kwargs = dict(model=self.model, messages=messages, temperature=temperature)
-        if response_format:
-            kwargs["response_format"] = response_format
+        """Executa uma chamada de chat ao modelo configurado (compatível com openai>=2.7.1)."""
+        kwargs = dict(
+            model=self.model,
+            messages=messages,
+            temperature=temperature,
+            response_format=response_format,
+        )
+
         if max_output_tokens:
             kwargs["max_output_tokens"] = max_output_tokens
 
-        resp = self.client.chat.completions.create(**kwargs)
-        choice = resp.choices[0]
+        try:
+            resp = self.client.chat.completions.create(**kwargs)
+            choice = resp.choices[0]
+            return {
+                "content": choice.message.content,
+                "finish_reason": choice.finish_reason,
+                "usage": getattr(resp, "usage", None),
+            }
 
-        return {
-            "content": choice.message.content,
-            "finish_reason": choice.finish_reason,
-            "usage": getattr(resp, "usage", None),
-        }
+        except Exception as e:
+            raise RuntimeError(f"Erro na chamada OpenAI: {e}")
+
+    # ===============================================================
+    # 🔹 Método auxiliar para retorno JSON direto
+    # ===============================================================
+    def chat_as_json(
+        self,
+        messages: List[Dict[str, Any]],
+        temperature: float = 0.2,
+    ) -> Dict[str, Any]:
+        """Executa o chat e converte automaticamente o conteúdo retornado em JSON."""
+        result = self.chat(messages=messages, temperature=temperature)
+        try:
+            return json.loads(result["content"])
+        except json.JSONDecodeError:
+            raise ValueError("A resposta da IA não está em formato JSON válido.")
 
 
 # ===============================================================
