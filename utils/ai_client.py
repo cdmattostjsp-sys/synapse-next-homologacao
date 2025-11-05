@@ -9,21 +9,27 @@ Uso:
         {"role": "user", "content": "Gerar sumário do DFD para ..."}
     ])
 Observações:
-- Mantém compatibilidade com Streamlit (st.secrets) e variáveis de ambiente.
-- Exige openai>=1.40 no requirements.txt.
+- Mantém compatibilidade com Streamlit (st.secrets), .env e variáveis de ambiente.
+- Exige openai>=2.7.1 (compatível com Streamlit 1.39.0).
 """
 from __future__ import annotations
 import os
+from pathlib import Path
 from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+# 🔹 Carrega automaticamente variáveis do .env
+from dotenv import load_dotenv
+load_dotenv()
 
 try:
     import streamlit as st  # opcional em execução de testes
-except Exception:  # pragma: no cover
+except Exception:
     st = None
 
 try:
     from openai import OpenAI
-except Exception as e:  # pragma: no cover
+except Exception:
     OpenAI = None
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -33,14 +39,32 @@ class AIClient:
     """Cliente institucional de IA (OpenAI) para o SynapseNext/SAAB-TJSP."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        # Hierarquia de obtenção da chave: st.secrets -> env var
-        self.api_key = api_key or (st.secrets.get("OPENAI_API_KEY") if st else None) or os.getenv("OPENAI_API_KEY")
+        # Hierarquia de obtenção da chave: .env → os.environ → st.secrets
+        env_key = os.getenv("OPENAI_API_KEY")
+        secrets_key = None
+
+        if st is not None:
+            try:
+                if hasattr(st, "secrets") and "OPENAI_API_KEY" in st.secrets:
+                    secrets_key = st.secrets["OPENAI_API_KEY"]
+            except Exception:
+                secrets_key = None
+
+        self.api_key = api_key or env_key or secrets_key
+
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY não configurada. Use st.secrets ou variável de ambiente.")
+            raise RuntimeError(
+                "OPENAI_API_KEY não configurada. Verifique o arquivo .env ou st.secrets."
+            )
+
         if OpenAI is None:
-            raise RuntimeError("Pacote openai não encontrado. Adicione `openai>=1.40` ao requirements.txt.")
+            raise RuntimeError(
+                "Pacote openai não encontrado. Adicione `openai>=2.7.1` ao requirements.txt."
+            )
+
         self.model = model or DEFAULT_MODEL
         self.client = OpenAI(api_key=self.api_key)
+        print(f"[AIClient] ✅ Cliente OpenAI inicializado com modelo '{self.model}'")
 
     def chat(
         self,
@@ -57,6 +81,7 @@ class AIClient:
             kwargs["response_format"] = response_format
         if max_output_tokens:
             kwargs["max_output_tokens"] = max_output_tokens
+
         resp = self.client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
         return {
@@ -64,3 +89,25 @@ class AIClient:
             "finish_reason": choice.finish_reason,
             "usage": getattr(resp, "usage", None),
         }
+
+
+# ===============================================================
+# 🧾 Bloco de validação e log pós-ajuste de credenciais
+# ===============================================================
+if __name__ == "__main__":
+    try:
+        client = AIClient()
+        log_dir = Path(__file__).resolve().parents[1] / "exports" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "ai_client_init_fix_20251105.txt"
+
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(
+                f"[{datetime.now().isoformat()}] OPENAI_API_KEY reconhecida: {bool(client.api_key)}\n"
+            )
+
+        print(f"🗂️ Log pós-ajuste gravado em {log_file}")
+        print(f"✅ OPENAI_API_KEY reconhecida: {bool(client.api_key)}")
+
+    except Exception as e:
+        print(f"⚠️ Falha ao validar AIClient: {e}")
