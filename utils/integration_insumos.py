@@ -1,7 +1,7 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – 2025-11-05
+# Revisão: Engenheiro Synapse – 2025-11-06
 # ==========================================================
 
 import os
@@ -10,16 +10,20 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from utils.integration_ai_engine import gerar_campos_por_ia
+# ==========================================================
+# 📦 Integração com o motor institucional de IA
+# ==========================================================
+from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
 
 
 # ==========================================================
-# 📁 Definições de diretórios
+# 📁 Diretórios e estrutura de exportação
 # ==========================================================
-def get_json_export_dir():
+def get_json_export_dir() -> Path:
     """
-    Retorna o diretório de exportação gravável.
-    Se o diretório padrão não for gravável, usa /tmp.
+    Retorna o diretório de exportação de insumos em ambiente seguro.
+    Se o diretório padrão não for gravável (como no Streamlit Cloud),
+    usa o diretório temporário /tmp.
     """
     base_path = Path("exports") / "insumos" / "json"
     try:
@@ -39,10 +43,9 @@ def get_json_export_dir():
 # ==========================================================
 # 💾 Funções principais
 # ==========================================================
-def salvar_insumo(uploaded_file, artefato: str):
+def salvar_insumo(uploaded_file, artefato: str) -> Path:
     """
-    Salva o arquivo enviado dentro de exports/insumos/json/
-    ou em /tmp, garantindo diretório disponível.
+    Cria um arquivo de metadados JSON básico com informações do upload.
     """
     base_dir = get_json_export_dir()
     filename = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -62,23 +65,25 @@ def salvar_insumo(uploaded_file, artefato: str):
 
 def processar_insumo(uploaded_file, artefato: str):
     """
-    Processa o insumo com IA e salva o resultado como JSON.
+    Processa o insumo com IA institucional e salva o resultado como JSON.
     """
     try:
-        # Etapa 1: análise por IA (prompt interno)
-        campos_ai = gerar_campos_por_ia(uploaded_file, artefato)
+        # Chama o motor IA institucional (SynapseNext v3)
+        resultado_ia = processar_insumo_ia(uploaded_file, artefato)
 
-        # Etapa 2: salvamento robusto
+        # Diretório de exportação
         base_dir = get_json_export_dir()
         json_path = base_dir / f"{artefato}_ultimo.json"
 
+        # Registro consolidado
         resultado = {
             "artefato": artefato,
-            "arquivo_origem": uploaded_file.name,
+            "arquivo_origem": getattr(uploaded_file, "name", None),
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "campos_ai": campos_ai or {},
+            "resultado_ia": resultado_ia,
         }
 
+        # Escrita robusta do JSON
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(resultado, f, ensure_ascii=False, indent=2)
 
@@ -92,7 +97,7 @@ def processar_insumo(uploaded_file, artefato: str):
 
 def listar_insumos():
     """
-    Lista arquivos JSON disponíveis no diretório de exportação.
+    Lista os arquivos JSON disponíveis no diretório de exportação.
     """
     base_dir = get_json_export_dir()
     arquivos = list(base_dir.glob("*.json"))
