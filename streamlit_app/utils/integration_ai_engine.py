@@ -1,9 +1,9 @@
 # ==========================================================
 # utils/integration_ai_engine.py
-# SynapseNext – SAAB / TJSP – IA Ativa v3
+# SynapseNext – SAAB / TJSP – IA Ativa v3.2
 # ==========================================================
 # Motor institucional de IA para pré-preenchimento de artefatos
-# Compatível com DFD, ETP e TR – totalmente integrado ao ecossistema SynapseNext
+# Compatível com DFD, ETP e TR – integrado ao ecossistema SynapseNext
 # ==========================================================
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+from pathlib import Path
 import streamlit as st
 from openai import OpenAI
 
@@ -19,12 +20,14 @@ from openai import OpenAI
 # ==========================================================
 _client: Optional[OpenAI] = None
 
+
 def _get_client() -> OpenAI:
     """Retorna instância única do cliente OpenAI."""
     global _client
     if _client is None:
         _client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     return _client
+
 
 # ==========================================================
 # 🧰 Utilitários de extração de texto
@@ -39,8 +42,9 @@ try:
 except Exception:
     docx2txt = None
 
+
 def _extract_txt_from_pdf(file) -> str:
-    """Extrai texto de PDF usando PyMuPDF; fallback seguro."""
+    """Extrai texto de PDF usando PyMuPDF."""
     if fitz is None:
         return ""
     try:
@@ -51,22 +55,26 @@ def _extract_txt_from_pdf(file) -> str:
             doc = fitz.open(stream=data.getvalue(), filetype="pdf")
         texts = [page.get_text() for page in doc]
         return "\n".join(texts)
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao extrair PDF: {e}")
         return ""
 
+
 def _extract_txt_from_docx(file) -> str:
-    """Extrai texto de DOCX usando docx2txt."""
+    """Extrai texto de DOCX."""
     if docx2txt is None:
         return ""
     try:
+        import io
         data = file.read() if hasattr(file, "read") else file
         if isinstance(data, bytes):
-            import io
             bio = io.BytesIO(data)
             return docx2txt.process(bio)
         return docx2txt.process(file)
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao extrair DOCX: {e}")
         return ""
+
 
 def _extract_txt_from_plain(file) -> str:
     """Lê texto puro (TXT)."""
@@ -75,8 +83,10 @@ def _extract_txt_from_plain(file) -> str:
         if isinstance(data, bytes):
             return data.decode("utf-8", errors="ignore")
         return str(data)
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao ler TXT: {e}")
         return ""
+
 
 def extrair_texto(uploaded_file) -> str:
     """Detecta o tipo de arquivo e extrai o texto bruto."""
@@ -91,6 +101,7 @@ def extrair_texto(uploaded_file) -> str:
         return _extract_txt_from_plain(uploaded_file)
     return _extract_txt_from_plain(uploaded_file)
 
+
 # ==========================================================
 # 📦 Modelo de retorno
 # ==========================================================
@@ -104,16 +115,16 @@ class IAResultado:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "modulo": self.modulo,
-            "campos": self.campos,
+            "campos_ai": self.campos,
             "lacunas": self.lacunas,
             "inferido_de": self.inferido_de,
         }
+
 
 # ==========================================================
 # 🧠 Montagem do prompt institucional
 # ==========================================================
 def _montar_prompt(modulo: str, texto: str, metadados: Dict[str, Any]) -> list[Dict[str, str]]:
-    """Constrói o prompt institucional para inferência de campos administrativos."""
     schema_comum = {
         "DFD": [
             "objeto",
@@ -161,7 +172,7 @@ def _montar_prompt(modulo: str, texto: str, metadados: Dict[str, Any]) -> list[D
         f"MÓDULO ALVO: {modulo}\n"
         f"METADADOS DO FORMULÁRIO:\n{json.dumps(metadados, ensure_ascii=False)}\n\n"
         f"EXTRATO DO INSUMO:\n{texto[:12000]}\n\n"
-        f"RETORNE JSON COM AS CHAVES: {chaves}, incluindo 'lacunas' e 'evidencias'."
+        f"RETORNE JSON COM AS CHAVES: {chaves}, incluindo 'lacunas'."
     )
 
     return [
@@ -169,22 +180,22 @@ def _montar_prompt(modulo: str, texto: str, metadados: Dict[str, Any]) -> list[D
         {"role": "user", "content": user},
     ]
 
+
 # ==========================================================
 # 🔄 Validação e coerção de JSON
 # ==========================================================
 def _coagir_json(conteudo: str) -> Dict[str, Any]:
-    """Tenta converter resposta textual em JSON válido."""
     try:
         return json.loads(conteudo)
     except Exception:
-        pass
-    m = re.search(r"\{[\s\S]*\}", conteudo)
-    if m:
-        try:
-            return json.loads(m.group(0))
-        except Exception:
-            pass
+        m = re.search(r"\{[\s\S]*\}", conteudo)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                pass
     return {"raw": conteudo}
+
 
 # ==========================================================
 # 🧩 Função pública principal – processar_insumo
@@ -195,23 +206,20 @@ def processar_insumo(
     metadados_form: Optional[Dict[str, Any]] = None,
     filename: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Processa um insumo e retorna um dicionário JSON com campos inferidos.
-    Atualiza st.session_state["<modulo>_campos_ai"].
-    """
+    """Processa um insumo e retorna um dicionário JSON com campos inferidos."""
     modulo = (tipo_artefato or "").upper()
     metadados_form = metadados_form or {}
 
-    # 1️⃣ Extração de texto
     texto = extrair_texto(uploaded_file)
+    model = st.secrets.get("OPENAI_MODEL", "gpt-4o-mini")
 
-    # 2️⃣ Chamada à OpenAI (modo JSON)
     try:
+        st.info(f"🔍 Utilizando modelo IA: **{model}**")
         client = _get_client()
         messages = _montar_prompt(modulo, texto, metadados_form)
 
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=messages,
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -219,21 +227,19 @@ def processar_insumo(
         )
         conteudo = resp.choices[0].message.content
     except Exception as e:
+        st.error(f"❌ Falha na chamada IA: {e}")
         conteudo = json.dumps({
             "modulo": modulo,
             "campos": {},
-            "lacunas": [f"Falha na chamada de IA: {str(e)}"],
-            "evidencias": [],
+            "lacunas": [f"Erro IA: {e}"],
         }, ensure_ascii=False)
 
-    # 3️⃣ Validação
     parsed = _coagir_json(conteudo)
     if "campos" not in parsed:
         parsed["campos"] = {}
     if "lacunas" not in parsed:
         parsed["lacunas"] = []
 
-    # 4️⃣ Montagem final
     resultado = IAResultado(
         modulo=modulo,
         campos=parsed.get("campos", {}),
@@ -244,17 +250,24 @@ def processar_insumo(
         },
     ).to_dict()
 
-    # 5️⃣ Atualiza session_state
+    # ==========================================================
+    # 💾 Salvar automaticamente para integração com DFD
+    # ==========================================================
+    out_dir = Path("exports") / "insumos" / "json"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{modulo}_ultimo.json"
+
     try:
-        key_map = {
-            "DFD": "dfd_campos_ai",
-            "ETP": "etp_campos_ai",
-            "TR": "tr_campos_ai",
-        }
-        target_key = key_map.get(modulo)
-        if target_key:
-            st.session_state[target_key] = resultado.get("campos", {})
-    except Exception:
-        pass
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(resultado, f, ensure_ascii=False, indent=2)
+        st.success(f"💾 Resultado IA salvo em: {out_file}")
+    except Exception as e:
+        st.error(f"Erro ao salvar JSON: {e}")
+
+    # Atualiza sessão
+    key_map = {"DFD": "dfd_campos_ai", "ETP": "etp_campos_ai", "TR": "tr_campos_ai"}
+    target_key = key_map.get(modulo)
+    if target_key:
+        st.session_state[target_key] = resultado.get("campos_ai", {})
 
     return resultado
