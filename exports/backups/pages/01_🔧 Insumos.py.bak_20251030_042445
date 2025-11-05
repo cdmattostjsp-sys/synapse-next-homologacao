@@ -32,8 +32,16 @@ if "dfd_campos_ai" not in st.session_state:
     st.session_state["dfd_campos_ai"] = {}
 
 # --- Garante estrutura de diretórios
-EXPORTS_JSON_DIR = Path("exports") / "insumos" / "json"
-EXPORTS_JSON_DIR.mkdir(parents=True, exist_ok=True)
+# --- Ajuste compatível com Streamlit Cloud
+BASE_EXPORT_DIR = Path("exports")
+EXPORTS_JSON_DIR = BASE_EXPORT_DIR / "insumos" / "json"
+
+try:
+    EXPORTS_JSON_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    # Fallback seguro: usa pasta temporária do ambiente Cloud
+    EXPORTS_JSON_DIR = Path("/tmp") / "insumos" / "json"
+    EXPORTS_JSON_DIR.mkdir(parents=True, exist_ok=True)
 
 # ==========================================================
 # 🏛️ Cabeçalho institucional
