@@ -1,1 +1,15 @@
+
+
+# Segurança e ambiente
+.env
 .streamlit/secrets.toml
+
+# Caches e temporários
+__pycache__/
+*.pyc
+*.log
+*.docx
+
+# Diretórios de execução
+exports/insumos/
+

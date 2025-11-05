@@ -1,0 +1,105 @@
+# ================================================================
+# 🧾 SynapseNext – Checklists de Edital
+# Secretaria de Administração e Abastecimento (SAAB 5.0)
+# ================================================================
+# Este checklist é modular e pode ser aplicado conforme o tipo
+# de contratação informado no DFD/ETP.
+# ================================================================
+
+metadata:
+  version: "2.0"
+  updated: "2025-10-20"
+  author: "Equipe SynapseNext – SAAB 5.0"
+  description: >
+    Estrutura unificada de validação para elaboração do Edital de Licitação
+    no âmbito do TJSP, conforme Lei nº 14.133/2021, CNJ Res. 452 e IN 12/2025.
+    Contém blocos específicos para serviços, materiais, obras, TI e consultorias.
+
+# ================================================================
+# ⚙️ Estrutura de blocos
+# ================================================================
+# Os blocos são aplicados de forma condicional pelo agente EDITAL.IA,
+# conforme o tipo de contratação indicado (ex: "serviço", "obra", etc.)
+# ================================================================
+
+checklist:
+
+  base:
+    title: "Bloco Base – Itens Comuns a Todos os Editais"
+    items:
+      - "O preâmbulo identifica corretamente o órgão, unidade e modalidade licitatória."
+      - "O objeto do edital está descrito com clareza e vinculado ao Termo de Referência."
+      - "A fundamentação legal cita expressamente a Lei nº 14.133/2021 e dispositivos pertinentes."
+      - "O edital informa local, data e horário para recebimento das propostas."
+      - "Há definição clara do critério de julgamento (menor preço, técnica e preço, maior desconto, etc.)."
+      - "O prazo de validade das propostas e das condições de habilitação está especificado."
+      - "As condições de participação estão detalhadas e contemplam vedação a empresas impedidas."
+      - "A minuta contratual foi anexada e revisada juridicamente."
+      - "As exigências de habilitação técnica, jurídica, fiscal e trabalhista estão adequadas ao objeto."
+      - "Há cláusula sobre impugnações e pedidos de esclarecimento com prazos legais."
+      - "A matriz de responsabilidades do órgão e do contratado está delineada."
+      - "As sanções administrativas estão previstas conforme art. 156 da Lei nº 14.133/21."
+      - "O edital contém cláusula de foro competente e disposições finais padronizadas pelo TJSP."
+
+  servicos:
+    title: "Bloco Específico – Serviços Comuns e Contínuos"
+    items:
+      - "O edital descreve o serviço com base em resultados e não apenas em insumos."
+      - "Há previsão de indicadores de desempenho e metas de qualidade."
+      - "Cláusulas de continuidade e possibilidade de prorrogação por até 60 meses estão contempladas."
+      - "Previsto plano de fiscalização com designação de gestor e fiscal técnico."
+      - "Consta metodologia de avaliação de desempenho e aplicação de glosas ou penalidades."
+      - "Inclui previsão de substituição de profissionais e controle de jornada, se aplicável."
+      - "Há cláusula de reajuste e revisão contratual conforme índice setorial pertinente."
+      - "Os custos de encargos trabalhistas e previdenciários estão discriminados no TR e no edital."
+
+  materiais:
+    title: "Bloco Específico – Aquisição de Materiais e Bens Permanentes"
+    items:
+      - "As especificações técnicas estão completas, sem referência a marcas, salvo justificativa técnica."
+      - "Há previsão de amostragem ou protótipo, se necessário."
+      - "Inclui cláusula de garantia mínima e assistência técnica."
+      - "Define prazos para entrega, recebimento provisório e definitivo."
+      - "Contém regras de penalidade para atraso na entrega."
+      - "As condições de pagamento estão compatíveis com o cronograma financeiro."
+      - "Prevista substituição de itens defeituosos durante o período de garantia."
+      - "Inclui instruções sobre logística reversa e descarte sustentável, quando aplicável."
+
+  obras:
+    title: "Bloco Específico – Obras e Serviços de Engenharia"
+    items:
+      - "O edital está acompanhado do projeto básico e/ou executivo devidamente aprovado."
+      - "Consta orçamento detalhado por custos unitários e planilha orçamentária."
+      - "A matriz de risco foi definida conforme art. 22 da Lei nº 14.133/21."
+      - "Foi exigida comprovação de responsável técnico com ART/RRT."
+      - "O edital contempla prazos de execução, medições e cronograma físico-financeiro."
+      - "Inclui critérios de medição, reajuste e pagamentos progressivos."
+      - "Prevê vistoria prévia no local da obra com registro em ata."
+      - "Contém exigências mínimas de qualificação técnica (atestado de capacidade compatível)."
+      - "Prevista cláusula de garantia de execução e seguro-garantia, conforme o valor do contrato."
+      - "Anexo de Termo de Recebimento Provisório e Definitivo da obra está incluso."
+
+  ti:
+    title: "Bloco Específico – Tecnologia da Informação e Inovação"
+    items:
+      - "O edital menciona as diretrizes de segurança da informação do TJSP."
+      - "Especificações técnicas estão alinhadas a padrões de interoperabilidade e LGPD."
+      - "Há cláusula de confidencialidade e propriedade intelectual."
+      - "Previsto SLA (Acordo de Nível de Serviço) com métricas mensuráveis."
+      - "Inclui plano de continuidade e suporte técnico pós-implantação."
+      - "Define critérios de compatibilidade com sistemas corporativos do TJSP."
+      - "Estabelece critérios de homologação e testes de aceitação."
+      - "Prevê capacitação ou transferência de conhecimento para equipe interna."
+
+  consultoria:
+    title: "Bloco Específico – Consultorias Técnicas e Estudos Especializados"
+    items:
+      - "Critério de julgamento é do tipo técnica e preço, com pesos definidos."
+      - "Há exigência de qualificação e experiência da equipe técnica."
+      - "Anexo com Termo de Referência específico e metodologia de trabalho."
+      - "Prevista cláusula de confidencialidade e de não concorrência."
+      - "O escopo do estudo ou parecer é delimitado com resultados esperados."
+      - "Prevista entrega de produto técnico final e eventuais revisões."
+      - "Consta cláusula de cessão dos direitos autorais e patrimoniais à Administração."
+      - "Prazo contratual é compatível com a complexidade do serviço."
+

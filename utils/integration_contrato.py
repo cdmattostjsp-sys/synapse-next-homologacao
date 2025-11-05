@@ -17,13 +17,14 @@ from pathlib import Path
 
 import docx2txt
 import fitz  # PyMuPDF
-from openai import OpenAI
+
+from utils.ai_client import AIClient
 
 # -----------------------------
-# ⚙️ OpenAI Client
+# ⚙️ Cliente OpenAI institucional
 # -----------------------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
-client = OpenAI(api_key=OPENAI_API_KEY)
+ai = AIClient()
+client = ai.client  # compatibilidade
 
 # -----------------------------
 # 📂 Export paths
@@ -109,11 +110,12 @@ def integrar_com_contexto(session_state: Dict[str, Any]) -> Dict[str, Any]:
 # -----------------------------
 # 🤖 Processamento IA – CONTRATO
 # -----------------------------
-def processar_insumo_contrato(arquivo, artefato: str = "CONTRATO", contexto_previo: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """
-    Lê arquivo (PDF/DOCX/TXT), consulta modelos institucionais e retorna
-    campos normalizados para o formulário do módulo CONTRATO.
-    """
+def processar_insumo_contrato(
+    arquivo,
+    artefato: str = "CONTRATO",
+    contexto_previo: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Processa insumo de CONTRATO com IA institucional."""
     texto = _extrair_texto_arquivo(arquivo)
     if not texto:
         return {"erro": "Falha na extração do texto do insumo de CONTRATO."}
@@ -125,7 +127,6 @@ def processar_insumo_contrato(arquivo, artefato: str = "CONTRATO", contexto_prev
         "especializado na elaboração de contratos administrativos alinhados à Lei 14.133/2021."
     )
 
-    # Contexto prévio ajuda a IA quando o insumo é enxuto
     contexto_json = json.dumps(contexto_previo or {}, ensure_ascii=False, indent=2)
 
     user_prompt = f"""
@@ -157,24 +158,16 @@ Texto do insumo:
 """
 
     try:
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
-        )
-        conteudo = resp.choices[0].message.content.strip()
-        # Extrai JSON
+        resp = ai.chat([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ])
+        conteudo = resp["content"].strip()
         match = re.search(r"\{.*\}", conteudo, re.DOTALL)
         campos = json.loads(match.group(0)) if match else {"objeto": texto[:1000]}
     except Exception as e:
         campos = {"erro": f"Falha ao processar IA de CONTRATO: {e}"}
 
-    # -----------------------------
-    # 🔄 Normalização/Defaults
-    # -----------------------------
     defaults = {
         "objeto": "",
         "partes": "",
@@ -190,9 +183,9 @@ Texto do insumo:
         "rescisao": "",
         "foro": "Comarca de São Paulo/SP.",
     }
-    campos_ai = {k: (campos.get(k) or defaults.get(k) or "—") for k in defaults.keys()}
 
-    print(f"[IA:CONTRATO] Arquivo: {getattr(arquivo,'name','(sem nome)')} – Campos: {list(campos_ai.keys())}")
+    campos_ai = {k: (campos.get(k) or defaults[k]) for k in defaults.keys()}
+    print(f"[IA:CONTRATO] ✅ Processado: {getattr(arquivo, 'name', '(sem nome)')}")
 
     return {
         "artefato": artefato,

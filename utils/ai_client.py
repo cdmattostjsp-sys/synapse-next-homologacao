@@ -3,16 +3,17 @@
 AI Client – Wrapper institucional para OpenAI
 Uso:
     from utils.ai_client import AIClient
-    client = AIClient()
-    result = client.chat([
+    ai = AIClient()
+    result = ai.chat([
         {"role": "system", "content": "Você é um redator técnico do TJSP."},
-        {"role": "user", "content": "Gerar sumário do DFD para ..."}
+        {"role": "user", "content": "Gerar sumário do DFD..."}
     ])
+
 Observações:
 - Mantém compatibilidade com Streamlit (st.secrets), .env e variáveis de ambiente.
 - Exige openai>=2.7.1 (compatível com Streamlit 1.39.0).
 """
-from __future__ import annotations
+
 import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -36,7 +37,7 @@ DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
 class AIClient:
-    """Cliente institucional de IA (OpenAI) para o SynapseNext/SAAB-TJSP."""
+    """Cliente institucional OpenAI para o SynapseNext / SAAB TJSP."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         # Hierarquia de obtenção da chave: .env → os.environ → st.secrets
@@ -73,9 +74,7 @@ class AIClient:
         response_format: Optional[Dict[str, Any]] = None,
         max_output_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Executa uma chamada de chat ao modelo configurado.
-        Retorna dict com content, finish_reason e usage (quando disponível).
-        """
+        """Executa uma chamada de chat ao modelo configurado."""
         kwargs = dict(model=self.model, messages=messages, temperature=temperature)
         if response_format:
             kwargs["response_format"] = response_format
@@ -84,6 +83,7 @@ class AIClient:
 
         resp = self.client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
+
         return {
             "content": choice.message.content,
             "finish_reason": choice.finish_reason,

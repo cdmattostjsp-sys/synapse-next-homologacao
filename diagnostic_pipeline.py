@@ -1,8 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+diagnostic_pipeline.py – Diagnóstico técnico do SynapseNext (pós-homologação)
+Executa checagens estruturais, verifica chaves OpenAI e registra log institucional.
+"""
+
 import os
 import sys
 import json
 import importlib.util
 from pathlib import Path
+from datetime import datetime
 
 print("\n🧠 === DIAGNÓSTICO TÉCNICO – SYNAPSENEXT ===\n")
 
@@ -16,7 +23,7 @@ for p in [str(streamlit_dir), str(utils_dir)]:
         sys.path.insert(0, p)
         print(f"🛠️ Caminho adicionado ao sys.path: {p}")
 
-print("\n�� sys.path atualizado:")
+print("\n🧩 sys.path atualizado:")
 for p in sys.path:
     print(f"   • {p}")
 print()
@@ -30,7 +37,10 @@ if secrets_file.exists():
         else:
             print("🔑 OpenAI Key: ⚠️ Arquivo encontrado, mas chave não detectada.\n")
 else:
-    print("🔑 OpenAI Key: ⚠️ NÃO detectada (adicione em .streamlit/secrets.toml)\n")
+    if os.getenv("OPENAI_API_KEY"):
+        print("🔑 OpenAI Key: ✅ Detectada via variável de ambiente.\n")
+    else:
+        print("🔑 OpenAI Key: ⚠️ NÃO detectada (adicione em .env ou .streamlit/secrets.toml)\n")
 
 # 📂 Estrutura principal
 dirs = {
@@ -56,7 +66,6 @@ if json_dir.exists():
             print(f"   • {f.name}")
         print()
 
-        # Mostra conteúdo resumido dos principais
         for artefato in ["DFD", "ETP", "TR"]:
             latest = [f for f in files if f.name.startswith(f"{artefato}_ultimo")]
             if latest:
@@ -98,3 +107,43 @@ else:
     print(f"\n❌ Estrutura incompleta ({ok_count}/5 módulos disponíveis).")
 
 print("\n🔍 Diagnóstico concluído.\n")
+
+# ==============================================================
+# 📘 Registro institucional do log de pós-homologação
+# ==============================================================
+
+try:
+    from utils.next_pipeline import registrar_log
+except Exception:
+    registrar_log = None
+
+try:
+    logs_dir = base_dir / "exports" / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_file = logs_dir / "diagnostic_post_homologacao.log"
+
+    log_entry = {
+        "fase": "diagnostic_post_homologacao",
+        "data_execucao": datetime.now().isoformat(timespec="seconds"),
+        "status": "concluido",
+        "modulos_ok": ok_count,
+    }
+
+    if registrar_log:
+        # Detecta automaticamente se a função aceita o parâmetro 'status'
+        import inspect
+        params = inspect.signature(registrar_log).parameters
+        if "status" in params:
+            registrar_log("diagnostic_post_homologacao", usuario="sistema", status="concluido")
+        else:
+            registrar_log("diagnostic_post_homologacao", usuario="sistema")
+        print("🗂️  Log institucional registrado via registrar_log().")
+    else:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        print(f"🗂️  Log técnico gravado localmente em {log_file}.")
+
+except Exception as e:
+    print(f"⚠️ Falha ao registrar log: {e}")
+
+print("\n✅ Diagnóstico pós-homologação finalizado.\n")
