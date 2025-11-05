@@ -1,119 +1,263 @@
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-import streamlit as st
-from utils.integration_dfd import export_dfd_to_json
-from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.agents_bridge import AgentsBridge
-from io import BytesIO
-from docx import Document
-from docx.shared import Pt
+# ==========================================================
+# pages/02_📄 DFD – Formalização da Demanda.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# Revisão: Engenheiro Synapse – restabelecer fluxo INSUMOS → IA → DFD
+# ==========================================================
+
+import os
 import json
+from pathlib import Path
+from io import BytesIO
+
+import streamlit as st
+from docx import Document
 
 # ==========================================================
-# 📄 DFD – Documento de Formalização da Demanda
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# 📦 Imports institucionais
 # ==========================================================
-st.set_page_config(page_title="📄 DFD – Formalização da Demanda", layout="wide", page_icon="📄")
+from utils.agents_bridge import AgentsBridge
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+
+# ==========================================================
+# ⚙️ Configuração inicial
+# ==========================================================
+st.set_page_config(
+    page_title="📄 DFD – Formalização da Demanda",
+    layout="wide",
+    page_icon="📄",
+)
 aplicar_estilo_global()
 
 exibir_cabecalho_padrao(
-    "📄 Documento de Formalização da Demanda (DFD)",
-    "Pré-preenchimento automático a partir de insumos + validação IA"
+    "📄 Formalização da Demanda (DFD)",
+    "Registro institucional da demanda e geração de rascunho com IA"
 )
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção e normalização do Insumo Ativo
+# 🛠 utilitários locais
 # ==========================================================
-insumo = st.session_state.get("last_insumo")
+def _load_insumo_from_session() -> dict:
+    """Tenta pegar o que o módulo INSUMOS já colocou na sessão."""
+    return st.session_state.get("dfd_campos_ai", {})
 
-def _extract_defaults(insumo_obj) -> dict:
-    if not insumo_obj:
-        return {}
-    raw = insumo_obj.get("campos_ai", {}) or {}
-    if isinstance(raw, dict) and "campos_ai" in raw and isinstance(raw["campos_ai"], dict):
-        return raw["campos_ai"]
-    if isinstance(raw, dict):
-        return raw
-    if isinstance(raw, str):
+
+def _load_insumo_from_disk() -> dict:
+    """
+    Fallback em disco:
+    1) exports/insumos/json/DFD_ultimo.json  (novo fluxo INSUMOS)
+    2) exports/dfd_data.json                 (fluxo legado)
+    """
+    # 1️⃣ novo fluxo
+    p1 = Path("exports") / "insumos" / "json" / "DFD_ultimo.json"
+    if p1.exists():
         try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict) and "campos_ai" in parsed:
-                return parsed["campos_ai"]
-            return parsed
+            with open(p1, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # o integration_insumos salva em "campos_ai"
+            if isinstance(data, dict) and "campos_ai" in data:
+                return data["campos_ai"]
+            return data
         except Exception:
-            return {}
+            pass
+
+    # 2️⃣ fluxo antigo
+    p2 = Path("exports") / "dfd_data.json"
+    if p2.exists():
+        try:
+            with open(p2, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data
+        except Exception:
+            pass
+
     return {}
 
-if insumo and insumo.get("artefato") in {"DFD", "ETP", "TR"}:
-    st.success(f"📎 Insumo ativo detectado: {insumo.get('nome','—')} (Artefato: {insumo.get('artefato','—')})")
-    with st.expander("🧾 Prévia do insumo (texto legível)", expanded=False):
-        st.text((insumo.get("conteudo", "") or "")[:1500])
-    defaults = _extract_defaults(insumo)
-else:
-    st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
-    defaults = {}
+
+def _make_json_safe(obj):
+    """
+    Remove do dicionário objetos da OpenAI (ex.: CompletionUsage) e
+    qualquer coisa que não seja serializável.
+    """
+    if isinstance(obj, dict):
+        clean = {}
+        for k, v in obj.items():
+            # filtra campos típicos de uso da API
+            if k in ("usage", "_usage", "system_fingerprint"):
+                continue
+            clean[k] = _make_json_safe(v)
+        return clean
+    elif isinstance(obj, list):
+        return [_make_json_safe(x) for x in obj]
+    else:
+        try:
+            json.dumps(obj)
+            return obj
+        except TypeError:
+            return str(obj)
+
 
 # ==========================================================
-# 🧾 Formulário Institucional
+# 🔄 Carregar dados vindos do INSUMOS / IA
 # ==========================================================
-st.subheader("1️⃣ Entrada – Formulário Institucional")
+campos_ai = _load_insumo_from_session()
+if not campos_ai:
+    campos_ai = _load_insumo_from_disk()
+
+# mapeamento mínimo dos nomes que costumam vir da IA
+unidade_default = (
+    campos_ai.get("unidade")
+    or campos_ai.get("unidade_demandante")
+    or ""
+)
+descricao_default = (
+    campos_ai.get("objeto")
+    or campos_ai.get("descricao")
+    or ""
+)
+motivacao_default = (
+    campos_ai.get("justificativa")
+    or campos_ai.get("motivacao")
+    or ""
+)
+prazo_default = campos_ai.get("prazo_execucao", "")
+estimativa_default = float(campos_ai.get("estimativa_valor", 0) or 0)
+
+# ==========================================================
+# 🧾 Formulário DFD (agora pré-preenchido)
+# ==========================================================
+st.subheader("1️⃣ Entrada – Formalização da Demanda")
 
 with st.form("form_dfd"):
-    unidade = st.text_input("Unidade solicitante", value=defaults.get("unidade_solicitante", ""))
-    responsavel = st.text_input("Responsável pela demanda", value=defaults.get("responsavel", ""))
-    objeto = st.text_area("Objeto da contratação", value=defaults.get("objeto", ""), height=100)
-    justificativa = st.text_area("Justificativa da necessidade", value=defaults.get("justificativa", ""), height=100)
-    quantidade = st.text_area("Quantidade e escopo", value=defaults.get("quantidade", ""), height=80)
-    urgencia = st.text_area("Urgência (se aplicável)", value=defaults.get("urgencia", ""), height=80)
-    riscos = st.text_area("Riscos identificados", value=defaults.get("riscos", ""), height=80)
-    alinhamento = st.text_area("Alinhamento estratégico", value=defaults.get("alinhamento_planejamento", ""), height=80)
-    gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
-    submitted = st.form_submit_button("�� Gerar rascunho manual")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        unidade = st.text_input(
+            "Unidade Demandante",
+            value=unidade_default,
+            placeholder="Ex.: Secretaria de Administração e Abastecimento – SAAB",
+            key="dfd_unidade",
+        )
+        responsavel = st.text_input(
+            "Responsável pela Demanda",
+            key="dfd_responsavel",
+        )
+        prazo = st.text_input(
+            "Prazo Estimado para Atendimento",
+            value=prazo_default,
+            key="dfd_prazo",
+        )
+
+    with col2:
+        descricao = st.text_area(
+            "Descrição da Necessidade",
+            height=100,
+            value=descricao_default,
+            key="dfd_descricao",
+        )
+        motivacao = st.text_area(
+            "Motivação da Contratação",
+            height=100,
+            value=motivacao_default,
+            key="dfd_motivacao",
+        )
+        estimativa_valor = st.number_input(
+            "Estimativa de Valor (R$)",
+            min_value=0.0,
+            step=1000.0,
+            value=estimativa_default,
+            key="dfd_estimativa_valor",
+        )
+
+    colb1, colb2 = st.columns(2)
+    with colb1:
+        gerar_ia = st.form_submit_button("⚙️ Gerar rascunho com IA institucional")
+    with colb2:
+        salvar_manual = st.form_submit_button("💾 Salvar dados manualmente")
 
 # ==========================================================
-# 💡 Geração IA Institucional
+# 🎨 Estilo institucional (mesmo padrão das outras páginas)
 # ==========================================================
-if gerar_ia:
-    st.info("Executando agente DFD institucional...")
-    metadata = {
-        "unidade": unidade,
-        "descricao": objeto,
-        "justificativa": justificativa,
-        "quantidade": quantidade,
-        "riscos": riscos,
-        "responsavel": responsavel,
-        "alinhamento": alinhamento,
-    }
-    try:
-        bridge = AgentsBridge("DFD")
-        resultado = bridge.generate(metadata)
-        st.success("✅ Rascunho gerado com sucesso pelo agente institucional DFD.IA!")
-        st.json(resultado)
-        st.session_state["last_dfd"] = resultado.get("secoes", {})
-    except Exception as e:
-        st.error(f"Erro ao gerar rascunho com IA: {e}")
+st.markdown(
+    """
+<style>
+div.stButton > button:first-child {
+    background-color: #003366 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    height: 2.8em !important;
+    font-weight: 500 !important;
+}
+div.stButton > button:first-child:hover {
+    background-color: #002244 !important;
+    color: white !important;
+    transition: 0.15s;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
 # ==========================================================
-# 💾 Resultado Manual
+# 💾 Salvamento manual (fallback)
 # ==========================================================
-if submitted:
+if salvar_manual:
     dfd_data = {
-        "unidade_solicitante": unidade,
+        "unidade": unidade,
         "responsavel": responsavel,
-        "objeto": objeto,
-        "justificativa": justificativa,
-        "quantidade": quantidade,
-        "urgencia": urgencia,
-        "riscos": riscos,
-        "alinhamento_planejamento": alinhamento,
+        "prazo": prazo,
+        "descricao": descricao,
+        "motivacao": motivacao,
+        "estimativa_valor": estimativa_valor,
     }
-    st.success("✅ Rascunho de DFD gerado manualmente!")
+    st.success("✅ Dados do DFD salvos manualmente.")
     st.json(dfd_data)
     st.session_state["last_dfd"] = dfd_data
 
 # ==========================================================
-# 📤 Exportação
+# 🤖 Geração IA Institucional (agente interno)
+# ==========================================================
+if gerar_ia:
+    st.info("Executando agente institucional DFD com base nos campos preenchidos e no insumo recebido...")
+    # metadados que vamos entregar ao agente
+    metadata = {
+        "unidade": unidade,
+        "responsavel": responsavel,
+        "prazo": prazo,
+        "descricao": descricao,
+        "motivacao": motivacao,
+        "estimativa_valor": estimativa_valor,
+        "campos_ai": campos_ai,     # 🟣 o que veio do INSUMOS + IA
+        "origem": "pagina_dfd_streamlit",
+    }
+
+    try:
+        bridge = AgentsBridge("DFD")
+        raw_result = bridge.generate(metadata)
+
+        # tornamos o retorno serializável
+        resultado = _make_json_safe(raw_result)
+
+        st.success("✅ Rascunho gerado com sucesso pelo agente DFD.IA!")
+        st.json(resultado)
+
+        # guardamos na sessão
+        st.session_state["last_dfd"] = resultado
+
+        # também salvamos a versão mais recente no formato antigo
+        exports_dir = Path("exports")
+        exports_dir.mkdir(exist_ok=True)
+        json_path = exports_dir / "dfd_data.json"
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(resultado, f, ensure_ascii=False, indent=2)
+        st.info(f"💾 DFD exportado para {json_path}")
+
+    except Exception as e:
+        st.error(f"Erro ao gerar rascunho com IA: {e}")
+
+# ==========================================================
+# 📤 Exportação do Documento
 # ==========================================================
 if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
     st.divider()
@@ -122,11 +266,15 @@ if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
 
     dfd_data = st.session_state["last_dfd"]
     doc = Document()
-    doc.add_heading("Documento de Formalização da Demanda (DFD)", level=1)
-    for k, v in dfd_data.items():
-        p = doc.add_paragraph()
-        p.add_run(f"{k}: ").bold = True
-        p.add_run(str(v) or "—")
+    doc.add_heading("Formalização da Demanda (DFD)", level=1)
+
+    if isinstance(dfd_data, dict):
+        for k, v in dfd_data.items():
+            p = doc.add_paragraph()
+            p.add_run(f"{k}: ").bold = True
+            p.add_run(str(v) or "—")
+    else:
+        doc.add_paragraph(str(dfd_data))
 
     buffer = BytesIO()
     doc.save(buffer)
@@ -135,19 +283,16 @@ if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
 
     st.markdown("---")
     if st.button("📦 Exportar DFD (JSON)"):
-        dfd_payload = {
-            "unidade": dfd_data.get("unidade_solicitante", ""),
-            "descricao": dfd_data.get("objeto", ""),
-            "motivacao": dfd_data.get("justificativa", ""),
-            "quantidade": dfd_data.get("quantidade", ""),
-            "responsavel": dfd_data.get("responsavel", ""),
-            "riscos": dfd_data.get("riscos", ""),
-            "alinhamento": dfd_data.get("alinhamento_planejamento", "")
-        }
         try:
-            path = export_dfd_to_json(dfd_payload)
-            st.success(f"✅ DFD exportado com sucesso para {path}")
+            exports_dir = Path("exports")
+            exports_dir.mkdir(exist_ok=True)
+            json_path = exports_dir / "dfd_data.json"
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(_make_json_safe(dfd_data), f, ensure_ascii=False, indent=2)
+            st.success(f"✅ DFD exportado com sucesso para {json_path}")
         except Exception as e:
             st.error(f"Falha ao exportar DFD: {e}")
 
-st.caption("💡 *Dica:* O botão '⚙️ Gerar rascunho com IA institucional' usa o agente DFD.IA com base nos metadados preenchidos.")
+st.caption(
+    "💡 Este módulo aceita preenchimento manual, mas dá prioridade ao insumo pré-processado pelo módulo INSUMOS + IA institucional."
+)
