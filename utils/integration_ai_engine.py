@@ -1,9 +1,9 @@
 # ==========================================================
 # utils/integration_ai_engine.py
-# SynapseNext – SAAB / TJSP – IA Ativa v3
+# SynapseNext – SAAB / TJSP – IA Ativa v3.1
 # ==========================================================
 # Motor institucional de IA para pré-preenchimento de artefatos
-# Compatível com DFD, ETP e TR – totalmente integrado ao ecossistema SynapseNext
+# Compatível com DFD, ETP e TR – integrado ao ecossistema SynapseNext
 # ==========================================================
 
 from __future__ import annotations
@@ -19,12 +19,14 @@ from openai import OpenAI
 # ==========================================================
 _client: Optional[OpenAI] = None
 
+
 def _get_client() -> OpenAI:
     """Retorna instância única do cliente OpenAI."""
     global _client
     if _client is None:
         _client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     return _client
+
 
 # ==========================================================
 # 🧰 Utilitários de extração de texto
@@ -38,6 +40,7 @@ try:
     import docx2txt
 except Exception:
     docx2txt = None
+
 
 def _extract_txt_from_pdf(file) -> str:
     """Extrai texto de PDF usando PyMuPDF; fallback seguro."""
@@ -54,6 +57,7 @@ def _extract_txt_from_pdf(file) -> str:
     except Exception:
         return ""
 
+
 def _extract_txt_from_docx(file) -> str:
     """Extrai texto de DOCX usando docx2txt."""
     if docx2txt is None:
@@ -68,6 +72,7 @@ def _extract_txt_from_docx(file) -> str:
     except Exception:
         return ""
 
+
 def _extract_txt_from_plain(file) -> str:
     """Lê texto puro (TXT)."""
     try:
@@ -77,6 +82,7 @@ def _extract_txt_from_plain(file) -> str:
         return str(data)
     except Exception:
         return ""
+
 
 def extrair_texto(uploaded_file) -> str:
     """Detecta o tipo de arquivo e extrai o texto bruto."""
@@ -90,6 +96,7 @@ def extrair_texto(uploaded_file) -> str:
     if name.endswith(".txt"):
         return _extract_txt_from_plain(uploaded_file)
     return _extract_txt_from_plain(uploaded_file)
+
 
 # ==========================================================
 # 📦 Modelo de retorno
@@ -108,6 +115,7 @@ class IAResultado:
             "lacunas": self.lacunas,
             "inferido_de": self.inferido_de,
         }
+
 
 # ==========================================================
 # 🧠 Montagem do prompt institucional
@@ -169,6 +177,7 @@ def _montar_prompt(modulo: str, texto: str, metadados: Dict[str, Any]) -> list[D
         {"role": "user", "content": user},
     ]
 
+
 # ==========================================================
 # 🔄 Validação e coerção de JSON
 # ==========================================================
@@ -186,6 +195,7 @@ def _coagir_json(conteudo: str) -> Dict[str, Any]:
             pass
     return {"raw": conteudo}
 
+
 # ==========================================================
 # 🧩 Função pública principal – processar_insumo
 # ==========================================================
@@ -195,10 +205,7 @@ def processar_insumo(
     metadados_form: Optional[Dict[str, Any]] = None,
     filename: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Processa um insumo e retorna um dicionário JSON com campos inferidos.
-    Atualiza st.session_state["<modulo>_campos_ai"].
-    """
+    """Processa um insumo e retorna um dicionário JSON com campos inferidos."""
     modulo = (tipo_artefato or "").upper()
     metadados_form = metadados_form or {}
 
@@ -210,8 +217,13 @@ def processar_insumo(
         client = _get_client()
         messages = _montar_prompt(modulo, texto, metadados_form)
 
+        # 🔧 Modelo IA com fallback para compatibilidade de conta
+        model = st.secrets.get("OPENAI_MODEL", "gpt-4o-mini")
+
+        st.info(f"🔍 Utilizando modelo IA: **{model}**")
+
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=messages,
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -219,6 +231,7 @@ def processar_insumo(
         )
         conteudo = resp.choices[0].message.content
     except Exception as e:
+        st.error(f"❌ Erro na chamada de IA: {e}")
         conteudo = json.dumps({
             "modulo": modulo,
             "campos": {},
