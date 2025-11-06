@@ -1,7 +1,7 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – 2025-11-06
+# Revisão Engenheiro Synapse – vNext_2025.11.07
 # ==========================================================
 
 import os
@@ -10,10 +10,8 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-# ==========================================================
-# 📦 Integração com o motor institucional de IA
-# ==========================================================
-from utils.integration_ai_engine_new import processar_insumo as processar_insumo_ia
+import fitz  # ✅ PyMuPDF – leitura via stream
+from utils.ai_client import AIClient  # ✅ Cliente institucional OpenAI
 
 # ==========================================================
 # 📁 Diretórios e estrutura de exportação
@@ -64,29 +62,50 @@ def salvar_insumo(uploaded_file, artefato: str) -> Path:
 
 def processar_insumo(uploaded_file, artefato: str):
     """
-    Processa o insumo com IA institucional e salva o resultado como JSON.
+    Processa o insumo PDF:
+      1. Lê o PDF via stream (PyMuPDF)
+      2. Extrai o texto integral
+      3. Chama o cliente institucional de IA
+      4. Gera e salva o JSON final em exports/insumos/json
     """
     try:
-        # Chama o motor IA institucional (SynapseNext v3)
-        resultado_ia = processar_insumo_ia(uploaded_file, artefato)
+        # ==========================================================
+        # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
+        # ==========================================================
+        with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+            texto_extraido = ""
+            for pagina in doc:
+                texto_extraido += pagina.get_text("text")
 
-        # Diretório de exportação
+        print("[SynapseNext] Texto extraído com sucesso ✅")
+
+        # ==========================================================
+        # 2️⃣ Chamada da IA institucional (via utils/ai_client.py)
+        # ==========================================================
+        ai = AIClient()
+        prompt_base = f"Analise o documento de {artefato} e gere estrutura JSON."
+        resposta_ia = ai.ask(prompt=prompt_base, conteudo=texto_extraido, artefato=artefato)
+
+        print("[SynapseNext] Chamando IA institucional... 🧠")
+
+        # ==========================================================
+        # 3️⃣ Montagem do registro consolidado e exportação
+        # ==========================================================
         base_dir = get_json_export_dir()
         json_path = base_dir / f"{artefato}_ultimo.json"
 
-        # Registro consolidado
         resultado = {
             "artefato": artefato,
             "arquivo_origem": getattr(uploaded_file, "name", None),
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "resultado_ia": resultado_ia,
+            "texto_extraido": texto_extraido[:1000],  # preview para auditoria
+            "resultado_ia": resposta_ia,
         }
 
-        # Escrita robusta do JSON
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(resultado, f, ensure_ascii=False, indent=2)
 
-        print(f"[SynapseNext] JSON salvo em: {json_path}")
+        print(f"[SynapseNext] JSON gerado e salvo em: {json_path} 💾")
         return resultado
 
     except Exception as e:
