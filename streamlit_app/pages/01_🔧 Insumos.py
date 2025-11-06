@@ -1,7 +1,7 @@
 # ==========================================================
 # pages/01_🔧 Insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – INC-2025-11-05-INSUMOS-UPLOAD (versão saneada)
+# Revisão: Engenheiro Synapse – INC-2025-11-09 (versão unificada e otimizada)
 # ==========================================================
 
 import os
@@ -67,21 +67,10 @@ if uploaded_file is not None:
                 resultado = processar_insumo(uploaded_file, artefato)
 
                 if resultado:
-                    # Diretório de exportação institucional
-                    export_dir = Path("exports") / "insumos" / "json"
-                    export_dir.mkdir(parents=True, exist_ok=True)
-
-                    # Nome final do JSON salvo
-                    nome_base = Path(uploaded_file.name).stem
-                    nome_json = f"{nome_base}_{artefato.lower()}.json"
-                    caminho_json = export_dir / nome_json
-
-                    # Gravar o resultado consolidado
-                    with open(caminho_json, "w", encoding="utf-8") as f:
-                        json.dump(resultado, f, ensure_ascii=False, indent=2)
-
-                    st.success(f"✅ Insumo {artefato} processado com sucesso e salvo como `{nome_json}`.")
-                    st.toast("💾 Resultado armazenado em exports/insumos/json/", icon="📁")
+                    # ✅ O próprio processar_insumo já salva o JSON consolidado em:
+                    # exports/insumos/json/<ARTEFATO>_ultimo.json
+                    st.success(f"✅ Insumo {artefato} processado com sucesso e integrado ao módulo {artefato}.")
+                    st.toast("💾 Resultado armazenado em exports/insumos/json/ (ex: DFD_ultimo.json)", icon="📁")
                 else:
                     st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
             except Exception as e:
