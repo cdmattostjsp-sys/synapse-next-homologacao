@@ -90,7 +90,7 @@ def salvar_dfd_manual(dados: dict, nome_arquivo: str = "DFD_manual.json"):
 def gerar_rascunho_dfd_com_ia():
     """
     Usa o conteúdo do último DFD processado (DFD_ultimo.json)
-    e executa a IA institucional para gerar um rascunho de preenchimento automático.
+    para gerar ou reaproveitar o rascunho com a IA institucional.
     """
     try:
         dfd_data = obter_dfd_da_sessao()
@@ -98,29 +98,37 @@ def gerar_rascunho_dfd_com_ia():
             st.warning("⚠️ Nenhum insumo DFD encontrado. Envie primeiro um documento no módulo 'Insumos'.")
             return None
 
+        # ✅ Se já existir uma resposta da IA no insumo, reutiliza
+        if "resultado_ia" in dfd_data and dfd_data["resultado_ia"].get("resposta_texto"):
+            st.info("♻️ Reutilizando rascunho existente da IA (DFD_ultimo.json).")
+            return dfd_data["resultado_ia"]["resposta_texto"]
+
+        # Caso contrário, reprocessa o texto com IA institucional
         texto_base = dfd_data.get("texto_extraido", "")
         if not texto_base:
             st.warning("⚠️ O insumo DFD não contém texto extraído.")
             return None
 
-        # ✅ Chamada padronizada da IA institucional
         ai = AIClient()
         prompt = (
             "Analise o texto do Documento de Formalização de Demanda (DFD) "
-            "e gere um rascunho JSON com os principais campos: "
+            "e gere um rascunho JSON com os campos: "
             "Unidade Demandante, Descrição da Necessidade, Responsável, "
             "Motivação/Objetivos Estratégicos e Prazo Estimado para Atendimento."
         )
 
         st.info("Executando agente DFD institucional com base no insumo processado...")
-
         resposta_ia = ai.ask(prompt=prompt, conteudo=texto_base, artefato="DFD")
 
         if not resposta_ia or not resposta_ia.get("resposta_texto"):
             st.warning("⚠️ A IA não retornou um rascunho válido.")
             return None
 
-        st.success("✅ Rascunho do DFD gerado com sucesso pela IA institucional.")
+        # Atualiza o JSON com o novo resultado e salva novamente
+        dfd_data["resultado_ia"] = resposta_ia
+        salvar_dfd_manual(dfd_data, nome_arquivo="DFD_ultimo.json")
+
+        st.success("✅ Rascunho do DFD gerado e armazenado com sucesso.")
         return resposta_ia["resposta_texto"]
 
     except Exception as e:
