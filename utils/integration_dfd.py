@@ -1,11 +1,11 @@
 # ==========================================================
 # utils/integration_dfd.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.07
+# Revisão Engenheiro Synapse – vNext_2025.11.08 (integrado a Insumos)
 # ==========================================================
 # Módulo de integração entre o processamento de INSUMOS e o formulário DFD.
+# Agora compatível com integração direta via get_ultimo_insumo_json().
 # Recupera automaticamente dados da sessão ativa ou do último JSON salvo.
-# Compatível com motor IA institucional v3.
 # ==========================================================
 
 from __future__ import annotations
@@ -16,6 +16,13 @@ import re
 import streamlit as st
 from datetime import datetime
 
+# Integração opcional com módulo de Insumos
+try:
+    from utils.integration_insumos import get_ultimo_insumo_json
+except Exception:
+    get_ultimo_insumo_json = None
+
+
 # ==========================================================
 # 🧠 Função principal – obter DFD ativo
 # ==========================================================
@@ -25,15 +32,41 @@ def obter_dfd_da_sessao() -> dict:
 
     Prioridades:
     1️⃣ st.session_state["dfd_campos_ai"]
-    2️⃣ exports/insumos/json/DFD_ultimo.json
-    3️⃣ Último arquivo DFD_*.json no diretório de insumos
+    2️⃣ Último insumo disponível (via integration_insumos)
+    3️⃣ exports/insumos/json/DFD_ultimo.json
+    4️⃣ Último arquivo DFD_*.json no diretório de insumos
     """
 
     # 1️⃣ Verifica sessão ativa
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return st.session_state["dfd_campos_ai"]
 
-    # 2️⃣ Tenta carregar o último insumo salvo (DFD_ultimo.json)
+    # 2️⃣ Tenta carregar o último insumo (qualquer artefato)
+    if get_ultimo_insumo_json:
+        try:
+            insumo_path = get_ultimo_insumo_json("DFD")
+            if insumo_path and os.path.exists(insumo_path):
+                with open(insumo_path, "r", encoding="utf-8") as f:
+                    dados_insumo = json.load(f)
+
+                campos_ia = dados_insumo.get("resultado_ia", {})
+                if isinstance(campos_ia, dict) and campos_ia:
+                    st.session_state["dfd_campos_ai"] = campos_ia
+                    print(f"[SynapseNext][DFD] Dados importados de {insumo_path}")
+                    return campos_ia
+                elif isinstance(campos_ia, str):
+                    # tenta parsear se for string JSON
+                    try:
+                        campos = json.loads(campos_ia)
+                        st.session_state["dfd_campos_ai"] = campos
+                        print(f"[SynapseNext][DFD] Dados parseados do insumo JSON")
+                        return campos
+                    except Exception:
+                        pass
+        except Exception as e:
+            st.warning(f"⚠️ Falha ao importar dados do insumo: {e}")
+
+    # 3️⃣ Tenta carregar o último DFD salvo
     base_dir = os.path.join("exports", "insumos", "json")
     ultimo_json = os.path.join(base_dir, "DFD_ultimo.json")
 
@@ -42,23 +75,19 @@ def obter_dfd_da_sessao() -> dict:
             with open(ultimo_json, "r", encoding="utf-8") as f:
                 dados = json.load(f)
 
-            # 🔹 Eng. Synapse – interpretar resposta da IA se presente
             campos = dados.get("campos_ai", {}) or dados.get("campos", {})
             if not campos and "resultado_ia" in dados:
                 resposta = dados["resultado_ia"].get("resposta_texto", "")
                 if resposta:
-                    # Extrai conteúdo JSON de blocos markdown ```json ... ```
                     match = re.search(r"```json(.*?)```", resposta, re.S)
                     if match:
                         conteudo_json = match.group(1).strip()
                         try:
                             campos = json.loads(conteudo_json)
                         except json.JSONDecodeError:
-                            st.warning("⚠️ A resposta da IA contém JSON parcial – tentando parsear texto bruto.")
+                            st.warning("⚠️ JSON parcial na resposta da IA – tentando recuperar.")
                             try:
-                                # tentativa de recuperação básica
-                                conteudo_json = conteudo_json.strip("` \n\t")
-                                campos = json.loads(conteudo_json)
+                                campos = json.loads(conteudo_json.strip("` \n\t"))
                             except Exception:
                                 campos = {}
             
@@ -69,7 +98,7 @@ def obter_dfd_da_sessao() -> dict:
         except Exception as e:
             st.warning(f"⚠️ Falha ao ler DFD_ultimo.json: {e}")
 
-    # 3️⃣ Busca o arquivo DFD mais recente (fallback final)
+    # 4️⃣ Busca o arquivo DFD mais recente (fallback final)
     try:
         arquivos = sorted(
             glob.glob(os.path.join(base_dir, "DFD_*.json")),
@@ -88,7 +117,7 @@ def obter_dfd_da_sessao() -> dict:
     except Exception as e:
         st.warning(f"⚠️ Nenhum DFD válido encontrado ({e})")
 
-    # 4️⃣ Fallback seguro
+    # 5️⃣ Fallback seguro
     return {}
 
 
