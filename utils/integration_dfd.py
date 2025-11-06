@@ -1,13 +1,14 @@
 # ==========================================================
 # utils/integration_dfd.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.08 (corrigido)
+# Revisão Engenheiro Synapse – vNext_2025.11.08 (IA integrada)
 # Compatibilidade: Streamlit 1.39.0 + openai 2.7.1
 # ==========================================================
 
 import json
 from pathlib import Path
 import streamlit as st
+from utils.ai_client import AIClient  # ✅ Importa cliente institucional de IA
 
 # ==========================================================
 # 📁 Funções utilitárias de caminho
@@ -84,7 +85,52 @@ def salvar_dfd_manual(dados: dict, nome_arquivo: str = "DFD_manual.json"):
 
 
 # ==========================================================
-# 🧠 Integração Streamlit (opcional)
+# 🤖 Função: gerar rascunho do DFD com IA institucional
+# ==========================================================
+def gerar_rascunho_dfd_com_ia():
+    """
+    Usa o conteúdo do último DFD processado (DFD_ultimo.json)
+    e executa a IA institucional para gerar um rascunho de preenchimento automático.
+    """
+    try:
+        dfd_data = obter_dfd_da_sessao()
+        if not dfd_data:
+            st.warning("⚠️ Nenhum insumo DFD encontrado. Envie primeiro um documento no módulo 'Insumos'.")
+            return None
+
+        texto_base = dfd_data.get("texto_extraido", "")
+        if not texto_base:
+            st.warning("⚠️ O insumo DFD não contém texto extraído.")
+            return None
+
+        # ✅ Chamada padronizada da IA institucional
+        ai = AIClient()
+        prompt = (
+            "Analise o texto do Documento de Formalização de Demanda (DFD) "
+            "e gere um rascunho JSON com os principais campos: "
+            "Unidade Demandante, Descrição da Necessidade, Responsável, "
+            "Motivação/Objetivos Estratégicos e Prazo Estimado para Atendimento."
+        )
+
+        st.info("Executando agente DFD institucional com base no insumo processado...")
+
+        resposta_ia = ai.ask(prompt=prompt, conteudo=texto_base, artefato="DFD")
+
+        if not resposta_ia or not resposta_ia.get("resposta_texto"):
+            st.warning("⚠️ A IA não retornou um rascunho válido.")
+            return None
+
+        st.success("✅ Rascunho do DFD gerado com sucesso pela IA institucional.")
+        return resposta_ia["resposta_texto"]
+
+    except Exception as e:
+        st.error(f"❌ Erro ao gerar rascunho com IA institucional: {e}")
+        print(f"[ERRO][DFD] {e}")
+        return None
+
+
+# ==========================================================
+# 🌐 Exibição (uso direto no Streamlit)
 # ==========================================================
 def exibir_dfd_em_pagina():
     """
