@@ -13,3 +13,4 @@ __pycache__/
 # Diretórios de execução
 exports/insumos/
 
+tests/teste_dfd.pdf
