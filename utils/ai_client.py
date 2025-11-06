@@ -5,6 +5,9 @@
 # Compatibilidade: Streamlit 1.39.0 + openai 2.7.1
 # ==========================================================
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import json
 from openai import OpenAI
