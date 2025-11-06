@@ -18,7 +18,7 @@ from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 # ==========================================================
 # ⚙️ Configuração inicial
 # ==========================================================
-st.set_page_config(page_title="🔧 Insumos – Upload e Integração", layout="wide", page_icon="🧩")
+st.set_page_config(page_title="🔧 Insumos – Upload e Integração", layout="wide", page_icon="🧹")
 aplicar_estilo_global()
 
 exibir_cabecalho_padrao(
@@ -55,7 +55,20 @@ if uploaded_file is not None:
             try:
                 resultado = processar_insumo(uploaded_file, artefato)
                 if resultado:
-                    st.success(f"✅ Insumo {artefato} processado e encaminhado com sucesso.")
+                    # Diretório de exportação
+                    export_dir = Path("exports") / "insumos" / "json"
+                    export_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Nome do JSON
+                    nome_base = Path(uploaded_file.name).stem
+                    nome_json = f"{nome_base}_{artefato.lower()}.json"
+                    caminho_json = export_dir / nome_json
+
+                    # Salvar resultado IA
+                    with open(caminho_json, "w", encoding="utf-8") as f:
+                        json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+                    st.success(f"✅ Insumo {artefato} processado e salvo como {nome_json}.")
                 else:
                     st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
             except Exception as e:
@@ -64,7 +77,7 @@ else:
     st.info("Aguardando seleção de arquivo para iniciar o processamento.")
 
 # ==========================================================
-# 🧾 Histórico de insumos processados
+# 🗒️ Histórico de insumos processados
 # ==========================================================
 st.divider()
 st.subheader("📚 Histórico de insumos disponíveis")
@@ -89,7 +102,7 @@ else:
     st.info("Nenhum insumo processado ainda.")
 
 # ==========================================================
-# 🏁 Rodapé institucional
+# 🌟 Rodapé institucional
 # ==========================================================
 st.divider()
 st.caption(

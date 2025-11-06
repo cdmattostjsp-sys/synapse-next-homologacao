@@ -13,8 +13,7 @@ from pathlib import Path
 # ==========================================================
 # 📦 Integração com o motor institucional de IA
 # ==========================================================
-from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
-
+from utils.integration_ai_engine_new import processar_insumo as processar_insumo_ia
 
 # ==========================================================
 # 📁 Diretórios e estrutura de exportação
