@@ -1,8 +1,8 @@
 # ==========================================================
 # pages/02_📄 DFD – Formalização da Demanda.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – vNext_2025.11.07
-# Restabelecimento do fluxo INSUMOS → IA → DFD
+# Revisão: Engenheiro Synapse – vNext_2025.11.08
+# Correção definitiva do parser JSON de INSUMOS → IA → DFD
 # ==========================================================
 
 import os
@@ -18,7 +18,7 @@ from docx import Document
 # ==========================================================
 from utils.agents_bridge import AgentsBridge
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.integration_dfd import obter_dfd_da_sessao  # 🔹 Eng. Synapse: integração direta
+from utils.integration_dfd import obter_dfd_da_sessao
 
 # ==========================================================
 # ⚙️ Configuração inicial
@@ -44,17 +44,31 @@ def mapear_dfd_campos(dados_ia: dict) -> dict:
     campos = {}
     etp = dados_ia.get("estudo_tecnico_preliminar", {})
 
+    campos["lei"] = etp.get("lei", "")
     campos["processo_cpa"] = etp.get("processo_cpa", "")
-    objeto = etp.get("objeto", {})
-    necessidade = etp.get("necessidade_contratacao", {})
 
-    campos["descricao_necessidade"] = objeto.get("descricao", "")
-    campos["motivacao_contratacao"] = necessidade.get("descricao", "")
-    campos["finalidade"] = objeto.get("finalidade", "")
-    campos["localizacao"] = objeto.get("condicoes", {}).get("localizacao", "")
-    campos["locais"] = ", ".join(necessidade.get("locais", []))
-    campos["riscos"] = ", ".join(necessidade.get("riscos", []))
-    campos["criterio_licitacoes"] = necessidade.get("criterio_licitações", "")
+    # Bloco objetivo
+    objetivo = etp.get("objetivo", {})
+    campos["descricao_necessidade"] = objetivo.get("contratacao", "")
+    campos["localizacao"] = objetivo.get("localizacao", {}).get("descricao", "")
+    campos["endereco"] = objetivo.get("localizacao", {}).get("endereco", "")
+    campos["disciplinas"] = ", ".join(objetivo.get("disciplinas", []))
+
+    # Bloco descrição da necessidade
+    necessidade = etp.get("descricao_da_necessidade", {})
+    edificio = necessidade.get("edificio", {})
+    campos["caracteristicas_edificio"] = f"{edificio.get('pavimentos', '')} pavimentos, {edificio.get('sistema_construtivo', '')}"
+    campos["intervencoes_previstas"] = ", ".join(necessidade.get("intervencoes", []))
+
+    # Bloco plano de contratações
+    plano = etp.get("previsto_no_plano_de_contratacoes_anual", {}).get("plano_obras", {})
+    campos["ano_plano_obras"] = plano.get("ano", "")
+    campos["codigo_pca"] = etp.get("previsto_no_plano_de_contratacoes_anual", {}).get("codigo_identificacao", "")
+
+    # Planejamento estratégico
+    planejamento = etp.get("planejamento_estrategico", {})
+    campos["periodo_planejamento"] = planejamento.get("periodo", "")
+    campos["objetivos_estrategicos"] = ", ".join(planejamento.get("objetivos", []))
 
     return campos
 
@@ -66,29 +80,48 @@ def _carregar_insumo_dfd() -> dict:
     """
     Carrega o último insumo processado e mapeia o JSON da IA
     para o formato esperado pelos campos do formulário DFD.
+    Corrige leitura de resultado_ia.resposta_texto sem fechamento do bloco ```json```.
     """
     base_path = Path("exports") / "insumos" / "json" / "DFD_ultimo.json"
     if not base_path.exists():
+        st.warning("⚠️ Nenhum arquivo DFD_ultimo.json encontrado.")
         return {}
 
     try:
         with open(base_path, "r", encoding="utf-8") as f:
             dados = json.load(f)
 
-        # 🔹 Novo formato do integration_insumos.py
+        # Novo formato do integration_insumos.py
         if "resultado_ia" in dados:
             resposta = dados["resultado_ia"].get("resposta_texto", "")
             if resposta:
+                conteudo_json = None
+
+                # 1️⃣ Tenta extrair via bloco markdown ```json ... ```
                 match = re.search(r"```json(.*?)```", resposta, re.S)
                 if match:
                     conteudo_json = match.group(1).strip()
+
+                # 2️⃣ Se não encontrou bloco, tenta direto entre { e }
+                if not conteudo_json and "{" in resposta and "}" in resposta:
+                    start = resposta.find("{")
+                    end = resposta.rfind("}") + 1
+                    conteudo_json = resposta[start:end].strip()
+
+                if conteudo_json:
                     try:
                         dados_ia = json.loads(conteudo_json)
                         return mapear_dfd_campos(dados_ia)
-                    except Exception:
-                        st.warning("⚠️ Falha ao interpretar JSON da IA. Exibindo campos vazios.")
-                        return {}
-        # 🔸 Fallback antigo
+                    except json.JSONDecodeError:
+                        st.warning("⚠️ JSON parcial detectado, tentando normalizar...")
+                        try:
+                            conteudo_json = conteudo_json.replace("\n", " ")
+                            dados_ia = json.loads(conteudo_json)
+                            return mapear_dfd_campos(dados_ia)
+                        except Exception:
+                            st.error("❌ Falha ao interpretar o JSON gerado pela IA.")
+                            return {}
+        # Fallback legado
         return dados.get("campos_ai", {})
 
     except Exception as e:
@@ -121,8 +154,8 @@ lacunas_ai = _carregar_lacunas_dfd()
 st.subheader("1️⃣ Entrada – Formalização da Demanda")
 
 descricao_default = campos_ai.get("descricao_necessidade", "")
-motivacao_default = campos_ai.get("motivacao_contratacao", "")
-prazo_default = campos_ai.get("prazo_execucao", "")
+motivacao_default = campos_ai.get("objetivos_estrategicos", "")
+prazo_default = campos_ai.get("periodo_planejamento", "")
 estimativa_default = 0.0
 
 with st.form("form_dfd"):
@@ -152,7 +185,7 @@ with st.form("form_dfd"):
             key="dfd_descricao",
         )
         motivacao = st.text_area(
-            "Motivação da Contratação",
+            "Motivação / Objetivos Estratégicos",
             height=100,
             value=motivacao_default,
             key="dfd_motivacao",
