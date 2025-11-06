@@ -1,139 +1,58 @@
-# -*- coding: utf-8 -*-
-"""
-AI Client – Wrapper institucional para OpenAI
-Uso:
-    from utils.ai_client import AIClient
-    ai = AIClient()
-    result = ai.chat([
-        {"role": "system", "content": "Você é um redator técnico do TJSP."},
-        {"role": "user", "content": "Gerar sumário do DFD..."}
-    ])
-
-Observações:
-- Mantém compatibilidade com Streamlit (st.secrets), .env e variáveis de ambiente.
-- Exige openai>=2.7.1 (compatível com Streamlit 1.39.0).
-"""
+# ==========================================================
+# utils/ai_client.py
+# SynapseNext – Cliente Institucional OpenAI
+# Revisão: Engenheiro Synapse – 2025-11-05 (versão compatível Streamlit)
+# ==========================================================
 
 import os
+from openai import OpenAI
 import json
-from pathlib import Path
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-
-# 🔹 Carrega automaticamente variáveis do .env
-from dotenv import load_dotenv
-load_dotenv()
-
-try:
-    import streamlit as st  # opcional em execução de testes
-except Exception:
-    st = None
-
-try:
-    from openai import OpenAI
-except Exception:
-    OpenAI = None
-
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
 
 class AIClient:
-    """Cliente institucional OpenAI para o SynapseNext / SAAB TJSP."""
+    """Cliente institucional padronizado para acesso à API OpenAI."""
 
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        # Hierarquia de obtenção da chave: .env → os.environ → st.secrets
-        env_key = os.getenv("OPENAI_API_KEY")
-        secrets_key = None
+    def __init__(self):
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY não encontrada no ambiente (.env).")
+        self.client = OpenAI(api_key=api_key)
 
-        if st is not None:
-            try:
-                if hasattr(st, "secrets") and "OPENAI_API_KEY" in st.secrets:
-                    secrets_key = st.secrets["OPENAI_API_KEY"]
-            except Exception:
-                secrets_key = None
-
-        self.api_key = api_key or env_key or secrets_key
-
-        if not self.api_key:
-            raise RuntimeError(
-                "OPENAI_API_KEY não configurada. Verifique o arquivo .env ou st.secrets."
-            )
-
-        if OpenAI is None:
-            raise RuntimeError(
-                "Pacote openai não encontrado. Adicione `openai>=2.7.1` ao requirements.txt."
-            )
-
-        self.model = model or DEFAULT_MODEL
-        self.client = OpenAI(api_key=self.api_key)
-        print(f"[AIClient] ✅ Cliente OpenAI inicializado com modelo '{self.model}'")
-
-    # ===============================================================
-    # 🔹 Método principal de chamada padronizada
-    # ===============================================================
-    def chat(
-        self,
-        messages: List[Dict[str, Any]],
-        temperature: float = 0.2,
-        response_format: Optional[str] = "json_object",
-        max_output_tokens: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """Executa uma chamada de chat ao modelo configurado (compatível com openai>=2.7.1)."""
-        kwargs = dict(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            response_format=response_format,
-        )
-
-        if max_output_tokens:
-            kwargs["max_output_tokens"] = max_output_tokens
+    def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
+        """
+        Envia um prompt para o modelo de linguagem institucional e retorna a resposta JSON.
+        Aceita texto puro (str) ou binário (bytes). Compatível com Streamlit.
+        """
 
         try:
-            resp = self.client.chat.completions.create(**kwargs)
-            choice = resp.choices[0]
-            return {
-                "content": choice.message.content,
-                "finish_reason": choice.finish_reason,
-                "usage": getattr(resp, "usage", None),
-            }
+            # Garante que conteudo é string legível
+            if isinstance(conteudo, bytes):
+                conteudo = conteudo.decode("utf-8", errors="ignore")
+            elif not isinstance(conteudo, str):
+                conteudo = str(conteudo)
+
+            mensagem = (
+                f"{prompt}\n\n"
+                f"---\n"
+                f"Conteúdo do documento:\n{conteudo[:4000]}\n"
+                f"---\n"
+                f"Responda no formato JSON estruturado para o artefato {artefato}."
+            )
+
+            resposta = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Você é um assistente técnico institucional do TJSP."},
+                    {"role": "user", "content": mensagem},
+                ],
+                max_tokens=500,
+            )
+
+            texto = resposta.choices[0].message.content.strip()
+
+            try:
+                return json.loads(texto)
+            except Exception:
+                return {"resposta_texto": texto}
 
         except Exception as e:
-            raise RuntimeError(f"Erro na chamada OpenAI: {e}")
-
-    # ===============================================================
-    # 🔹 Método auxiliar para retorno JSON direto
-    # ===============================================================
-    def chat_as_json(
-        self,
-        messages: List[Dict[str, Any]],
-        temperature: float = 0.2,
-    ) -> Dict[str, Any]:
-        """Executa o chat e converte automaticamente o conteúdo retornado em JSON."""
-        result = self.chat(messages=messages, temperature=temperature)
-        try:
-            return json.loads(result["content"])
-        except json.JSONDecodeError:
-            raise ValueError("A resposta da IA não está em formato JSON válido.")
-
-
-# ===============================================================
-# 🧾 Bloco de validação e log pós-ajuste de credenciais
-# ===============================================================
-if __name__ == "__main__":
-    try:
-        client = AIClient()
-        log_dir = Path(__file__).resolve().parents[1] / "exports" / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / "ai_client_init_fix_20251105.txt"
-
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(
-                f"[{datetime.now().isoformat()}] OPENAI_API_KEY reconhecida: {bool(client.api_key)}\n"
-            )
-
-        print(f"🗂️ Log pós-ajuste gravado em {log_file}")
-        print(f"✅ OPENAI_API_KEY reconhecida: {bool(client.api_key)}")
-
-    except Exception as e:
-        print(f"⚠️ Falha ao validar AIClient: {e}")
+            return {"erro": f"Falha na chamada OpenAI: {e}"}

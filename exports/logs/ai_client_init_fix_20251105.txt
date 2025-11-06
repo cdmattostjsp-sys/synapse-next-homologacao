@@ -1,0 +1,1 @@
+[2025-11-05T20:06:26.401819] OPENAI_API_KEY reconhecida: True
