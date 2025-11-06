@@ -1,7 +1,7 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.07
+# Revisão Engenheiro Synapse – vNext_2025.11.07 (reforçada)
 # ==========================================================
 
 import os
@@ -12,6 +12,7 @@ from pathlib import Path
 
 import fitz  # ✅ PyMuPDF – leitura via stream
 from utils.ai_client import AIClient  # ✅ Cliente institucional OpenAI
+
 
 # ==========================================================
 # 📁 Diretórios e estrutura de exportação
@@ -49,7 +50,7 @@ def salvar_insumo(uploaded_file, artefato: str) -> Path:
     save_path = base_dir / filename
 
     meta = {
-        "nome": uploaded_file.name,
+        "nome": getattr(uploaded_file, "name", "sem_nome"),
         "artefato": artefato,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
@@ -71,8 +72,11 @@ def processar_insumo(uploaded_file, artefato: str):
     try:
         # ==========================================================
         # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
+        #    OBS: no Streamlit, .read() consome o buffer. Se o chamador
+        #    precisar do arquivo depois, deve reposicionar o ponteiro.
         # ==========================================================
-        with fitz.open(stream=uploaded_file.getvalue(), filetype="pdf") as doc:
+        pdf_bytes = uploaded_file.read()
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             texto_extraido = ""
             for pagina in doc:
                 texto_extraido += pagina.get_text("text")
@@ -120,3 +124,15 @@ def listar_insumos():
     base_dir = get_json_export_dir()
     arquivos = list(base_dir.glob("*.json"))
     return [f.name for f in arquivos]
+
+
+def get_ultimo_insumo_json(artefato: str) -> Path | None:
+    """
+    Retorna o caminho do último JSON gerado para um artefato específico,
+    se ele existir.
+    """
+    base_dir = get_json_export_dir()
+    candidate = base_dir / f"{artefato}_ultimo.json"
+    if candidate.exists():
+        return candidate
+    return None
