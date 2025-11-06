@@ -1,6 +1,7 @@
 # ==========================================================
 # utils/integration_dfd.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# Revisão Engenheiro Synapse – vNext_2025.11.07
 # ==========================================================
 # Módulo de integração entre o processamento de INSUMOS e o formulário DFD.
 # Recupera automaticamente dados da sessão ativa ou do último JSON salvo.
@@ -11,6 +12,7 @@ from __future__ import annotations
 import os
 import json
 import glob
+import re
 import streamlit as st
 from datetime import datetime
 
@@ -39,10 +41,31 @@ def obter_dfd_da_sessao() -> dict:
         try:
             with open(ultimo_json, "r", encoding="utf-8") as f:
                 dados = json.load(f)
+
+            # 🔹 Eng. Synapse – interpretar resposta da IA se presente
             campos = dados.get("campos_ai", {}) or dados.get("campos", {})
+            if not campos and "resultado_ia" in dados:
+                resposta = dados["resultado_ia"].get("resposta_texto", "")
+                if resposta:
+                    # Extrai conteúdo JSON de blocos markdown ```json ... ```
+                    match = re.search(r"```json(.*?)```", resposta, re.S)
+                    if match:
+                        conteudo_json = match.group(1).strip()
+                        try:
+                            campos = json.loads(conteudo_json)
+                        except json.JSONDecodeError:
+                            st.warning("⚠️ A resposta da IA contém JSON parcial – tentando parsear texto bruto.")
+                            try:
+                                # tentativa de recuperação básica
+                                conteudo_json = conteudo_json.strip("` \n\t")
+                                campos = json.loads(conteudo_json)
+                            except Exception:
+                                campos = {}
+            
             if campos:
                 st.session_state["dfd_campos_ai"] = campos
                 return campos
+
         except Exception as e:
             st.warning(f"⚠️ Falha ao ler DFD_ultimo.json: {e}")
 
@@ -100,6 +123,7 @@ def salvar_dfd_em_json(campos_dfd: dict, origem: str = "formulario") -> str:
     except Exception as e:
         st.warning(f"⚠️ Falha ao salvar DFD: {e}")
         return ""
+
 
 # ==========================================================
 # 🧩 Função utilitária – status legível
