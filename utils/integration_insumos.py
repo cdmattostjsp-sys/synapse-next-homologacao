@@ -72,7 +72,7 @@ def processar_insumo(uploaded_file, artefato: str):
         # ==========================================================
         # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
         # ==========================================================
-        with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+        with fitz.open(stream=uploaded_file.getvalue(), filetype="pdf") as doc:
             texto_extraido = ""
             for pagina in doc:
                 texto_extraido += pagina.get_text("text")
