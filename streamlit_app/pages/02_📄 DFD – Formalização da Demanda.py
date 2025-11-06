@@ -1,8 +1,8 @@
 # ==========================================================
 # pages/02_📄 DFD – Formalização da Demanda.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – vNext_2025.11.08
-# Correção definitiva do parser JSON de INSUMOS → IA → DFD
+# Revisão: Engenheiro Synapse – vNext_2025.11.08-r2
+# Correção definitiva do parser JSON (tolerante a JSON truncado)
 # ==========================================================
 
 import os
@@ -47,25 +47,21 @@ def mapear_dfd_campos(dados_ia: dict) -> dict:
     campos["lei"] = etp.get("lei", "")
     campos["processo_cpa"] = etp.get("processo_cpa", "")
 
-    # Bloco objetivo
     objetivo = etp.get("objetivo", {})
     campos["descricao_necessidade"] = objetivo.get("contratacao", "")
     campos["localizacao"] = objetivo.get("localizacao", {}).get("descricao", "")
     campos["endereco"] = objetivo.get("localizacao", {}).get("endereco", "")
     campos["disciplinas"] = ", ".join(objetivo.get("disciplinas", []))
 
-    # Bloco descrição da necessidade
     necessidade = etp.get("descricao_da_necessidade", {})
     edificio = necessidade.get("edificio", {})
     campos["caracteristicas_edificio"] = f"{edificio.get('pavimentos', '')} pavimentos, {edificio.get('sistema_construtivo', '')}"
     campos["intervencoes_previstas"] = ", ".join(necessidade.get("intervencoes", []))
 
-    # Bloco plano de contratações
     plano = etp.get("previsto_no_plano_de_contratacoes_anual", {}).get("plano_obras", {})
     campos["ano_plano_obras"] = plano.get("ano", "")
     campos["codigo_pca"] = etp.get("previsto_no_plano_de_contratacoes_anual", {}).get("codigo_identificacao", "")
 
-    # Planejamento estratégico
     planejamento = etp.get("planejamento_estrategico", {})
     campos["periodo_planejamento"] = planejamento.get("periodo", "")
     campos["objetivos_estrategicos"] = ", ".join(planejamento.get("objetivos", []))
@@ -74,7 +70,7 @@ def mapear_dfd_campos(dados_ia: dict) -> dict:
 
 
 # ==========================================================
-# 🆕 Função de apoio – carregar insumo vindo do módulo INSUMOS
+# 🆕 Função – carregar insumo vindo do módulo INSUMOS (robusta)
 # ==========================================================
 def _carregar_insumo_dfd() -> dict:
     """
@@ -91,18 +87,15 @@ def _carregar_insumo_dfd() -> dict:
         with open(base_path, "r", encoding="utf-8") as f:
             dados = json.load(f)
 
-        # Novo formato do integration_insumos.py
         if "resultado_ia" in dados:
             resposta = dados["resultado_ia"].get("resposta_texto", "")
             if resposta:
                 conteudo_json = None
 
-                # 1️⃣ Tenta extrair via bloco markdown ```json ... ```
                 match = re.search(r"```json(.*?)```", resposta, re.S)
                 if match:
                     conteudo_json = match.group(1).strip()
 
-                # 2️⃣ Se não encontrou bloco, tenta direto entre { e }
                 if not conteudo_json and "{" in resposta and "}" in resposta:
                     start = resposta.find("{")
                     end = resposta.rfind("}") + 1
@@ -112,16 +105,34 @@ def _carregar_insumo_dfd() -> dict:
                     try:
                         dados_ia = json.loads(conteudo_json)
                         return mapear_dfd_campos(dados_ia)
+
                     except json.JSONDecodeError:
                         st.warning("⚠️ JSON parcial detectado, tentando normalizar...")
                         try:
-                            conteudo_json = conteudo_json.replace("\n", " ")
+                            conteudo_json = (
+                                conteudo_json.replace("\n", " ")
+                                .replace("```json", "")
+                                .replace("```", "")
+                            )
+
+                            # Corrigir desequilíbrio de chaves
+                            open_braces = conteudo_json.count("{")
+                            close_braces = conteudo_json.count("}")
+                            if open_braces > close_braces:
+                                conteudo_json += "}" * (open_braces - close_braces)
+
+                            # Cortar texto além do último fechamento
+                            last_close = conteudo_json.rfind("}")
+                            if last_close != -1:
+                                conteudo_json = conteudo_json[:last_close + 1]
+
                             dados_ia = json.loads(conteudo_json)
+                            st.success("✅ JSON parcial recuperado com sucesso.")
                             return mapear_dfd_campos(dados_ia)
-                        except Exception:
-                            st.error("❌ Falha ao interpretar o JSON gerado pela IA.")
+
+                        except Exception as e:
+                            st.error(f"❌ Falha ao interpretar o JSON gerado pela IA ({e}).")
                             return {}
-        # Fallback legado
         return dados.get("campos_ai", {})
 
     except Exception as e:
