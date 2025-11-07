@@ -1,7 +1,7 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.07 (reforçada)
+# Revisão Engenheiro Synapse – vNext_2025.11.07 (corrigido e reforçado)
 # ==========================================================
 
 import os
@@ -72,10 +72,11 @@ def processar_insumo(uploaded_file, artefato: str):
     try:
         # ==========================================================
         # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
-        #    OBS: no Streamlit, .read() consome o buffer. Se o chamador
-        #    precisar do arquivo depois, deve reposicionar o ponteiro.
         # ==========================================================
+        # 🔹 Streamlit fornece o arquivo como BytesIO; usamos .read() e reposicionamos o ponteiro.
         pdf_bytes = uploaded_file.read()
+        uploaded_file.seek(0)  # reposiciona o ponteiro para evitar conflito com chamadas posteriores
+
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             texto_extraido = ""
             for pagina in doc:
@@ -88,7 +89,11 @@ def processar_insumo(uploaded_file, artefato: str):
         # ==========================================================
         ai = AIClient()
         prompt_base = f"Analise o documento de {artefato} e gere estrutura JSON."
-        resposta_ia = ai.ask(prompt=prompt_base, conteudo=texto_extraido, artefato=artefato)
+        resposta_ia = ai.ask(
+            prompt=prompt_base,
+            conteudo=texto_extraido,
+            artefato=artefato
+        )
 
         print("[SynapseNext] Chamando IA institucional... 🧠")
 
