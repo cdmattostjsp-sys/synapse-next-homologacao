@@ -1,7 +1,7 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.07 (corrigido e reforçado)
+# Revisão Engenheiro Synapse – vNext_2025.11.07 (persistência autodetectada)
 # ==========================================================
 
 import os
@@ -33,6 +33,7 @@ def get_json_export_dir() -> Path:
         test_file.unlink()
         return base_path
     except Exception:
+        # fallback para ambientes efêmeros
         tmp_path = Path(tempfile.gettempdir()) / "insumos" / "json"
         tmp_path.mkdir(parents=True, exist_ok=True)
         return tmp_path
@@ -71,11 +72,17 @@ def processar_insumo(uploaded_file, artefato: str):
     """
     try:
         # ==========================================================
-        # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
+        # 1️⃣ Leitura do PDF via buffer – compatível com Streamlit 1.39.0
+        #    e PyMuPDF==1.26.6
         # ==========================================================
-        # 🔹 Streamlit fornece o arquivo como BytesIO; usamos .read() e reposicionamos o ponteiro.
-        pdf_bytes = uploaded_file.read()
-        uploaded_file.seek(0)  # reposiciona o ponteiro para evitar conflito com chamadas posteriores
+        # Streamlit pode consumir o .read(), então usamos o buffer cru.
+        pdf_bytes = uploaded_file.getbuffer()
+        # reposiciona para não quebrar quem usar uploaded_file depois
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            # alguns tipos de upload não têm seek; ignoramos silenciosamente
+            pass
 
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             texto_extraido = ""
@@ -92,13 +99,13 @@ def processar_insumo(uploaded_file, artefato: str):
         resposta_ia = ai.ask(
             prompt=prompt_base,
             conteudo=texto_extraido,
-            artefato=artefato
+            artefato=artefato,
         )
 
         print("[SynapseNext] Chamando IA institucional... 🧠")
 
         # ==========================================================
-        # 3️⃣ Montagem do registro consolidado e exportação
+        # 3️⃣ Montagem do registro consolidado
         # ==========================================================
         base_dir = get_json_export_dir()
         json_path = base_dir / f"{artefato}_ultimo.json"
@@ -111,13 +118,24 @@ def processar_insumo(uploaded_file, artefato: str):
             "resultado_ia": resposta_ia,
         }
 
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(resultado, f, ensure_ascii=False, indent=2)
+        # ==========================================================
+        # 4️⃣ Escrita persistente autodetectada (funciona no Codespaces)
+        # ==========================================================
+        workspace_root = Path.cwd()  # diretório real de execução
+        json_path_abs = workspace_root / "exports" / "insumos" / "json" / f"{artefato}_ultimo.json"
+        json_path_abs.parent.mkdir(parents=True, exist_ok=True)
 
-        print(f"[SynapseNext] JSON gerado e salvo em: {json_path} 💾")
+        # Escrita com flush + fsync para garantir persistência real
+        with open(json_path_abs, "w", encoding="utf-8") as f:
+            json.dump(resultado, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+
+        print(f"[SynapseNext] JSON persistido em: {json_path_abs} 💾")
         return resultado
 
     except Exception as e:
+        # loga o erro de forma clara para o Diagnostic
         print(f"[ERRO] Falha ao processar insumo: {e}")
         return {"erro": str(e)}
 

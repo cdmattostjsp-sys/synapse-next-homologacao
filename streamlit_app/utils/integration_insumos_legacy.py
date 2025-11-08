@@ -1,8 +1,10 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# Revisão Engenheiro Synapse – vNext_2025.11.08
 # ==========================================================
 # Integração híbrida entre o motor original de insumos e o motor IA institucional v3
+# com persistência garantida no workspace (Codespaces / Streamlit)
 # ==========================================================
 
 import streamlit as st
@@ -10,7 +12,9 @@ import os
 import io
 import json
 from datetime import datetime
+from pathlib import Path
 from streamlit_app.utils.integration_ai_engine import processar_insumo as processar_insumo_ia
+
 
 # ==========================================================
 # 🧠 Função principal – processamento de insumo
@@ -30,7 +34,7 @@ def processar_insumo(uploaded_file, artefato: str):
     nome_arquivo = uploaded_file.name
 
     # ==========================================================
-    # 📄 Extração inicial de texto (não exibe logs na UI)
+    # 📄 Extração inicial de texto (sem logs na interface)
     # ==========================================================
     extensao = os.path.splitext(nome_arquivo)[1].lower()
     texto_extraido = ""
@@ -64,7 +68,7 @@ def processar_insumo(uploaded_file, artefato: str):
         campos_norm = {}
 
     # ==========================================================
-    # 💾 Monta payload final
+    # 💾 Monta payload final consolidado
     # ==========================================================
     payload = {
         "nome_arquivo": nome_arquivo,
@@ -88,23 +92,28 @@ def processar_insumo(uploaded_file, artefato: str):
     st.session_state[key_last] = payload
 
     # ==========================================================
-    # 🧱 Persistência em disco (para fallback entre páginas)
+    # 🧱 Persistência física em disco (workspace real)
     # ==========================================================
-    EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
-    os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
+    workspace_root = Path.cwd()
+    exports_dir = workspace_root / "exports" / "insumos" / "json"
+    exports_dir.mkdir(parents=True, exist_ok=True)
 
-    # Salva backup histórico e último ativo
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    arquivo_historico = os.path.join(EXPORTS_JSON_DIR, f"{artefato}_{timestamp}.json")
-    arquivo_ultimo = os.path.join(EXPORTS_JSON_DIR, f"{artefato}_ultimo.json")
+    arquivo_historico = exports_dir / f"{artefato}_{timestamp}.json"
+    arquivo_ultimo = exports_dir / f"{artefato}_ultimo.json"
 
     try:
-        with open(arquivo_historico, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        with open(arquivo_ultimo, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
+        # Escrita com flush + fsync para persistência real (Codespaces / Docker)
+        for path in [arquivo_historico, arquivo_ultimo]:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+        st.success(f"Insumo para {artefato} processado e salvo com sucesso.")
+        print(f"[SynapseNext] JSON persistido em: {arquivo_ultimo} 💾")
+
     except Exception as e:
         st.warning(f"⚠️ Falha ao salvar JSON: {e}")
 
-    st.success(f"Insumo para {artefato} processado e salvo com sucesso.")
     return payload
