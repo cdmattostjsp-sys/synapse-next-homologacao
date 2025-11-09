@@ -1,0 +1,16 @@
+SynapseNext – Diagnóstico Técnico (Fase 2)
+Data/Hora: 2025-11-09 15:57
+Diagnostic Synapse – TJSP Homologação
+
+Resumo:
+✔ Leitura de PDF: OK
+✔ Geração de JSON: OK
+✔ Comunicação IA → DFD: OK
+⚠ Estrutura DFD: parcial (necessário parser markdown → JSON)
+✔ Resposta IA: presente e válida
+
+Conclusão:
+Pipeline IA funcional e persistente.
+DFD recebe entrada válida e estrutura coerente.
+Recomenda-se apenas ajuste de interpretação do campo `resposta_texto`.
+Status: ✅ Ambiente operacional – pronto para validação estrutural final.

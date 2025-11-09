@@ -1,11 +1,12 @@
 # ==========================================================
 # utils/integration_dfd.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.08 (Edição Estável)
+# Revisão Engenheiro Synapse – vNext_2025.11.09 (Patch IA JSON)
 # Compatibilidade: Streamlit 1.39.0 + openai 2.7.1
 # ==========================================================
 
 import json
+import re
 from pathlib import Path
 import streamlit as st
 from utils.ai_client import AIClient  # ✅ Cliente institucional padronizado
@@ -84,6 +85,7 @@ def gerar_rascunho_dfd_com_ia():
     Reaproveita o DFD_ultimo.json existente para gerar o rascunho com IA institucional.
     - Se o JSON já contiver resultado da IA, reutiliza.
     - Caso contrário, processa o texto extraído e atualiza o arquivo.
+    - Faz o parse automático do campo 'resposta_texto' quando vier em formato Markdown JSON.
     """
     try:
         dfd_data = obter_dfd_da_sessao()
@@ -91,10 +93,20 @@ def gerar_rascunho_dfd_com_ia():
             st.warning("⚠️ Nenhum insumo DFD encontrado. Envie primeiro um documento no módulo 'Insumos'.")
             return None
 
-        # ✅ 1. Reutiliza resultado existente
+        # ✅ 1. Reutiliza resultado existente (caso já tenha vindo da IA)
         if "resultado_ia" in dfd_data and dfd_data["resultado_ia"].get("resposta_texto"):
-            st.info("♻️ Reutilizando rascunho existente do insumo DFD (sem nova chamada à IA).")
-            return dfd_data["resultado_ia"]["resposta_texto"]
+            texto_raw = dfd_data["resultado_ia"]["resposta_texto"]
+
+            # --- Novo tratamento: extrair JSON de blocos markdown
+            cleaned = re.sub(r"^```json|```$", "", texto_raw.strip(), flags=re.IGNORECASE).strip()
+
+            try:
+                parsed_json = json.loads(cleaned)
+                print("[SynapseNext][DFD] Resposta IA convertida de Markdown JSON para objeto válido.")
+                return parsed_json
+            except Exception:
+                print("[SynapseNext][DFD] Resposta IA mantida como texto (não pôde ser convertida).")
+                return texto_raw
 
         # ✅ 2. Caso contrário, reprocessa com a IA institucional
         texto_base = dfd_data.get("texto_extraido", "")
