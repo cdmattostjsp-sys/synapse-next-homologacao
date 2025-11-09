@@ -3,7 +3,7 @@
 DocumentAgent – SynapseNext / SAAB TJSP
 Agente institucional de geração e estruturação de artefatos administrativos.
 Compatível com Lei nº 14.133/2021 e padrões redacionais da SAAB.
-Versão vNext 2025 – Homologada
+Versão vNext 2025 – Revisão 09/11/2025
 """
 
 from __future__ import annotations
@@ -77,8 +77,24 @@ class DocumentAgent:
     def generate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Executa a geração de conteúdo técnico baseado em metadados."""
         msgs = self._build_messages(metadata)
-        result = self.client.chat(msgs, temperature=0.15)
-        raw_content = result["content"]
+
+        # Nova chamada compatível com AIClient.ask()
+        try:
+            result = self.client.ask(
+                prompt="Geração institucional de artefatos administrativos",
+                conteudo=json.dumps(msgs, ensure_ascii=False),
+                artefato=self.modulo
+            )
+        except Exception as e:
+            return {
+                "modulo": self.modulo,
+                "secoes": {"Erro": f"Falha na comunicação com a IA: {e}"},
+                "lacunas": [],
+                "_gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+
+        # Extrai conteúdo textual
+        raw_content = result.get("resposta_texto") or str(result)
 
         # Tenta decodificar como JSON
         try:
