@@ -1,111 +1,134 @@
-# -*- coding: utf-8 -*-
-"""
-DocumentAgent – SynapseNext / SAAB TJSP
-Agente institucional de geração e estruturação de artefatos administrativos.
-Compatível com Lei nº 14.133/2021 e padrões redacionais da SAAB.
-Versão vNext 2025 – Revisão 09/11/2025
-"""
+# ==========================================================
+# utils/document_agent.py
+# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
+# Revisão: 2025-11-10 – Engenheiro Synapse
+# ==========================================================
+# Função: Controla a geração de documentos administrativos
+# via IA institucional (v3) – compatível com AIClient.ask()
+# ==========================================================
 
 from __future__ import annotations
-import os
 import json
-from typing import Dict, Any
+import re
 from datetime import datetime
-
 from utils.ai_client import AIClient
-
-# Caminho base para os PROMPTs institucionais
-PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "prompts")
-
-# Schema de seções por módulo
-SCHEMA_HINT = {
-    "DFD": ["Contexto", "Necessidade", "Resultados Esperados", "Justificativa Legal", "Escopo", "Critérios de Sucesso"],
-    "ETP": ["Objeto", "Soluções de Mercado", "Justificativa Técnica", "Requisitos", "Estimativa de Custos", "Riscos"],
-    "TR":  ["Objeto", "Especificações Técnicas", "Critérios de Aceitação", "Prazos", "Garantias", "Gestão e Fiscalização"],
-    "EDITAL": ["Disposições Gerais", "Condições de Participação", "Julgamento", "Prazos", "Sanções", "Anexos"],
-    "CONTRATO": ["Cláusulas Gerais", "Objeto", "Vigência", "Preço e Reajuste", "Obrigações", "Fiscalização", "Penalidades"]
-}
-
-SYSTEM_BASE = (
-    "Você é um redator técnico da Secretaria de Administração e Abastecimento (SAAB/TJSP). "
-    "Sua tarefa é elaborar artefatos administrativos conforme a Lei nº 14.133/2021, "
-    "mantendo linguagem institucional, técnica e objetiva. "
-    "Priorize as informações fornecidas pelos metadados do formulário e "
-    "registre eventuais dados ausentes na seção 'Lacunas'."
-)
 
 
 class DocumentAgent:
-    """Agente institucional de construção de artefatos administrativos."""
+    """
+    Agente responsável por coordenar a geração de documentos
+    formais (DFD, ETP, TR, Edital, etc.) via IA institucional.
+    """
 
-    def __init__(self, modulo: str, model: str | None = None):
-        self.modulo = modulo.upper()
-        if self.modulo not in SCHEMA_HINT:
-            raise ValueError(f"Módulo inválido: {self.modulo}")
-        self.client = AIClient(model=model)
-        self.prompt_template = self._load_prompt()
+    def __init__(self, artefato: str):
+        self.artefato = artefato.upper()
+        self.ai = AIClient()
 
-    def _load_prompt(self) -> Dict[str, Any]:
-        """Carrega o prompt institucional correspondente ao módulo."""
-        path = os.path.join(PROMPTS_DIR, f"{self.modulo}.json")
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return {
-                "system": data.get("system", SYSTEM_BASE),
-                "user": data.get("user", "")
-            }
-        else:
-            return {"system": SYSTEM_BASE, "user": ""}
+    # ======================================================
+    # 🧠 Geração de conteúdo IA
+    # ======================================================
+    def generate(self, conteudo_base: str, contexto_extra: dict | None = None) -> dict:
+        """
+        Gera o documento com base no texto processado (ex: PDF de insumo).
+        Retorna um dicionário JSON estruturado.
+        """
 
-    def _build_messages(self, metadata: Dict[str, Any]) -> list[dict]:
-        """Monta o contexto para envio à IA."""
-        md_json = json.dumps(metadata, ensure_ascii=False, indent=2)
-        sections = ", ".join(SCHEMA_HINT[self.modulo])
-        user_msg = (
-            f"Gerar rascunho estruturado do módulo {self.modulo} em JSON com as seções: {sections}. "
-            f"Use linguagem institucional. Campos ausentes devem ser listados em 'Lacunas'.\n\n"
-            f"METADADOS:\n{md_json}\n\n"
-            "Formato esperado de resposta:\n"
-            "{ 'modulo': str, 'secoes': {secao: texto}, 'lacunas': [..] }"
-        )
-        return [
-            {"role": "system", "content": self.prompt_template["system"]},
-            {"role": "user", "content": self.prompt_template["user"] + "\n\n" + user_msg}
-        ]
+        prompt = self._montar_prompt_institucional()
 
-    def generate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Executa a geração de conteúdo técnico baseado em metadados."""
-        msgs = self._build_messages(metadata)
+        metadata = {
+            "artefato": self.artefato,
+            "contexto_extra": contexto_extra or {},
+            "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
 
-        # Nova chamada compatível com AIClient.ask()
         try:
-            result = self.client.ask(
-                prompt="Geração institucional de artefatos administrativos",
-                conteudo=json.dumps(msgs, ensure_ascii=False),
-                artefato=self.modulo
+            resposta = self.ai.ask(
+                prompt=prompt,
+                conteudo=conteudo_base,
+                artefato=self.artefato,
+                metadados=metadata,
             )
+
+            if not resposta or not isinstance(resposta, dict):
+                return {"erro": "Resposta IA inválida ou vazia."}
+
+            texto_bruto = resposta.get("resposta_texto", "")
+            if not texto_bruto:
+                return {"erro": "IA não retornou conteúdo textual."}
+
+            # Limpeza de delimitadores Markdown (```json ... ```)
+            texto_bruto = texto_bruto.strip()
+            if texto_bruto.startswith("```json"):
+                texto_bruto = texto_bruto.replace("```json", "").replace("```", "").strip()
+
+            # Tenta interpretar JSON
+            try:
+                parsed = json.loads(texto_bruto)
+                if isinstance(parsed, dict) and "DFD" in parsed:
+                    parsed = parsed["DFD"]
+                return parsed
+            except Exception:
+                # Conteúdo não estruturado → devolve como texto
+                return {"Conteúdo": texto_bruto}
+
         except Exception as e:
-            return {
-                "modulo": self.modulo,
-                "secoes": {"Erro": f"Falha na comunicação com a IA: {e}"},
-                "lacunas": [],
-                "_gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
+            return {"erro": f"Falha na geração do documento ({e})"}
 
-        # Extrai conteúdo textual
-        raw_content = result.get("resposta_texto") or str(result)
+    # ======================================================
+    # 🧩 Prompt institucional aprimorado
+    # ======================================================
+    def _montar_prompt_institucional(self) -> str:
+        """
+        Monta um prompt administrativo institucional completo
+        com linguagem formal e estrutura padronizada do TJSP.
+        """
 
-        # Tenta decodificar como JSON
-        try:
-            parsed = json.loads(raw_content)
-        except Exception:
-            parsed = {
-                "modulo": self.modulo,
-                "secoes": {"Conteúdo": raw_content},
-                "lacunas": ["Formato JSON não garantido pelo modelo – conteúdo bruto incluído."]
-            }
+        if self.artefato == "DFD":
+            return (
+                "Você é um assistente técnico da Secretaria de Administração e Abastecimento do "
+                "Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                "Com base no texto fornecido, elabore o documento **Formalização da Demanda (DFD)** "
+                "conforme os padrões administrativos e a Lei nº 14.133/2021.\n\n"
+                "O DFD deve conter os seguintes campos obrigatórios:\n"
+                "- Unidade Demandante (órgão ou setor responsável pela solicitação)\n"
+                "- Responsável pela Demanda (nome e cargo do solicitante institucional)\n"
+                "- Prazo Estimado para Atendimento (mês/ano ou período estratégico)\n"
+                "- Descrição da Necessidade (contextualize a situação ou problema identificado)\n"
+                "- Motivação / Objetivos Estratégicos (relacione com o Planejamento Estratégico 2021–2026)\n"
+                "- Estimativa de Valor (informe se disponível ou mantenha 0,00)\n"
+                "- Justificativa Legal (artigos aplicáveis da Lei 14.133/2021)\n"
+                "- Escopo (principais entregas, produtos ou serviços)\n"
+                "- Resultados Esperados (efeitos esperados após a execução)\n"
+                "- Critérios de Sucesso (como o resultado será medido)\n\n"
+                "🧾 Regras de redação:\n"
+                "1. Use linguagem formal, impessoal e técnica.\n"
+                "2. Mantenha coerência com o texto original do insumo (PDF processado).\n"
+                "3. Evite repetir trechos ou incluir instruções do usuário.\n"
+                "4. Gere a resposta **em formato JSON** com a estrutura:\n\n"
+                "```json\n"
+                "{\n"
+                "  \"DFD\": {\n"
+                "    \"secoes\": {\n"
+                "      \"Contexto\": \"...\",\n"
+                "      \"Necessidade\": \"...\",\n"
+                "      \"Resultados Esperados\": \"...\",\n"
+                "      \"Justificativa Legal\": \"...\",\n"
+                "      \"Escopo\": \"...\",\n"
+                "      \"Critérios de Sucesso\": \"...\"\n"
+                "    },\n"
+                "    \"lacunas\": [\"unidade\", \"responsavel\", \"prazo\", \"estimativa_valor\"]\n"
+                "  }\n"
+                "}\n"
+                "```\n\n"
+                "Responda apenas com o JSON final, sem texto adicional."
+            )
 
-        parsed["_usage"] = result.get("usage")
-        parsed["_gerado_em"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return parsed
+        # ======================================================
+        # Modelos futuros (ETP, TR, etc.)
+        # ======================================================
+        else:
+            return (
+                f"Você é um assistente técnico do Tribunal de Justiça de São Paulo. "
+                f"Elabore o documento institucional correspondente ao artefato {self.artefato} "
+                "seguindo linguagem formal e formato JSON padronizado."
+            )
