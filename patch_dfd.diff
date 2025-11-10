@@ -1,0 +1,75 @@
+diff --git a/streamlit_app/pages/02_📄 DFD – Formalização da Demanda.py b/streamlit_app/pages/02_📄 DFD – Formalização da Demanda.py
+@@ -105,7 +105,66 @@ def _carregar_insumo_dfd() -> dict:
+-    base_path = Path("exports") / "insumos" / "json" / "DFD_ultimo.json"
+-    if not base_path.exists():
+-        st.warning("⚠️ Nenhum arquivo DFD_ultimo.json encontrado.")
+-        return {}
+-
+-    try:
+-        with open(base_path, "r", encoding="utf-8") as f:
+-            dados = json.load(f)
++    """
++    Carrega o último insumo processado e mapeia o JSON da IA
++    para o formato esperado pelos campos do formulário DFD.
++    Corrige leitura de resultado_ia.resposta_texto sem fechamento do bloco ```json```.
++    Compatível com execução em Codespaces (busca em caminho absoluto).
++    """
++
++    # 🔎 Busca em múltiplos diretórios possíveis
++    candidatos = [
++        Path("exports") / "insumos" / "json" / "DFD_ultimo.json",
++        Path("/workspaces/synapse-next-homologacao/exports/insumos/json/DFD_ultimo.json"),
++        Path("exports") / "dfd" / "json" / "DFD_ultimo.json",
++    ]
++
++    base_path = next((p for p in candidatos if p.exists()), None)
++    if not base_path:
++        st.warning("⚠️ Nenhum arquivo DFD_ultimo.json encontrado em nenhum dos diretórios de exportação.")
++        return {}
++
++    try:
++        with open(base_path, "r", encoding="utf-8") as f:
++            dados = json.load(f)
++
++        if "resultado_ia" in dados:
++            resposta = dados["resultado_ia"].get("resposta_texto", "")
++            if resposta:
++                conteudo_json = None
++
++                # 🧩 Extrai bloco JSON do texto gerado pela IA
++                match = re.search(r"```json(.*?)```", resposta, re.S)
++                if match:
++                    conteudo_json = match.group(1).strip()
++                if not conteudo_json and "{" in resposta and "}" in resposta:
++                    start = resposta.find("{")
++                    end = resposta.rfind("}") + 1
++                    conteudo_json = resposta[start:end].strip()
++
++                # 🩹 Tolerância a JSON truncado
++                if conteudo_json:
++                    try:
++                        dados_ia = json.loads(conteudo_json)
++                        return mapear_dfd_campos(dados_ia)
++                    except json.JSONDecodeError:
++                        st.warning("⚠️ JSON parcial detectado, tentando normalizar...")
++                        conteudo_json = (
++                            conteudo_json.replace("\n", " ")
++                            .replace("```json", "")
++                            .replace("```", "")
++                        )
++                        open_braces = conteudo_json.count("{")
++                        close_braces = conteudo_json.count("}")
++                        if open_braces > close_braces:
++                            conteudo_json += "}" * (open_braces - close_braces)
++                        last_close = conteudo_json.rfind("}")
++                        if last_close != -1:
++                            conteudo_json = conteudo_json[:last_close + 1]
++                        dados_ia = json.loads(conteudo_json)
++                        st.success("✅ JSON parcial recuperado com sucesso.")
++                        return mapear_dfd_campos(dados_ia)
++
++        return dados.get("campos_ai", {})
++
++    except Exception as e:
++        st.warning(f"⚠️ Erro ao carregar insumo DFD ({e})")
++        return {}

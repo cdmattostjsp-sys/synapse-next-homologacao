@@ -1,11 +1,10 @@
 # ==========================================================
 # pages/02_📄 DFD – Formalização da Demanda.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – vNext_2025.11.08-r2
-# Correção definitiva do parser JSON (tolerante a JSON truncado)
+# Revisão: Engenheiro Synapse – vNext_2025.11.09-r3
+# Correção consolidada: leitura, mapeamento e pré-preenchimento DFD
 # ==========================================================
 
-import os
 import json
 import re
 from pathlib import Path
@@ -18,7 +17,6 @@ from docx import Document
 # ==========================================================
 from utils.agents_bridge import AgentsBridge
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from utils.integration_dfd import obter_dfd_da_sessao
 
 # ==========================================================
 # ⚙️ Configuração inicial
@@ -37,32 +35,32 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 🔹 Eng. Synapse – Mapeamento semântico do JSON gerado pela IA
+# 🔹 Mapeamento semântico do JSON da IA
 # ==========================================================
 def mapear_dfd_campos(dados_ia: dict) -> dict:
-    """Transforma o JSON complexo retornado pela IA em um dicionário plano para o formulário DFD."""
+    """Transforma o JSON complexo retornado pela IA em um dicionário plano."""
     campos = {}
-    etp = dados_ia.get("estudo_tecnico_preliminar", {})
+    dfd = dados_ia.get("DFD", {}) or dados_ia.get("estudo_tecnico_preliminar", {})
 
-    campos["lei"] = etp.get("lei", "")
-    campos["processo_cpa"] = etp.get("processo_cpa", "")
+    campos["lei"] = dfd.get("lei", "")
+    campos["processo_cpa"] = dfd.get("processo_cpa", "")
 
-    objetivo = etp.get("objetivo", {})
+    objetivo = dfd.get("objetivo", {})
     campos["descricao_necessidade"] = objetivo.get("contratacao", "")
     campos["localizacao"] = objetivo.get("localizacao", {}).get("descricao", "")
     campos["endereco"] = objetivo.get("localizacao", {}).get("endereco", "")
     campos["disciplinas"] = ", ".join(objetivo.get("disciplinas", []))
 
-    necessidade = etp.get("descricao_da_necessidade", {})
+    necessidade = dfd.get("descricao_da_necessidade", {})
     edificio = necessidade.get("edificio", {})
     campos["caracteristicas_edificio"] = f"{edificio.get('pavimentos', '')} pavimentos, {edificio.get('sistema_construtivo', '')}"
     campos["intervencoes_previstas"] = ", ".join(necessidade.get("intervencoes", []))
 
-    plano = etp.get("previsto_no_plano_de_contratacoes_anual", {}).get("plano_obras", {})
+    plano = dfd.get("previsto_no_plano_de_contratacoes_anual", {}).get("plano_obras", {})
     campos["ano_plano_obras"] = plano.get("ano", "")
-    campos["codigo_pca"] = etp.get("previsto_no_plano_de_contratacoes_anual", {}).get("codigo_identificacao", "")
+    campos["codigo_pca"] = dfd.get("previsto_no_plano_de_contratacoes_anual", {}).get("codigo_identificacao", "")
 
-    planejamento = etp.get("planejamento_estrategico", {})
+    planejamento = dfd.get("planejamento_estrategico", {})
     campos["periodo_planejamento"] = planejamento.get("periodo", "")
     campos["objetivos_estrategicos"] = ", ".join(planejamento.get("objetivos", []))
 
@@ -70,17 +68,17 @@ def mapear_dfd_campos(dados_ia: dict) -> dict:
 
 
 # ==========================================================
-# 🆕 Função – carregar insumo vindo do módulo INSUMOS (robusta)
+# 🧩 Funções robustas de carregamento
 # ==========================================================
 def _carregar_insumo_dfd() -> dict:
-    """
-    Carrega o último insumo processado e mapeia o JSON da IA
-    para o formato esperado pelos campos do formulário DFD.
-    Corrige leitura de resultado_ia.resposta_texto sem fechamento do bloco ```json```.
-    """
-    base_path = Path("exports") / "insumos" / "json" / "DFD_ultimo.json"
-    if not base_path.exists():
-        st.warning("⚠️ Nenhum arquivo DFD_ultimo.json encontrado.")
+    """Carrega o último insumo processado e converte o JSON gerado pela IA."""
+    candidatos = [
+        Path("exports") / "insumos" / "json" / "DFD_ultimo.json",
+        Path("/workspaces/synapse-next-homologacao/exports/insumos/json/DFD_ultimo.json"),
+    ]
+    base_path = next((p for p in candidatos if p.exists()), None)
+    if not base_path:
+        st.info("ℹ️ Nenhum insumo DFD encontrado. Gere um pelo módulo 'Insumos'.")
         return {}
 
     try:
@@ -89,78 +87,71 @@ def _carregar_insumo_dfd() -> dict:
 
         if "resultado_ia" in dados:
             resposta = dados["resultado_ia"].get("resposta_texto", "")
-            if resposta:
-                conteudo_json = None
+            conteudo_json = None
 
-                match = re.search(r"```json(.*?)```", resposta, re.S)
-                if match:
-                    conteudo_json = match.group(1).strip()
+            # 🧩 Extrai o bloco JSON
+            match = re.search(r"```json(.*?)```", resposta, re.S)
+            if match:
+                conteudo_json = match.group(1).strip()
+            elif "{" in resposta and "}" in resposta:
+                start = resposta.find("{")
+                end = resposta.rfind("}") + 1
+                conteudo_json = resposta[start:end].strip()
 
-                if not conteudo_json and "{" in resposta and "}" in resposta:
-                    start = resposta.find("{")
-                    end = resposta.rfind("}") + 1
-                    conteudo_json = resposta[start:end].strip()
+            if conteudo_json:
+                try:
+                    dados_ia = json.loads(conteudo_json)
 
-                if conteudo_json:
-                    try:
-                        dados_ia = json.loads(conteudo_json)
-                        return mapear_dfd_campos(dados_ia)
+                    # 🪞 Se houver encapsulamento "DFD", mergulha nele
+                    if isinstance(dados_ia, dict) and "DFD" in dados_ia:
+                        dados_ia = dados_ia["DFD"]
 
-                    except json.JSONDecodeError:
-                        st.warning("⚠️ JSON parcial detectado, tentando normalizar...")
-                        try:
-                            conteudo_json = (
-                                conteudo_json.replace("\n", " ")
-                                .replace("```json", "")
-                                .replace("```", "")
-                            )
+                    return mapear_dfd_campos(dados_ia)
 
-                            # Corrigir desequilíbrio de chaves
-                            open_braces = conteudo_json.count("{")
-                            close_braces = conteudo_json.count("}")
-                            if open_braces > close_braces:
-                                conteudo_json += "}" * (open_braces - close_braces)
+                except json.JSONDecodeError:
+                    st.warning("⚠️ JSON parcial detectado, tentando normalizar...")
+                    conteudo_json = conteudo_json.replace("\n", " ").replace("```json", "").replace("```", "")
+                    open_braces = conteudo_json.count("{")
+                    close_braces = conteudo_json.count("}")
+                    if open_braces > close_braces:
+                        conteudo_json += "}" * (open_braces - close_braces)
+                    conteudo_json = conteudo_json[:conteudo_json.rfind("}") + 1]
+                    dados_ia = json.loads(conteudo_json)
+                    st.success("✅ JSON parcial recuperado.")
+                    return mapear_dfd_campos(dados_ia)
 
-                            # Cortar texto além do último fechamento
-                            last_close = conteudo_json.rfind("}")
-                            if last_close != -1:
-                                conteudo_json = conteudo_json[:last_close + 1]
-
-                            dados_ia = json.loads(conteudo_json)
-                            st.success("✅ JSON parcial recuperado com sucesso.")
-                            return mapear_dfd_campos(dados_ia)
-
-                        except Exception as e:
-                            st.error(f"❌ Falha ao interpretar o JSON gerado pela IA ({e}).")
-                            return {}
         return dados.get("campos_ai", {})
 
     except Exception as e:
-        st.warning(f"⚠️ Erro ao carregar insumo DFD: {e}")
+        st.error(f"❌ Erro ao carregar insumo DFD ({e})")
         return {}
 
 
 def _carregar_lacunas_dfd() -> list[str]:
     """Carrega lacunas (itens não inferidos pela IA)."""
-    base_path = Path("exports") / "insumos" / "json" / "DFD_ultimo.json"
-    if base_path.exists():
-        try:
-            with open(base_path, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            return dados.get("lacunas", []) or dados.get("campos_ai", {}).get("lacunas", [])
-        except Exception:
-            return []
-    return []
+    candidatos = [
+        Path("exports") / "insumos" / "json" / "DFD_ultimo.json",
+        Path("/workspaces/synapse-next-homologacao/exports/insumos/json/DFD_ultimo.json"),
+    ]
+    base_path = next((p for p in candidatos if p.exists()), None)
+    if not base_path:
+        return []
+    try:
+        with open(base_path, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        return dados.get("lacunas", []) or dados.get("campos_ai", {}).get("lacunas", [])
+    except Exception:
+        return []
 
 
 # ==========================================================
-# 🔍 Carregar dados inferidos pela IA
+# 🔍 Carregar dados inferidos pela IA (ordem correta)
 # ==========================================================
 campos_ai = _carregar_insumo_dfd()
 lacunas_ai = _carregar_lacunas_dfd()
 
 # ==========================================================
-# 🧾 Formulário DFD – pré-preenchido com os dados do insumo
+# 🧾 Formulário DFD – pré-preenchido
 # ==========================================================
 st.subheader("1️⃣ Entrada – Formalização da Demanda")
 
@@ -173,41 +164,14 @@ with st.form("form_dfd"):
     col1, col2 = st.columns(2)
 
     with col1:
-        unidade = st.text_input(
-            "Unidade Demandante",
-            placeholder="Ex.: Secretaria de Administração e Abastecimento – SAAB",
-            key="dfd_unidade",
-        )
-        responsavel = st.text_input(
-            "Responsável pela Demanda",
-            key="dfd_responsavel",
-        )
-        prazo = st.text_input(
-            "Prazo Estimado para Atendimento",
-            value=prazo_default,
-            key="dfd_prazo",
-        )
+        unidade = st.text_input("Unidade Demandante", placeholder="Ex.: Secretaria de Administração e Abastecimento – SAAB", key="dfd_unidade")
+        responsavel = st.text_input("Responsável pela Demanda", key="dfd_responsavel")
+        prazo = st.text_input("Prazo Estimado para Atendimento", value=prazo_default, key="dfd_prazo")
 
     with col2:
-        descricao = st.text_area(
-            "Descrição da Necessidade",
-            height=100,
-            value=descricao_default,
-            key="dfd_descricao",
-        )
-        motivacao = st.text_area(
-            "Motivação / Objetivos Estratégicos",
-            height=100,
-            value=motivacao_default,
-            key="dfd_motivacao",
-        )
-        estimativa_valor = st.number_input(
-            "Estimativa de Valor (R$)",
-            min_value=0.0,
-            step=1000.0,
-            value=estimativa_default,
-            key="dfd_estimativa_valor",
-        )
+        descricao = st.text_area("Descrição da Necessidade", height=100, value=descricao_default, key="dfd_descricao")
+        motivacao = st.text_area("Motivação / Objetivos Estratégicos", height=100, value=motivacao_default, key="dfd_motivacao")
+        estimativa_valor = st.number_input("Estimativa de Valor (R$)", min_value=0.0, step=1000.0, value=estimativa_default, key="dfd_estimativa_valor")
 
     colb1, colb2 = st.columns(2)
     with colb1:
@@ -216,39 +180,15 @@ with st.form("form_dfd"):
         salvar_manual = st.form_submit_button("💾 Salvar dados manualmente")
 
 # ==========================================================
-# 🎨 Estilo institucional SAAB – botões
-# ==========================================================
-st.markdown(
-    """
-<style>
-div.stButton > button:first-child {
-    background-color: #003366 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    height: 2.8em !important;
-    font-weight: 500 !important;
-}
-div.stButton > button:first-child:hover {
-    background-color: #002244 !important;
-    color: white !important;
-    transition: 0.2s;
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-# ==========================================================
-# 📝 Mostrar lacunas (caso existam)
+# 📝 Mostrar lacunas
 # ==========================================================
 if lacunas_ai:
-    with st.expander("⚠️ Campos que a IA não conseguiu inferir do insumo"):
+    with st.expander("⚠️ Campos não inferidos pela IA"):
         for item in lacunas_ai:
             st.markdown(f"- {item}")
 
 # ==========================================================
-# 🤖 Geração IA Institucional – revalidação de rascunho
+# 🤖 Execução da IA institucional
 # ==========================================================
 if gerar_ia:
     st.info("Executando agente DFD institucional com base no insumo processado...")
@@ -265,73 +205,30 @@ if gerar_ia:
     try:
         bridge = AgentsBridge("DFD")
         resultado = bridge.generate(metadata)
-        st.success("✅ Rascunho gerado com sucesso pelo agente DFD.IA!")
+        st.success("✅ Rascunho gerado com sucesso.")
         st.json(resultado)
-
-        st.session_state["last_dfd"] = resultado.get("secoes", resultado)
-
-        exports_dir = Path("exports")
-        exports_dir.mkdir(exist_ok=True)
-        json_path = exports_dir / "dfd_data.json"
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(resultado, f, ensure_ascii=False, indent=2)
-        st.info(f"💾 Arquivo exportado: {json_path}")
-
+        st.session_state["last_dfd"] = resultado
     except Exception as e:
         st.error(f"Erro ao gerar rascunho com IA: {e}")
 
 # ==========================================================
-# 💾 Salvamento manual (fallback)
-# ==========================================================
-if salvar_manual:
-    dfd_data = {
-        "unidade": unidade,
-        "responsavel": responsavel,
-        "prazo": prazo,
-        "descricao": descricao,
-        "motivacao": motivacao,
-        "estimativa_valor": estimativa_valor,
-    }
-    st.success("✅ Dados do DFD salvos manualmente.")
-    st.json(dfd_data)
-    st.session_state["last_dfd"] = dfd_data
-
-# ==========================================================
-# 📤 Exportação – Word e JSON
+# 💾 Exportação
 # ==========================================================
 if "last_dfd" in st.session_state and st.session_state["last_dfd"]:
     st.divider()
     st.subheader("📤 Exportação de Documento")
-    st.info("Baixe o último DFD gerado em formato Word editável.")
 
     dfd_data = st.session_state["last_dfd"]
     doc = Document()
     doc.add_heading("Formalização da Demanda (DFD)", level=1)
-    if isinstance(dfd_data, dict):
-        for k, v in dfd_data.items():
-            p = doc.add_paragraph()
-            p.add_run(f"{k}: ").bold = True
-            p.add_run(str(v) or "—")
-    else:
-        doc.add_paragraph(str(dfd_data))
+    for k, v in dfd_data.items():
+        p = doc.add_paragraph()
+        p.add_run(f"{k}: ").bold = True
+        p.add_run(str(v) or "—")
 
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     st.download_button("💾 Baixar DFD_rascunho.docx", buffer, file_name="DFD_rascunho.docx")
 
-    st.markdown("---")
-    if st.button("📦 Exportar DFD (JSON)"):
-        try:
-            exports_dir = Path("exports")
-            exports_dir.mkdir(exist_ok=True)
-            json_path = exports_dir / "dfd_data.json"
-            with open(json_path, "w", encoding="utf-8") as f:
-                json.dump(dfd_data, f, ensure_ascii=False, indent=2)
-            st.success(f"✅ DFD exportado com sucesso para {json_path}")
-        except Exception as e:
-            st.error(f"Falha ao exportar DFD: {e}")
-
-st.caption(
-    "💡 Este módulo aceita preenchimento manual, mas dá prioridade ao insumo pré-processado pelo módulo INSUMOS + IA institucional."
-)
+st.caption("💡 Este módulo aceita preenchimento manual, mas dá prioridade ao insumo pré-processado pelo módulo INSUMOS + IA institucional.")

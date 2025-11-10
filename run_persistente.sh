@@ -33,3 +33,17 @@ echo "🌐 Subindo Streamlit na porta 8501..."
   --server.port 8501 \
   --server.enableCORS false \
   --server.enableXsrfProtection false
+
+# 🔁 Garante que a porta 8501 está visível externamente
+if command -v gh &>/dev/null; then
+  export CODESPACE_NAME=$(gh codespace view --json name -q .name 2>/dev/null)
+  gh codespace ports visibility 8501:public -c "$CODESPACE_NAME" >/dev/null 2>&1 || true
+fi
+
+
+# 🔁 Garante que a porta 8501 está visível externamente
+if command -v gh &>/dev/null; then
+  export CODESPACE_NAME=$(gh codespace view --json name -q .name 2>/dev/null)
+  gh codespace ports visibility 8501:public -c "$CODESPACE_NAME" >/dev/null 2>&1 || true
+fi
+

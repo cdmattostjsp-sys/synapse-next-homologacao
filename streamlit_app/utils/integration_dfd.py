@@ -5,6 +5,7 @@
 # Módulo de integração entre o processamento de INSUMOS e o formulário DFD.
 # Recupera automaticamente dados da sessão ativa ou do último JSON salvo.
 # Compatível com motor IA institucional v3.
+# Revisão: 2025-11-10
 # ==========================================================
 
 from __future__ import annotations
@@ -27,24 +28,19 @@ def obter_dfd_da_sessao() -> dict:
     3️⃣ Último arquivo DFD_*.json no diretório de insumos
     """
 
-    # 1️⃣ Verifica sessão ativa
+    # 1️⃣ Sessão ativa
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return st.session_state["dfd_campos_ai"]
 
-    # 2️⃣ Tenta carregar o último insumo salvo (DFD_ultimo.json)
     base_dir = os.path.join("exports", "insumos", "json")
     ultimo_json = os.path.join(base_dir, "DFD_ultimo.json")
 
+    # 2️⃣ Tenta carregar o último JSON persistido
     if os.path.exists(ultimo_json):
-        try:
-            with open(ultimo_json, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
-            if campos:
-                st.session_state["dfd_campos_ai"] = campos
-                return campos
-        except Exception as e:
-            st.warning(f"⚠️ Falha ao ler DFD_ultimo.json: {e}")
+        campos = _carregar_dfd_de_arquivo(ultimo_json)
+        if campos:
+            st.session_state["dfd_campos_ai"] = campos
+            return campos
 
     # 3️⃣ Busca o arquivo DFD mais recente (fallback final)
     try:
@@ -56,9 +52,7 @@ def obter_dfd_da_sessao() -> dict:
         for arquivo in arquivos:
             if "DFD_ultimo.json" in arquivo:
                 continue
-            with open(arquivo, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
+            campos = _carregar_dfd_de_arquivo(arquivo)
             if campos:
                 st.session_state["dfd_campos_ai"] = campos
                 return campos
@@ -67,6 +61,55 @@ def obter_dfd_da_sessao() -> dict:
 
     # 4️⃣ Fallback seguro
     return {}
+
+
+# ==========================================================
+# 📥 Função auxiliar – carregar e limpar JSON
+# ==========================================================
+def _carregar_dfd_de_arquivo(caminho: str) -> dict:
+    """Lê o arquivo JSON e interpreta o conteúdo IA (com limpeza de markdown)."""
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+
+        # Prioriza o conteúdo vindo da IA institucional
+        conteudo = None
+        if "resultado_ia" in dados:
+            # Pode ser dict direto ou string markdown
+            resultado = dados["resultado_ia"]
+            if isinstance(resultado, dict) and "resposta_texto" in resultado:
+                conteudo = resultado["resposta_texto"]
+            elif isinstance(resultado, str):
+                conteudo = resultado
+        elif "campos_ai" in dados:
+            return dados["campos_ai"]
+        elif "campos" in dados:
+            return dados["campos"]
+
+        if not conteudo:
+            return {}
+
+        # Limpeza de delimitadores markdown
+        if isinstance(conteudo, str):
+            conteudo = conteudo.strip()
+            if conteudo.startswith("```json"):
+                conteudo = conteudo.replace("```json", "").replace("```", "").strip()
+
+            # Tenta decodificar o JSON interno
+            try:
+                parsed = json.loads(conteudo)
+                if "DFD" in parsed:
+                    parsed = parsed["DFD"]
+                return parsed.get("secoes", parsed)
+            except Exception:
+                # Se não for JSON válido, devolve texto bruto
+                return {"Conteúdo": conteudo}
+
+        return conteudo
+
+    except Exception as e:
+        st.warning(f"⚠️ Falha ao ler {os.path.basename(caminho)}: {e}")
+        return {}
 
 
 # ==========================================================
@@ -101,10 +144,11 @@ def salvar_dfd_em_json(campos_dfd: dict, origem: str = "formulario") -> str:
         st.warning(f"⚠️ Falha ao salvar DFD: {e}")
         return ""
 
+
 # ==========================================================
 # 🧩 Função utilitária – status legível
 # ==========================================================
-def status_dfd():
+def status_dfd() -> str:
     """Retorna uma string de status para exibição no topo do módulo DFD."""
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return "✅ Dados carregados automaticamente (sessão ativa ou JSON)"

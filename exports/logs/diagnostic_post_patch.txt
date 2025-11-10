@@ -1,0 +1,13 @@
+==========================================================
+SynapseNext - Diagnóstico Pós-Patch IA -> DFD
+Data/Hora: 2025-11-09 15:57:21
+----------------------------------------------------------
+Arquivo JSON: exports/insumos/json/DFD_ultimo.json
+
+  "artefato": "DFD",
+  "arquivo_origem": "Estudo Técnico Preliminar-p91631.25.pdf",
+  "gerado_em": "2025-11-09 15:32:48",
+
+Estrutura DFD: OK
+Resposta IA: OK
+==========================================================
