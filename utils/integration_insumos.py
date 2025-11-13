@@ -1,110 +1,138 @@
 # ==========================================================
 # utils/integration_insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# ==========================================================
-# Integração híbrida entre o motor original de insumos e o motor IA institucional v3
+# Revisão Engenheiro Synapse – vNext_2025.11.07 (reforçada)
 # ==========================================================
 
-import streamlit as st
 import os
-import io
 import json
+import tempfile
 from datetime import datetime
-from utils.integration_ai_engine import processar_insumo as processar_insumo_ia
+from pathlib import Path
+
+import fitz  # ✅ PyMuPDF – leitura via stream
+from utils.ai_client import AIClient  # ✅ Cliente institucional OpenAI
+
 
 # ==========================================================
-# 🧠 Função principal – processamento de insumo
+# 📁 Diretórios e estrutura de exportação
 # ==========================================================
+def get_json_export_dir() -> Path:
+    """
+    Retorna o diretório de exportação de insumos em ambiente seguro.
+    Se o diretório padrão não for gravável (como no Streamlit Cloud),
+    usa o diretório temporário /tmp.
+    """
+    base_path = Path("exports") / "insumos" / "json"
+    try:
+        base_path.mkdir(parents=True, exist_ok=True)
+        # Teste de escrita
+        test_file = base_path / "_test_write.txt"
+        with open(test_file, "w") as f:
+            f.write("ok")
+        test_file.unlink()
+        return base_path
+    except Exception:
+        tmp_path = Path(tempfile.gettempdir()) / "insumos" / "json"
+        tmp_path.mkdir(parents=True, exist_ok=True)
+        return tmp_path
+
+
+# ==========================================================
+# 💾 Funções principais
+# ==========================================================
+def salvar_insumo(uploaded_file, artefato: str) -> Path:
+    """
+    Cria um arquivo de metadados JSON básico com informações do upload.
+    """
+    base_dir = get_json_export_dir()
+    filename = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    save_path = base_dir / filename
+
+    meta = {
+        "nome": getattr(uploaded_file, "name", "sem_nome"),
+        "artefato": artefato,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    return save_path
+
+
 def processar_insumo(uploaded_file, artefato: str):
     """
-    Processa insumos institucionais e encaminha o resultado ao módulo correspondente.
-    Compatível com DFD, ETP, TR e Edital.
-    Integra-se ao motor IA institucional v3 e mantém persistência entre páginas.
+    Processa o insumo PDF:
+      1. Lê o PDF via stream (PyMuPDF)
+      2. Extrai o texto integral
+      3. Chama o cliente institucional de IA
+      4. Gera e salva o JSON final em exports/insumos/json
     """
-
-    if not uploaded_file:
-        st.warning("Nenhum arquivo foi enviado.")
-        return None
-
-    artefato = artefato.upper().strip()
-    nome_arquivo = uploaded_file.name
-
-    # ==========================================================
-    # 📄 Extração inicial de texto (não exibe logs na UI)
-    # ==========================================================
-    extensao = os.path.splitext(nome_arquivo)[1].lower()
-    texto_extraido = ""
     try:
-        if extensao == ".txt":
-            texto_extraido = uploaded_file.read().decode("utf-8", errors="ignore")
-        elif extensao == ".docx":
-            from docx import Document
-            doc = Document(io.BytesIO(uploaded_file.read()))
-            texto_extraido = "\n".join([p.text for p in doc.paragraphs])
-        elif extensao == ".pdf":
-            from PyPDF2 import PdfReader
-            pdf_reader = PdfReader(io.BytesIO(uploaded_file.read()))
-            texto_extraido = "\n".join([page.extract_text() or "" for page in pdf_reader.pages])
+        # ==========================================================
+        # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
+        #    OBS: no Streamlit, .read() consome o buffer. Se o chamador
+        #    precisar do arquivo depois, deve reposicionar o ponteiro.
+        # ==========================================================
+        pdf_bytes = uploaded_file.read()
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            texto_extraido = ""
+            for pagina in doc:
+                texto_extraido += pagina.get_text("text")
+
+        print("[SynapseNext] Texto extraído com sucesso ✅")
+
+        # ==========================================================
+        # 2️⃣ Chamada da IA institucional (via utils/ai_client.py)
+        # ==========================================================
+        ai = AIClient()
+        prompt_base = f"Analise o documento de {artefato} e gere estrutura JSON."
+        resposta_ia = ai.ask(prompt=prompt_base, conteudo=texto_extraido, artefato=artefato)
+
+        print("[SynapseNext] Chamando IA institucional... 🧠")
+
+        # ==========================================================
+        # 3️⃣ Montagem do registro consolidado e exportação
+        # ==========================================================
+        base_dir = get_json_export_dir()
+        json_path = base_dir / f"{artefato}_ultimo.json"
+
+        resultado = {
+            "artefato": artefato,
+            "arquivo_origem": getattr(uploaded_file, "name", None),
+            "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "texto_extraido": texto_extraido[:1000],  # preview para auditoria
+            "resultado_ia": resposta_ia,
+        }
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+        print(f"[SynapseNext] JSON gerado e salvo em: {json_path} 💾")
+        return resultado
+
     except Exception as e:
-        st.error(f"Erro ao extrair texto: {e}")
+        print(f"[ERRO] Falha ao processar insumo: {e}")
+        return {"erro": str(e)}
 
-    # ==========================================================
-    # 🤖 Aciona o motor IA institucional v3
-    # ==========================================================
-    try:
-        resultado_ia = processar_insumo_ia(
-            uploaded_file,
-            tipo_artefato=artefato,
-            metadados_form={"origem": "integration_insumos.py", "arquivo": nome_arquivo},
-            filename=nome_arquivo,
-        )
-        campos_norm = resultado_ia.get("campos", {})
-    except Exception as e:
-        st.error(f"Falha no motor IA institucional v3: {e}")
-        campos_norm = {}
 
-    # ==========================================================
-    # 💾 Monta payload final
-    # ==========================================================
-    payload = {
-        "nome_arquivo": nome_arquivo,
-        "artefato": artefato,
-        "texto": texto_extraido[:8000],
-        "campos_ai": campos_norm,
-        "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
+def listar_insumos():
+    """
+    Lista os arquivos JSON disponíveis no diretório de exportação.
+    """
+    base_dir = get_json_export_dir()
+    arquivos = list(base_dir.glob("*.json"))
+    return [f.name for f in arquivos]
 
-    # ==========================================================
-    # 🧭 Atualiza sessão ativa (Streamlit)
-    # ==========================================================
-    key_map = {
-        "DFD": "dfd_campos_ai",
-        "ETP": "etp_campos_ai",
-        "TR": "tr_campos_ai",
-        "EDITAL": "edital_campos_ai",
-    }
-    key_last = f"last_insumo_{artefato.lower()}"
-    st.session_state[key_map.get(artefato, f"{artefato.lower()}_campos_ai")] = campos_norm
-    st.session_state[key_last] = payload
 
-    # ==========================================================
-    # 🧱 Persistência em disco (para fallback entre páginas)
-    # ==========================================================
-    EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
-    os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
-
-    # Salva backup histórico e último ativo
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    arquivo_historico = os.path.join(EXPORTS_JSON_DIR, f"{artefato}_{timestamp}.json")
-    arquivo_ultimo = os.path.join(EXPORTS_JSON_DIR, f"{artefato}_ultimo.json")
-
-    try:
-        with open(arquivo_historico, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        with open(arquivo_ultimo, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao salvar JSON: {e}")
-
-    st.success(f"Insumo para {artefato} processado e salvo com sucesso.")
-    return payload
+def get_ultimo_insumo_json(artefato: str) -> Path | None:
+    """
+    Retorna o caminho do último JSON gerado para um artefato específico,
+    se ele existir.
+    """
+    base_dir = get_json_export_dir()
+    candidate = base_dir / f"{artefato}_ultimo.json"
+    if candidate.exists():
+        return candidate
+    return None
