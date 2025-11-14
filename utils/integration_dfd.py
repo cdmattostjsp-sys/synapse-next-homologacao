@@ -158,3 +158,30 @@ def exibir_dfd_em_pagina():
 
     st.success("✅ DFD carregado com sucesso!")
     st.json(dados)
+
+# ==========================================================
+# 💾 Salvar DFD automaticamente (usado pelo módulo DFD)
+# ==========================================================
+def salvar_dfd_em_json(dados: dict):
+    """
+    Salva sempre como DFD_ultimo.json nos diretórios oficiais do pipeline.
+    Compatível com Insumos → DFD → ETP → TR.
+    """
+    try:
+        nome_arquivo = "DFD_ultimo.json"
+
+        for base in [Path("exports/insumos/json"), Path("/tmp/insumos/json")]:
+            try:
+                base.mkdir(parents=True, exist_ok=True)
+                destino = base / nome_arquivo
+                with open(destino, "w", encoding="utf-8") as f:
+                    json.dump(dados, f, ensure_ascii=False, indent=2)
+                print(f"[SynapseNext][DFD] Arquivo atualizado em: {destino}")
+            except Exception:
+                continue
+
+        return True
+
+    except Exception as e:
+        print(f"[ERRO][DFD] Falha ao salvar DFD (salvar_dfd_em_json): {e}")
+        return False
