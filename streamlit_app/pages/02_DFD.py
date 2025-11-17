@@ -1,8 +1,8 @@
+import streamlit as st
 import json
 from typing import Any, Dict
 
-import streamlit as st
-from utils.integration_dfd import (
+from utils.dfd.integration_dfd import (
     obter_dfd_da_sessao,
     salvar_dfd_em_json,
     status_dfd,
@@ -18,9 +18,7 @@ st.set_page_config(
 
 st.title("📄 Formalização da Demanda (DFD)")
 st.caption("📌 DFD carregado a partir dos insumos processados no módulo 🔧 Insumos.")
-
 st.info(status_dfd())
-
 
 # ---------------------------------------------------------------
 # Funções utilitárias
@@ -39,89 +37,111 @@ def _to_str(value: Any) -> str:
 
 def _normalizar_campos(dados: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normaliza diferentes formatos possíveis de retorno da IA para um
-    dicionário plano de campos.
-
-    Aceita, por exemplo:
-      { "DFD": {...} }
-      { "secoes": {...} }
-      { "campos_ai": {...} }
-      { ...campos soltos... }
+    Normaliza diferentes formatos possíveis do pipeline:
+    - { "DFD": {...} }
+    - { "secoes": {...} }
+    - { "campos_ai": {...} }
+    - { ...campos soltos... }
     """
     if not isinstance(dados, dict):
         return {}
 
-    # Camadas mais comuns
     if "campos_ai" in dados and isinstance(dados["campos_ai"], dict):
-        dados = dados["campos_ai"]
-    elif "DFD" in dados and isinstance(dados["DFD"], dict):
-        dados = dados["DFD"]
-    elif "secoes" in dados and isinstance(dados["secoes"], dict):
-        # Em muitos casos "secoes" já é um mapa de textos por seção
-        dados = dados["secoes"]
+        return dados["campos_ai"]
+    if "DFD" in dados and isinstance(dados["DFD"], dict):
+        return dados["DFD"]
+    if "secoes" in dados and isinstance(dados["secoes"], dict):
+        return dados["secoes"]
 
     return dados
 
 
+# ---------------------------------------------------------------
+# 🔥 Função NOVA – converte JSON estruturado em texto institucional
+# ---------------------------------------------------------------
 def mapear_campos_para_form(dados_brutos: Dict[str, Any]) -> Dict[str, str]:
     """
-    Converte o dicionário bruto (vindo da IA / insumos) em campos planos
+    Converte dicionários estruturados (JSON) em textos legíveis
     para o formulário institucional do DFD.
     """
     campos = _normalizar_campos(dados_brutos)
 
-    # Unidade / responsável
-    unidade = (
-        campos.get("unidade_demandante")
-        or campos.get("unidade")
-        or ""
-    )
+    # ------------------------------------------------------------
+    # CAMPOS BÁSICOS
+    # ------------------------------------------------------------
+    unidade = campos.get("unidade_demandante") or campos.get("unidade") or ""
     responsavel = campos.get("responsavel", "")
+    prazo = campos.get("prazo_estimado") or campos.get("prazo") or ""
+    valor_estimado = campos.get("valor_estimado") or campos.get("estimativa_valor") or "0,00"
 
-    # Prazo
-    prazo = (
-        campos.get("prazo_estimado")
-        or campos.get("prazo")
-        or ""
-    )
+    # ------------------------------------------------------------
+    # DESCRIÇÃO — texto consolidado a partir do JSON estruturado
+    # ------------------------------------------------------------
+    descricao_txt = ""
 
-    # Estimativa de valor
-    valor_estimado = (
-        campos.get("valor_estimado")
-        or campos.get("estimativa_valor")
-        or ""
-    )
+    # Informações do edifício
+    if "edificio" in campos and isinstance(campos["edificio"], dict):
+        e = campos["edificio"]
+        descricao_txt += (
+            "Características do edifício:\n"
+            f"- Pavimentos: {e.get('pavimentos','')}\n"
+            f"- Área total: {e.get('area','')}\n"
+            f"- Ano de inauguração: {e.get('ano_inauguracao','')}\n"
+            f"- Estado de conservação: {e.get('estado_conservacao','')}\n\n"
+        )
 
-    # Descrição e motivação – heurísticas a partir de diversas chaves
-    descricao_partes = []
-    motivacao_partes = []
+    # Informações da intervenção
+    if "intervencao" in campos and isinstance(campos["intervencao"], dict):
+        i = campos["intervencao"]
 
-    # Descrição da necessidade
-    desc_necess = campos.get("descricao_necessidade") or campos.get("descricao")
-    if desc_necess:
-        descricao_partes.append(_to_str(desc_necess))
+        descricao_txt += "Adequações previstas para acessibilidade:\n"
 
-    # Secções genéricas – tenta classificar por nome da chave
-    for chave, valor in campos.items():
-        if not valor:
-            continue
-        chave_lower = str(chave).lower()
+        # detalhes
+        if "detalhes" in i and isinstance(i["detalhes"], list):
+            for item in i["detalhes"]:
+                descricao_txt += f"• {item}\n"
 
-        if any(tok in chave_lower for tok in ["motiv", "justific", "objetivo"]):
-            motivacao_partes.append(_to_str(valor))
-        elif any(tok in chave_lower for tok in ["descr", "necess", "objeto"]):
-            descricao_partes.append(_to_str(valor))
+        # normas
+        if "normas" in i:
+            descricao_txt += f"\nNormas aplicáveis: {i.get('normas','')}\n"
 
-    descricao = "\n\n".join(partes for partes in descricao_partes if partes).strip()
-    motivacao = "\n\n".join(partes for partes in motivacao_partes if partes).strip()
+    # fallback
+    if not descricao_txt:
+        descricao_txt = _to_str(
+            campos.get("descricao_necessidade")
+            or campos.get("descricao")
+            or ""
+        )
+
+    # ------------------------------------------------------------
+    # MOTIVAÇÃO
+    # ------------------------------------------------------------
+    motivacao_txt = ""
+
+    if "descricao" in campos and isinstance(campos["descricao"], str):
+        motivacao_txt += campos["descricao"]
+
+    if "localizacao" in campos and isinstance(campos["localizacao"], dict):
+        loc = campos["localizacao"]
+        motivacao_txt += "\n\nLocalização da intervenção:\n"
+        motivacao_txt += f"- Endereço: {loc.get('endereco','')}\n"
+        motivacao_txt += f"- Tipo de edifício: {loc.get('tipo_edificio','')}\n"
+
+    if "disciplinas" in campos and isinstance(campos["disciplinas"], list):
+        motivacao_txt += "\nDisciplinas envolvidas:\n"
+        for d in campos["disciplinas"]:
+            motivacao_txt += f"• {d}\n"
+
+    if not motivacao_txt:
+        motivacao_txt = _to_str(campos.get("motivacao") or "")
 
     return {
         "unidade_demandante": unidade,
         "responsavel": responsavel,
         "prazo_estimado": prazo,
-        "descricao": descricao,
-        "motivacao": motivacao,
-        "valor_estimado": valor_estimado if valor_estimado else "0,00",
+        "descricao": descricao_txt.strip(),
+        "motivacao": motivacao_txt.strip(),
+        "valor_estimado": valor_estimado,
     }
 
 
@@ -142,7 +162,6 @@ campos_form = mapear_campos_para_form(dfd_campos_brutos)
 
 with st.expander("🔍 Visualizar dados brutos importados", expanded=False):
     st.json(dfd_campos_brutos)
-
 
 # ---------------------------------------------------------------
 # 2️⃣ FORMULÁRIO STREAMLIT – edição do DFD
@@ -174,6 +193,7 @@ with st.form(key="form_dfd"):
     )
 
     col3, col4 = st.columns(2)
+
     prazo = col3.text_input(
         "Prazo Estimado para Atendimento",
         value=campos_form["prazo_estimado"],
@@ -184,7 +204,6 @@ with st.form(key="form_dfd"):
     )
 
     submit = st.form_submit_button("💾 Salvar DFD consolidado")
-
 
 # ---------------------------------------------------------------
 # 3️⃣ Salvamento do DFD consolidado
