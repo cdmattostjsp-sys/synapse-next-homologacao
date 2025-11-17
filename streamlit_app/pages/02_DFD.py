@@ -1,13 +1,15 @@
 import json
+from typing import Any, Dict
+
 import streamlit as st
 from utils.integration_dfd import (
     obter_dfd_da_sessao,
-    gerar_rascunho_dfd_com_ia,
-    salvar_dfd_manual,
+    salvar_dfd_em_json,
+    status_dfd,
 )
 
 # ---------------------------------------------------------------
-# CONFIGURAÇÃO DA PÁGINA
+# ⚙️ CONFIGURAÇÃO DA PÁGINA
 # ---------------------------------------------------------------
 st.set_page_config(
     page_title="📄 Formalização da Demanda (DFD)",
@@ -15,148 +17,190 @@ st.set_page_config(
 )
 
 st.title("📄 Formalização da Demanda (DFD)")
-st.caption("📌 DFD carregado a partir dos insumos processados.")
-st.write(
-    "Esta página consolida automaticamente o Documento de Formalização da Demanda "
-    "a partir do texto extraído no módulo 🔧 **Insumos** e do rascunho gerado pela IA institucional."
-)
+st.caption("📌 DFD carregado a partir dos insumos processados no módulo 🔧 Insumos.")
+
+st.info(status_dfd())
+
 
 # ---------------------------------------------------------------
-# Função utilitária para limpar blocos Markdown ```json ... ```
+# Funções utilitárias
 # ---------------------------------------------------------------
-def limpar_markdown_json(texto: str) -> str:
-    if not isinstance(texto, str):
-        return texto
+def _to_str(value: Any) -> str:
+    """Converte qualquer estrutura em string legível para o formulário."""
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        try:
+            return json.dumps(value, ensure_ascii=False, indent=2)
+        except Exception:
+            return str(value)
+    return str(value)
 
-    cleaned = texto.strip()
-    cleaned = cleaned.replace("```json", "")
-    cleaned = cleaned.replace("```", "")
-    cleaned = cleaned.strip()
-    return cleaned
+
+def _normalizar_campos(dados: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normaliza diferentes formatos possíveis de retorno da IA para um
+    dicionário plano de campos.
+
+    Aceita, por exemplo:
+      { "DFD": {...} }
+      { "secoes": {...} }
+      { "campos_ai": {...} }
+      { ...campos soltos... }
+    """
+    if not isinstance(dados, dict):
+        return {}
+
+    # Camadas mais comuns
+    if "campos_ai" in dados and isinstance(dados["campos_ai"], dict):
+        dados = dados["campos_ai"]
+    elif "DFD" in dados and isinstance(dados["DFD"], dict):
+        dados = dados["DFD"]
+    elif "secoes" in dados and isinstance(dados["secoes"], dict):
+        # Em muitos casos "secoes" já é um mapa de textos por seção
+        dados = dados["secoes"]
+
+    return dados
+
+
+def mapear_campos_para_form(dados_brutos: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Converte o dicionário bruto (vindo da IA / insumos) em campos planos
+    para o formulário institucional do DFD.
+    """
+    campos = _normalizar_campos(dados_brutos)
+
+    # Unidade / responsável
+    unidade = (
+        campos.get("unidade_demandante")
+        or campos.get("unidade")
+        or ""
+    )
+    responsavel = campos.get("responsavel", "")
+
+    # Prazo
+    prazo = (
+        campos.get("prazo_estimado")
+        or campos.get("prazo")
+        or ""
+    )
+
+    # Estimativa de valor
+    valor_estimado = (
+        campos.get("valor_estimado")
+        or campos.get("estimativa_valor")
+        or ""
+    )
+
+    # Descrição e motivação – heurísticas a partir de diversas chaves
+    descricao_partes = []
+    motivacao_partes = []
+
+    # Descrição da necessidade
+    desc_necess = campos.get("descricao_necessidade") or campos.get("descricao")
+    if desc_necess:
+        descricao_partes.append(_to_str(desc_necess))
+
+    # Secções genéricas – tenta classificar por nome da chave
+    for chave, valor in campos.items():
+        if not valor:
+            continue
+        chave_lower = str(chave).lower()
+
+        if any(tok in chave_lower for tok in ["motiv", "justific", "objetivo"]):
+            motivacao_partes.append(_to_str(valor))
+        elif any(tok in chave_lower for tok in ["descr", "necess", "objeto"]):
+            descricao_partes.append(_to_str(valor))
+
+    descricao = "\n\n".join(partes for partes in descricao_partes if partes).strip()
+    motivacao = "\n\n".join(partes for partes in motivacao_partes if partes).strip()
+
+    return {
+        "unidade_demandante": unidade,
+        "responsavel": responsavel,
+        "prazo_estimado": prazo,
+        "descricao": descricao,
+        "motivacao": motivacao,
+        "valor_estimado": valor_estimado if valor_estimado else "0,00",
+    }
 
 
 # ---------------------------------------------------------------
 # 1️⃣ Carregar DFD processado (insumo + IA)
 # ---------------------------------------------------------------
-dfd_data = obter_dfd_da_sessao()
+dfd_campos_brutos = obter_dfd_da_sessao()
 
-if not dfd_data:
-    st.error("⚠️ Nenhum insumo DFD encontrado. Envie primeiro um documento no módulo 🔧 **Insumos**.")
+if not dfd_campos_brutos:
+    st.error(
+        "⚠️ Nenhum insumo DFD encontrado.\n\n"
+        "Envie primeiro um documento no módulo 🔧 **Insumos** "
+        "e selecione o destino **DFD**."
+    )
     st.stop()
 
-rascunho_raw = dfd_data.get("resultado_ia", {}).get("resposta_texto")
+campos_form = mapear_campos_para_form(dfd_campos_brutos)
 
-# Se ainda não existe resposta da IA → tentar gerar agora
-if not rascunho_raw:
-    with st.spinner("🔄 Gerando rascunho com IA institucional..."):
-        rascunho_raw = gerar_rascunho_dfd_com_ia()
-
-    if not rascunho_raw:
-        st.error("❌ Não foi possível gerar o rascunho do DFD com IA.")
-        st.stop()
+with st.expander("🔍 Visualizar dados brutos importados", expanded=False):
+    st.json(dfd_campos_brutos)
 
 
 # ---------------------------------------------------------------
-# 2️⃣ Sanitizar e converter JSON da IA
+# 2️⃣ FORMULÁRIO STREAMLIT – edição do DFD
 # ---------------------------------------------------------------
-try:
-    texto_limpo = limpar_markdown_json(rascunho_raw)
-    rascunho_json = json.loads(texto_limpo)
+st.subheader("🧾 Campos do DFD")
 
-except Exception as e:
-    st.error("❌ O rascunho retornado pela IA não está em formato JSON válido.")
-    st.code(f"Json Parse Error: {str(e)}")
-    st.subheader("Conteúdo recebido da IA:")
-    st.code(rascunho_raw)
-    st.stop()
+with st.form(key="form_dfd"):
 
-# Agora garantimos que o JSON final esteja dentro de uma chave raiz
-if "DFD" in rascunho_json:
-    campos = rascunho_json["DFD"]
-else:
-    campos = rascunho_json
+    col1, col2 = st.columns(2)
 
-
-# ---------------------------------------------------------------
-# 3️⃣ Função de mapeamento para formulário
-# ---------------------------------------------------------------
-def mapear_campos_para_form(c: dict) -> dict:
-
-    processo = c.get("processo", {}) or {}
-    objeto = c.get("objeto", {}) or {}
-    necessidade = c.get("necessidade_contratacao", {}) or {}
-
-    unidade = c.get("unidade_demandante", "") or c.get("unidade", "")
-    responsavel = c.get("responsavel", "")
-
-    prazo = ""
-    vigencia = necessidade.get("vigencia_atual_contrato") or {}
-    if isinstance(vigencia, dict):
-        prazo = vigencia.get("data_fim", "")
-
-    descricao = (
-        necessidade.get("descricao")
-        or objeto.get("descricao")
-        or ""
+    unidade = col1.text_input(
+        "Unidade Demandante",
+        value=campos_form["unidade_demandante"],
+    )
+    responsavel = col2.text_input(
+        "Responsável pela Demanda",
+        value=campos_form["responsavel"],
     )
 
-    motivacao = ""
-    if "justificativa" in necessidade:
-        if isinstance(necessidade["justificativa"], list):
-            motivacao = "\n".join(necessidade["justificativa"])
-        else:
-            motivacao = necessidade["justificativa"]
+    descricao = st.text_area(
+        "Descrição da Necessidade",
+        value=campos_form["descricao"],
+        height=230,
+    )
+    motivacao = st.text_area(
+        "Motivação / Objetivos Estratégicos",
+        value=campos_form["motivacao"],
+        height=180,
+    )
 
-    valor_estimado = objeto.get("valor_estimado", "0,00")
+    col3, col4 = st.columns(2)
+    prazo = col3.text_input(
+        "Prazo Estimado para Atendimento",
+        value=campos_form["prazo_estimado"],
+    )
+    valor_estimado = col4.text_input(
+        "Estimativa de Valor (R$)",
+        value=campos_form["valor_estimado"],
+    )
 
-    return {
-        "unidade": unidade,
+    submit = st.form_submit_button("💾 Salvar DFD consolidado")
+
+
+# ---------------------------------------------------------------
+# 3️⃣ Salvamento do DFD consolidado
+# ---------------------------------------------------------------
+if submit:
+    dfd_final = {
+        "unidade_demandante": unidade,
         "responsavel": responsavel,
         "prazo_estimado": prazo,
-        "descricao": descricao,
+        "descricao_necessidade": descricao,
         "motivacao": motivacao,
         "valor_estimado": valor_estimado,
     }
 
+    caminho = salvar_dfd_em_json(dfd_final, origem="formulario_dfd_streamlit")
 
-form_data = mapear_campos_para_form(campos)
-
-
-# ---------------------------------------------------------------
-# 4️⃣ FORMULÁRIO STREAMLIT
-# ---------------------------------------------------------------
-st.subheader("📌 Entrada – Formalização da Demanda")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    unidade = st.text_input("Unidade Demandante", form_data["unidade"])
-    responsavel = st.text_input("Responsável pela Demanda", form_data["responsavel"])
-    prazo = st.text_input("Prazo Estimado para Atendimento", form_data["prazo_estimado"])
-
-with col2:
-    descricao = st.text_area("Descrição da Necessidade", form_data["descricao"], height=120)
-    motivacao = st.text_area("Motivação / Objetivos Estratégicos", form_data["motivacao"], height=120)
-
-valor = st.text_input("Estimativa de Valor (R$)", form_data["valor_estimado"])
-
-
-# ---------------------------------------------------------------
-# 5️⃣ BOTÃO DE SALVAMENTO
-# ---------------------------------------------------------------
-if st.button("💾 Salvar DFD consolidado"):
-    dfd_final = {
-        "DFD": {
-            "unidade_demandante": unidade,
-            "responsavel": responsavel,
-            "prazo_estimado": prazo,
-            "descricao_necessidade": descricao,
-            "motivacao": motivacao,
-            "estimativa_valor": valor,
-        }
-    }
-
-    salvar_dfd_manual(dfd_final)
-
-    st.success("✅ DFD salvo com sucesso!")
+    st.success("✅ DFD salvo com sucesso.")
+    st.caption(f"Arquivo atualizado em: `{caminho}`")
     st.json(dfd_final)

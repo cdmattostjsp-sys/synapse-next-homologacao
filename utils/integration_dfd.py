@@ -1,187 +1,139 @@
 # ==========================================================
-# utils/integration_dfd.py
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.09 (Patch IA JSON)
-# Compatibilidade: Streamlit 1.39.0 + openai 2.7.1
+# utils/integration_dfd.py – VERSÃO CORRETA E COMPLETA
 # ==========================================================
 
+from __future__ import annotations
+import os
 import json
-import re
-from pathlib import Path
+import glob
 import streamlit as st
-from utils.ai_client import AIClient  # ✅ Cliente institucional padronizado
+from datetime import datetime
 
+# ----------------------------------------------------------
+# 🔄 LIMPAR BLOCOS MARKDOWN ```json
+# ----------------------------------------------------------
+def _limpar_markdown(texto: str) -> str:
+    if not isinstance(texto, str):
+        return ""
+    t = texto.strip()
+    t = t.replace("```json", "").replace("```", "").strip()
+    return t
 
-# ==========================================================
-# 📁 Localização de arquivos
-# ==========================================================
-def get_possible_dfd_paths() -> list[Path]:
-    """
-    Retorna os caminhos possíveis onde o DFD_ultimo.json pode estar.
-    Inclui tanto o modo persistente (exports) quanto o temporário (/tmp).
-    """
-    return [
-        Path("exports/insumos/json/DFD_ultimo.json"),
-        Path("/tmp/insumos/json/DFD_ultimo.json"),
-    ]
-
-
-# ==========================================================
-# 🔍 Carregar DFD existente
-# ==========================================================
-def obter_dfd_da_sessao():
-    """
-    Tenta carregar o último DFD gerado.
-    Verifica tanto exports/insumos/json quanto /tmp/insumos/json.
-    """
+# ----------------------------------------------------------
+# 📥 CARREGAR JSON BRUTO DO ARQUIVO
+# ----------------------------------------------------------
+def _carregar_dfd_de_arquivo(caminho: str) -> dict:
     try:
-        for caminho in get_possible_dfd_paths():
-            if caminho.exists():
-                with open(caminho, "r", encoding="utf-8") as f:
-                    dados = json.load(f)
-                print(f"[SynapseNext][DFD] Dados importados de {caminho}")
-                return dados
+        with open(caminho, "r", encoding="utf-8") as f:
+            dados = json.load(f)
 
-        print("[SynapseNext][DFD] Nenhum DFD encontrado em diretórios padrão.")
-        return None
+        # 1) Conteúdo vindo da IA
+        if "resultado_ia" in dados:
+            r = dados["resultado_ia"]
+            if isinstance(r, dict) and "resposta_texto" in r:
+                bruto = r["resposta_texto"]
+            elif isinstance(r, str):
+                bruto = r
+            else:
+                bruto = ""
+        # 2) Campos diretos
+        elif "campos_ai" in dados:
+            return dados["campos_ai"]
+        elif "campos" in dados:
+            return dados["campos"]
+        else:
+            bruto = ""
+
+        bruto = _limpar_markdown(bruto)
+
+        try:
+            parsed = json.loads(bruto)
+            if "DFD" in parsed:
+                return parsed["DFD"]
+            return parsed
+        except:
+            return {"conteudo": bruto}
 
     except Exception as e:
-        print(f"[ERRO][DFD] Falha ao carregar DFD: {e}")
-        return None
+        st.warning(f"⚠️ Falha ao ler {os.path.basename(caminho)}: {e}")
+        return {}
 
+# ----------------------------------------------------------
+# 🧠 OBTER O DFD ATIVO
+# ----------------------------------------------------------
+def obter_dfd_da_sessao() -> dict:
 
-# ==========================================================
-# 💾 Salvar manualmente um DFD (opcional)
-# ==========================================================
-def salvar_dfd_manual(dados: dict, nome_arquivo: str = "DFD_ultimo.json"):
-    """
-    Salva o DFD consolidado tanto em exports quanto em /tmp (fallback).
-    """
+    # 1️⃣ Sessão ativa
+    if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
+        return st.session_state["dfd_campos_ai"]
+
+    base = os.path.join("exports", "insumos", "json")
+    ultimo = os.path.join(base, "DFD_ultimo.json")
+
+    # 2️⃣ Carrega o último JSON salvo
+    if os.path.exists(ultimo):
+        dados = _carregar_dfd_de_arquivo(ultimo)
+        if dados:
+            st.session_state["dfd_campos_ai"] = dados
+            return dados
+
+    # 3️⃣ Tenta encontrar outro JSON DFD_*.json
+    arquivos = sorted(
+        glob.glob(os.path.join(base, "DFD_*.json")),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+
+    for arq in arquivos:
+        if "DFD_ultimo" in arq:
+            continue
+        dados = _carregar_dfd_de_arquivo(arq)
+        if dados:
+            st.session_state["dfd_campos_ai"] = dados
+            return dados
+
+    return {}
+
+# ----------------------------------------------------------
+# 💾 SALVAR DFD
+# ----------------------------------------------------------
+def salvar_dfd_em_json(campos_dfd: dict, origem: str = "formulario") -> str:
+    base = os.path.join("exports", "insumos", "json")
+    os.makedirs(base, exist_ok=True)
+
+    payload = {
+        "artefato": "DFD",
+        "origem": origem,
+        "campos_ai": campos_dfd,
+        "data_salvamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    arq1 = os.path.join(base, "DFD_ultimo.json")
+    arq2 = os.path.join(base, f"DFD_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+
     try:
-        for base in [Path("exports/insumos/json"), Path("/tmp/insumos/json")]:
-            try:
-                base.mkdir(parents=True, exist_ok=True)
-                destino = base / nome_arquivo
-                with open(destino, "w", encoding="utf-8") as f:
-                    json.dump(dados, f, ensure_ascii=False, indent=2)
-                print(f"[SynapseNext][DFD] Arquivo salvo com sucesso em: {destino}")
-                return destino
-            except Exception:
-                continue
+        with open(arq1, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
 
-        print("[ERRO][DFD] Nenhum diretório disponível para salvar.")
-        return None
+        with open(arq2, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+        st.session_state["dfd_campos_ai"] = campos_dfd
+        return arq1
 
     except Exception as e:
-        print(f"[ERRO][DFD] Falha ao salvar DFD manualmente: {e}")
-        return None
+        st.error(f"❌ Falha ao salvar DFD: {e}")
+        return ""
 
+# ----------------------------------------------------------
+# 🧩 STATUS DO DFD
+# ----------------------------------------------------------
+def status_dfd() -> str:
+    """Mensagem amigável para exibir no topo do módulo."""
+    base = os.path.join("exports", "insumos", "json")
+    if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
+        return "✅ DFD carregado automaticamente (sessão ativa)"
+    if os.path.exists(os.path.join(base, "DFD_ultimo.json")):
+        return "🗂️ DFD disponível a partir dos insumos processados"
+    return "⚠️ Nenhum DFD disponível — envie um insumo pelo módulo INSUMOS"
 
-# ==========================================================
-# 🧠 Geração do rascunho com IA institucional (versão estável)
-# ==========================================================
-def gerar_rascunho_dfd_com_ia():
-    """
-    Reaproveita o DFD_ultimo.json existente para gerar o rascunho com IA institucional.
-    - Se o JSON já contiver resultado da IA, reutiliza.
-    - Caso contrário, processa o texto extraído e atualiza o arquivo.
-    - Faz o parse automático do campo 'resposta_texto' quando vier em formato Markdown JSON.
-    """
-    try:
-        dfd_data = obter_dfd_da_sessao()
-        if not dfd_data:
-            st.warning("⚠️ Nenhum insumo DFD encontrado. Envie primeiro um documento no módulo 'Insumos'.")
-            return None
-
-        # ✅ 1. Reutiliza resultado existente (caso já tenha vindo da IA)
-        if "resultado_ia" in dfd_data and dfd_data["resultado_ia"].get("resposta_texto"):
-            texto_raw = dfd_data["resultado_ia"]["resposta_texto"]
-
-            # --- Novo tratamento: extrair JSON de blocos markdown
-            cleaned = re.sub(r"^```json|```$", "", texto_raw.strip(), flags=re.IGNORECASE).strip()
-
-            try:
-                parsed_json = json.loads(cleaned)
-                print("[SynapseNext][DFD] Resposta IA convertida de Markdown JSON para objeto válido.")
-                return parsed_json
-            except Exception:
-                print("[SynapseNext][DFD] Resposta IA mantida como texto (não pôde ser convertida).")
-                return texto_raw
-
-        # ✅ 2. Caso contrário, reprocessa com a IA institucional
-        texto_base = dfd_data.get("texto_extraido", "")
-        if not texto_base.strip():
-            st.warning("⚠️ O insumo DFD não contém texto extraído válido.")
-            return None
-
-        st.info("🧠 Executando agente DFD institucional com base no insumo processado...")
-
-        ai = AIClient()
-        prompt = (
-            "Analise o texto do Documento de Formalização de Demanda (DFD) "
-            "e gere um rascunho JSON estruturado com os seguintes campos: "
-            "Unidade Demandante, Descrição da Necessidade, Responsável, "
-            "Motivação / Objetivos Estratégicos e Prazo Estimado para Atendimento."
-        )
-
-        resposta_ia = ai.ask(prompt=prompt, conteudo=texto_base, artefato="DFD")
-
-        if not resposta_ia or not resposta_ia.get("resposta_texto"):
-            st.warning("⚠️ A IA não retornou um rascunho válido.")
-            return None
-
-        # ✅ 3. Atualiza o JSON e salva novamente
-        dfd_data["resultado_ia"] = resposta_ia
-        salvar_dfd_manual(dfd_data)
-
-        st.success("✅ Rascunho do DFD gerado e armazenado com sucesso.")
-        return resposta_ia["resposta_texto"]
-
-    except Exception as e:
-        st.error(f"❌ Erro ao gerar rascunho com IA institucional: {e}")
-        print(f"[ERRO][DFD] {e}")
-        return None
-
-
-# ==========================================================
-# 🌐 Exibição no Streamlit (uso direto)
-# ==========================================================
-def exibir_dfd_em_pagina():
-    """
-    Exibe o conteúdo atual do DFD_ultimo.json na interface Streamlit.
-    """
-    dados = obter_dfd_da_sessao()
-
-    if not dados:
-        st.warning("⚠️ Nenhum DFD encontrado. Gere um insumo primeiro na página 'Insumos'.")
-        return
-
-    st.success("✅ DFD carregado com sucesso!")
-    st.json(dados)
-
-# ==========================================================
-# 💾 Salvar DFD automaticamente (usado pelo módulo DFD)
-# ==========================================================
-def salvar_dfd_em_json(dados: dict):
-    """
-    Salva sempre como DFD_ultimo.json nos diretórios oficiais do pipeline.
-    Compatível com Insumos → DFD → ETP → TR.
-    """
-    try:
-        nome_arquivo = "DFD_ultimo.json"
-
-        for base in [Path("exports/insumos/json"), Path("/tmp/insumos/json")]:
-            try:
-                base.mkdir(parents=True, exist_ok=True)
-                destino = base / nome_arquivo
-                with open(destino, "w", encoding="utf-8") as f:
-                    json.dump(dados, f, ensure_ascii=False, indent=2)
-                print(f"[SynapseNext][DFD] Arquivo atualizado em: {destino}")
-            except Exception:
-                continue
-
-        return True
-
-    except Exception as e:
-        print(f"[ERRO][DFD] Falha ao salvar DFD (salvar_dfd_em_json): {e}")
-        return False
