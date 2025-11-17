@@ -1,5 +1,5 @@
 # ==========================================================
-# utils/document_agent.py
+# agents/document_agent.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
 # Revisão: 2025-11-10 – Engenheiro Synapse
 # ==========================================================
@@ -56,7 +56,7 @@ class DocumentAgent:
             if not texto_bruto:
                 return {"erro": "IA não retornou conteúdo textual."}
 
-            # Limpeza de delimitadores Markdown (```json ... ```)
+            # Limpeza de delimitadores Markdown (```json ... ```).
             texto_bruto = texto_bruto.strip()
             if texto_bruto.startswith("```json"):
                 texto_bruto = texto_bruto.replace("```json", "").replace("```", "").strip()
@@ -90,21 +90,20 @@ class DocumentAgent:
                 "Com base no texto fornecido, elabore o documento **Formalização da Demanda (DFD)** "
                 "conforme os padrões administrativos e a Lei nº 14.133/2021.\n\n"
                 "O DFD deve conter os seguintes campos obrigatórios:\n"
-                "- Unidade Demandante (órgão ou setor responsável pela solicitação)\n"
-                "- Responsável pela Demanda (nome e cargo do solicitante institucional)\n"
-                "- Prazo Estimado para Atendimento (mês/ano ou período estratégico)\n"
-                "- Descrição da Necessidade (contextualize a situação ou problema identificado)\n"
-                "- Motivação / Objetivos Estratégicos (relacione com o Planejamento Estratégico 2021–2026)\n"
-                "- Estimativa de Valor (informe se disponível ou mantenha 0,00)\n"
-                "- Justificativa Legal (artigos aplicáveis da Lei 14.133/2021)\n"
-                "- Escopo (principais entregas, produtos ou serviços)\n"
-                "- Resultados Esperados (efeitos esperados após a execução)\n"
-                "- Critérios de Sucesso (como o resultado será medido)\n\n"
+                "- Unidade Demandante\n"
+                "- Responsável pela Demanda\n"
+                "- Prazo Estimado\n"
+                "- Descrição da Necessidade\n"
+                "- Motivação / Objetivos Estratégicos\n"
+                "- Estimativa de Valor\n"
+                "- Justificativa Legal\n"
+                "- Escopo\n"
+                "- Resultados Esperados\n"
+                "- Critérios de Sucesso\n\n"
                 "🧾 Regras de redação:\n"
-                "1. Use linguagem formal, impessoal e técnica.\n"
-                "2. Mantenha coerência com o texto original do insumo (PDF processado).\n"
-                "3. Evite repetir trechos ou incluir instruções do usuário.\n"
-                "4. Gere a resposta **em formato JSON** com a estrutura:\n\n"
+                "1. Linguagem formal e técnica.\n"
+                "2. Coerência com o insumo original.\n"
+                "3. Responder apenas com JSON no formato:\n\n"
                 "```json\n"
                 "{\n"
                 "  \"DFD\": {\n"
@@ -119,8 +118,8 @@ class DocumentAgent:
                 "    \"lacunas\": [\"unidade\", \"responsavel\", \"prazo\", \"estimativa_valor\"]\n"
                 "  }\n"
                 "}\n"
-                "```\n\n"
-                "Responda apenas com o JSON final, sem texto adicional."
+                "```\n"
+                "Sem texto adicional."
             )
 
         # ======================================================
@@ -132,3 +131,28 @@ class DocumentAgent:
                 f"Elabore o documento institucional correspondente ao artefato {self.artefato} "
                 "seguindo linguagem formal e formato JSON padronizado."
             )
+
+
+# ======================================================
+# 🔌 FUNÇÃO PÚBLICA PARA O PIPELINE — **ESSENCIAL**
+# ======================================================
+
+def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
+    """
+    Função utilizada pelo pipeline DFD.
+
+    - Recebe o texto processado dos insumos (OCR/PDF/Upload)
+    - Envia para o agente de documentos
+    - Retorna o JSON estruturado da IA
+    """
+
+    if not conteudo_textual or len(conteudo_textual.strip()) < 15:
+        return {"erro": "Conteúdo insuficiente para processamento IA."}
+
+    agente = DocumentAgent("DFD")
+    resultado = agente.generate(conteudo_textual)
+
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "resultado_ia": resultado,
+    }
