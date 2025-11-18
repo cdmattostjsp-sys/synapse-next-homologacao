@@ -32,110 +32,98 @@ def _to_str(value: Any) -> str:
     if isinstance(value, (dict, list)):
         try:
             return json.dumps(value, ensure_ascii=False, indent=2)
-        except:
+        except Exception:
             return str(value)
     return str(value)
 
 
-def _normalizar_campos(dados: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Normaliza diferentes formatos possíveis vindos do pipeline:
-      - { "DFD": {...} }
-      - { "secoes": {...} }
-      - { "campos_ai": {...} }
-      - JSON direto da IA
-    """
-    if not isinstance(dados, dict):
-        return {}
-
-    if isinstance(dados.get("campos_ai"), dict):
-        return dados["campos_ai"]
-
-    if isinstance(dados.get("DFD"), dict):
-        return dados["DFD"]
-
-    if isinstance(dados.get("secoes"), dict):
-        return dados["secoes"]
-
-    return dados
-
-
-# ---------------------------------------------------------------
-# 🔥 Consolidar dados estruturados → texto administrativo
-# ---------------------------------------------------------------
 def mapear_campos_para_form(dados_brutos: Dict[str, Any]) -> Dict[str, str]:
-    campos = _normalizar_campos(dados_brutos)
+    """
+    Normaliza diferentes formatos de DFD para os campos do formulário.
+    Aceita:
+      - {"secoes": {...}, "lacunas": [...]}
+      - {"unidade_demandante": ..., "descricao_necessidade": ...}
+      - outros formatos simples.
+    """
+
+    campos = dados_brutos or {}
+    if not isinstance(campos, dict):
+        campos = {}
+
+    # Núcleo de seções (quando vier do DocumentAgent)
+    secoes = campos.get("secoes") if isinstance(campos.get("secoes"), dict) else {}
 
     # ------------------------------------------------------------
-    # CAMPOS BÁSICOS
+    # CAMPOS BÁSICOS (administrativos)
     # ------------------------------------------------------------
-    unidade = campos.get("unidade_demandante") or campos.get("unidade") or ""
+    unidade = (
+        campos.get("unidade_demandante")
+        or campos.get("unidade")
+        or ""
+    )
     responsavel = campos.get("responsavel", "")
-    prazo = campos.get("prazo_estimado") or campos.get("prazo") or ""
-    valor_estimado = campos.get("valor_estimado") or campos.get("estimativa_valor") or "0,00"
+    prazo = (
+        campos.get("prazo_estimado")
+        or campos.get("prazo")
+        or ""
+    )
+    valor_estimado = (
+        campos.get("valor_estimado")
+        or campos.get("estimativa_valor")
+        or "0,00"
+    )
 
     # ------------------------------------------------------------
-    # DESCRIÇÃO (texto consolidado)
+    # DESCRIÇÃO DA NECESSIDADE
     # ------------------------------------------------------------
     descricao_txt = ""
 
-    if isinstance(campos.get("edificio"), dict):
-        e = campos["edificio"]
-        descricao_txt += (
-            "Características do edifício:\n"
-            f"- Pavimentos: {e.get('pavimentos','')}\n"
-            f"- Área total: {e.get('area','')}\n"
-            f"- Ano de inauguração: {e.get('ano_inauguracao','')}\n"
-            f"- Estado de conservação: {e.get('estado_conservacao','')}\n\n"
-        )
+    # Se já houver descrição consolidada, priorizar
+    if isinstance(campos.get("descricao_necessidade"), str) and campos["descricao_necessidade"].strip():
+        descricao_txt = campos["descricao_necessidade"].strip()
 
-    if isinstance(campos.get("intervencao"), dict):
-        i = campos["intervencao"]
-        descricao_txt += "Adequações previstas:\n"
+    # Caso contrário, montar a partir das seções do DFD
+    elif secoes:
+        partes_desc = []
+        for chave in ["Contexto", "Necessidade", "Escopo"]:
+            v = (
+                secoes.get(chave)
+                or secoes.get(chave.lower())
+                or secoes.get(chave.upper())
+            )
+            if isinstance(v, str) and v.strip():
+                partes_desc.append(v.strip())
+        descricao_txt = "\n\n".join(partes_desc).strip()
 
-        if isinstance(i.get("detalhes"), list):
-            for item in i["detalhes"]:
-                descricao_txt += f"• {item}\n"
-
-        if "normas" in i:
-            descricao_txt += f"\nNormas aplicáveis: {i['normas']}\n"
-
-    # fallback
+    # Fallback final
     if not descricao_txt:
-        descricao_txt = _to_str(
-            campos.get("descricao_necessidade")
-            or campos.get("descricao")
-            or ""
-        )
+        descricao_txt = _to_str(campos.get("descricao") or campos.get("conteudo") or "")
 
     # ------------------------------------------------------------
-    # MOTIVAÇÃO
+    # MOTIVAÇÃO / OBJETIVOS
     # ------------------------------------------------------------
     motivacao_txt = ""
 
-    if isinstance(campos.get("descricao"), str):
-        motivacao_txt += campos["descricao"]
-
-    if isinstance(campos.get("localizacao"), dict):
-        loc = campos["localizacao"]
-        motivacao_txt += "\n\nLocalização:\n"
-        motivacao_txt += f"- Endereço: {loc.get('endereco','')}\n"
-        motivacao_txt += f"- Tipo de edifício: {loc.get('tipo_edificio','')}\n"
-
-    if isinstance(campos.get("disciplinas"), list):
-        motivacao_txt += "\nDisciplinas envolvidas:\n"
-        for d in campos["disciplinas"]:
-            motivacao_txt += f"• {d}\n"
-
-    if not motivacao_txt:
-        motivacao_txt = _to_str(campos.get("motivacao") or "")
+    if isinstance(campos.get("motivacao"), str) and campos["motivacao"].strip():
+        motivacao_txt = campos["motivacao"].strip()
+    elif secoes:
+        partes_mot = []
+        for chave in ["Justificativa Legal", "Resultados Esperados", "Critérios de Sucesso"]:
+            v = (
+                secoes.get(chave)
+                or secoes.get(chave.lower())
+                or secoes.get(chave.upper())
+            )
+            if isinstance(v, str) and v.strip():
+                partes_mot.append(v.strip())
+        motivacao_txt = "\n\n".join(partes_mot).strip()
 
     return {
         "unidade_demandante": unidade,
         "responsavel": responsavel,
         "prazo_estimado": prazo,
-        "descricao": descricao_txt.strip(),
-        "motivacao": motivacao_txt.strip(),
+        "descricao": descricao_txt,
+        "motivacao": motivacao_txt,
         "valor_estimado": valor_estimado,
     }
 
@@ -150,7 +138,6 @@ if st.button("✨ Gerar rascunho com IA"):
         dfd_ai = gerar_rascunho_dfd_com_ia()
 
         if dfd_ai:
-            st.session_state["dfd_campos_ai"] = dfd_ai
             st.success("✨ Rascunho gerado com sucesso pela IA!")
             st.rerun()
         else:
@@ -161,12 +148,12 @@ if st.button("✨ Gerar rascunho com IA"):
 
 
 # ---------------------------------------------------------------
-# 1️⃣ Carregar dados já existentes (sessão ou arquivo)
+# 1️⃣ Carregar dados já existentes (sessão ou arquivos)
 # ---------------------------------------------------------------
 dfd_campos_brutos = obter_dfd_da_sessao()
 
 if not dfd_campos_brutos:
-    st.error("Nenhum insumo DFD encontrado. Envie um documento no módulo INSUMOS.")
+    st.error("Nenhum DFD encontrado. Envie um documento no módulo INSUMOS e processe como DFD.")
     st.stop()
 
 campos_form = mapear_campos_para_form(dfd_campos_brutos)
@@ -186,8 +173,16 @@ with st.form(key="form_dfd"):
     unidade = col1.text_input("Unidade Demandante", value=campos_form["unidade_demandante"])
     responsavel = col2.text_input("Responsável pela Demanda", value=campos_form["responsavel"])
 
-    descricao = st.text_area("Descrição da Necessidade", value=campos_form["descricao"], height=230)
-    motivacao = st.text_area("Motivação / Objetivos Estratégicos", value=campos_form["motivacao"], height=180)
+    descricao = st.text_area(
+        "Descrição da Necessidade",
+        value=campos_form["descricao"],
+        height=230
+    )
+    motivacao = st.text_area(
+        "Motivação / Objetivos Estratégicos / Justificativa",
+        value=campos_form["motivacao"],
+        height=180
+    )
 
     col3, col4 = st.columns(2)
     prazo = col3.text_input("Prazo Estimado para Atendimento", value=campos_form["prazo_estimado"])
@@ -197,7 +192,7 @@ with st.form(key="form_dfd"):
 
 
 # ---------------------------------------------------------------
-# 3️⃣ Salvamento final
+# 3️⃣ Salvamento final (em exports/dfd/json/)
 # ---------------------------------------------------------------
 if submit:
     dfd_final = {
@@ -207,10 +202,12 @@ if submit:
         "descricao_necessidade": descricao,
         "motivacao": motivacao,
         "valor_estimado": valor_estimado,
+        # opcionalmente podemos guardar também o bruto original:
+        # "origem_dados": dfd_campos_brutos,
     }
 
     caminho = salvar_dfd_em_json(dfd_final, origem="formulario_dfd_streamlit")
 
-    st.success("✅ DFD salvo com sucesso!")
+    st.success("✅ DFD consolidado salvo com sucesso!")
     st.caption(f"Arquivo salvo em: `{caminho}`")
     st.json(dfd_final)

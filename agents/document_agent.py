@@ -1,7 +1,7 @@
 # ==========================================================
 # agents/document_agent.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: 2025-11-17 – Compatível com AIClient atual
+# Revisão: 2025-11-18 – Compatível com AIClient atual (vNext)
 # ==========================================================
 # Função:
 #   Controla a geração de documentos administrativos
@@ -84,30 +84,45 @@ class DocumentAgent:
             return {"erro": f"Falha na geração do documento ({e})"}
 
     # ======================================================
-    # 🧩 Prompt institucional padronizado
+    # 🧩 Prompt institucional padronizado (REVISADO)
     # ======================================================
     def _montar_prompt_institucional(self) -> str:
         """
         Monta um prompt formal com orientações administrativas.
         """
 
+        # ======================================================
+        # 📌 PROMPT REVISADO — DFD COMPLETO E ROBUSTO
+        # ======================================================
         if self.artefato == "DFD":
             return (
                 "Você é um assistente técnico da Secretaria de Administração e Abastecimento "
                 "do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                "Com base no texto fornecido, elabore o documento **Formalização da Demanda (DFD)** "
-                "seguindo os padrões administrativos e a Lei nº 14.133/2021.\n\n"
-                "Inclua as seguintes seções obrigatórias:\n"
-                "- Contexto\n"
-                "- Necessidade / Problema\n"
-                "- Resultados Esperados\n"
-                "- Justificativa Legal\n"
-                "- Escopo\n"
-                "- Critérios de Sucesso\n\n"
-                "🧾 Regras:\n"
-                "1. Linguagem formal e impessoal.\n"
-                "2. Estrutura clara e administrativa.\n"
-                "3. Responda APENAS com JSON no formato:\n\n"
+                "Com base no texto fornecido (insumo), elabore o documento "
+                "Formalização da Demanda (DFD), seguindo os padrões administrativos "
+                "do TJSP e a Lei nº 14.133/2021.\n\n"
+
+                "Sua resposta deve ser um documento completo, detalhado e consistente, "
+                "organizado nas seções previstas no DFD institucional.\n\n"
+
+                "=== SEÇÕES OBRIGATÓRIAS DO DFD ===\n"
+                "As seguintes seções DEVEM estar presentes e totalmente preenchidas:\n"
+                "- Contexto: explique claramente a situação atual, o problema existente e o cenário institucional.\n"
+                "- Necessidade: descreva o que motivou a demanda, relacionando com o interesse público.\n"
+                "- Resultados Esperados: indique os efeitos concretos e mensuráveis esperados com a contratação.\n"
+                "- Justificativa Legal: fundamente a contratação de maneira institucional, "
+                "relacionando com a Lei nº 14.133/2021.\n"
+                "- Escopo: delimite o objeto pretendido, descrevendo o que será entregue e o que está excluído.\n"
+                "- Critérios de Sucesso: apresente critérios claros e verificáveis para mensurar o atendimento dos objetivos.\n\n"
+
+                "=== REGRAS ADMINISTRATIVAS ===\n"
+                "1. Linguagem formal, impessoal e administrativa.\n"
+                "2. Nenhuma seção pode ficar vazia.\n"
+                "3. Não invente dados sensíveis (nomes, valores exatos, processos reais).\n"
+                "4. Se o insumo estiver incompleto, complemente com formulações institucionais adequadas.\n"
+                "5. Retorne APENAS JSON válido, sem explicações antes ou depois.\n\n"
+
+                "=== FORMATO EXATO DE RESPOSTA JSON ===\n"
                 "```json\n"
                 "{\n"
                 "  \"DFD\": {\n"
@@ -126,9 +141,9 @@ class DocumentAgent:
                 "Não inclua explicações adicionais."
             )
 
-        # ---------------------------------------------
-        # Artefatos futuros (ETP, TR, Edital etc.)
-        # ---------------------------------------------
+        # ======================================================
+        # Artefatos futuros (ETP, TR, Edital, Contrato)
+        # ======================================================
         return (
             f"Você é um assistente técnico do Tribunal de Justiça de São Paulo. "
             f"Elabore o documento institucional correspondente ao artefato {self.artefato}, "
@@ -155,4 +170,3 @@ def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "resultado_ia": resultado,
     }
-

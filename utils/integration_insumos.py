@@ -1,138 +1,119 @@
-# ==========================================================
-# utils/integration_insumos.py
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão Engenheiro Synapse – vNext_2025.11.07 (reforçada)
-# ==========================================================
+# -*- coding: utf-8 -*-
+"""
+integration_insumos.py – versão estável 2025
+Compatível com fluxo DFD/INSUMOS
+"""
 
+from __future__ import annotations
 import os
 import json
-import tempfile
+import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-import fitz  # ✅ PyMuPDF – leitura via stream
-from utils.ai_client import AIClient  # ✅ Cliente institucional OpenAI
+from utils.parser_pdf import extract_text_from_pdf
+import docx2txt
 
 
-# ==========================================================
-# 📁 Diretórios e estrutura de exportação
-# ==========================================================
-def get_json_export_dir() -> Path:
+# ----------------------------------------------------------
+# Detectar tipo
+# ----------------------------------------------------------
+def detectar_tipo(nome: str) -> str:
+    nome = nome.lower()
+    if nome.endswith(".pdf"):
+        return "pdf"
+    if nome.endswith(".docx"):
+        return "docx"
+    if nome.endswith(".txt"):
+        return "txt"
+    return "desconhecido"
+
+
+# ----------------------------------------------------------
+# Extrair texto local
+# ----------------------------------------------------------
+def extrair_texto_local(caminho: str, tipo: str) -> str:
     """
-    Retorna o diretório de exportação de insumos em ambiente seguro.
-    Se o diretório padrão não for gravável (como no Streamlit Cloud),
-    usa o diretório temporário /tmp.
+    SEMPRE retorna string.
+    Nunca retorna dict.
     """
-    base_path = Path("exports") / "insumos" / "json"
-    try:
-        base_path.mkdir(parents=True, exist_ok=True)
-        # Teste de escrita
-        test_file = base_path / "_test_write.txt"
-        with open(test_file, "w") as f:
-            f.write("ok")
-        test_file.unlink()
-        return base_path
-    except Exception:
-        tmp_path = Path(tempfile.gettempdir()) / "insumos" / "json"
-        tmp_path.mkdir(parents=True, exist_ok=True)
-        return tmp_path
+
+    if tipo == "pdf":
+        try:
+            txt = extract_text_from_pdf(caminho)
+            return txt if isinstance(txt, str) else ""
+        except Exception:
+            return ""
+
+    if tipo == "docx":
+        try:
+            txt = docx2txt.process(caminho)
+            return txt if isinstance(txt, str) else ""
+        except Exception:
+            return ""
+
+    if tipo == "txt":
+        try:
+            return open(caminho, "r", encoding="utf-8").read()
+        except Exception:
+            return ""
+
+    return ""
 
 
-# ==========================================================
-# 💾 Funções principais
-# ==========================================================
-def salvar_insumo(uploaded_file, artefato: str) -> Path:
-    """
-    Cria um arquivo de metadados JSON básico com informações do upload.
-    """
-    base_dir = get_json_export_dir()
-    filename = f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    save_path = base_dir / filename
+# ----------------------------------------------------------
+# Processar insumo
+# ----------------------------------------------------------
+def processar_insumo(uploaded_file, artefato="DFD"):
+    if uploaded_file is None:
+        st.warning("Nenhum arquivo enviado.")
+        return {}
 
-    meta = {
-        "nome": getattr(uploaded_file, "name", "sem_nome"),
-        "artefato": artefato,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    nome = uploaded_file.name
+    tipo = detectar_tipo(nome)
+
+    if tipo == "desconhecido":
+        st.error("Formato não suportado.")
+        return {}
+
+    st.info(f"📄 Tipo detectado: **{tipo.upper()}**")
+
+    # Salvar arquivo
+    temp_dir = "temp_insumo"
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, nome)
+
+    with open(temp_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    # Extrair texto
+    texto = extrair_texto_local(temp_path, tipo)
+
+    if not isinstance(texto, str):
+        st.error("Erro interno: extração não retornou texto.")
+        return {}
+
+    texto = texto.strip()
+
+    if len(texto) < 20:
+        st.error("O arquivo não possui texto legível.")
+        return {}
+
+    payload = {
+        "arquivo": nome,
+        "tipo": tipo,
+        "conteudo_textual": texto,
+        "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    with open(save_path, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
+    # Salvar JSON
+    base = "exports/insumos/json"
+    os.makedirs(base, exist_ok=True)
 
-    return save_path
+    arquivo_final = os.path.join(base, "DFD_ultimo.json")
 
+    with open(arquivo_final, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
 
-def processar_insumo(uploaded_file, artefato: str):
-    """
-    Processa o insumo PDF:
-      1. Lê o PDF via stream (PyMuPDF)
-      2. Extrai o texto integral
-      3. Chama o cliente institucional de IA
-      4. Gera e salva o JSON final em exports/insumos/json
-    """
-    try:
-        # ==========================================================
-        # 1️⃣ Leitura do PDF via stream – compatível com PyMuPDF==1.26.6
-        #    OBS: no Streamlit, .read() consome o buffer. Se o chamador
-        #    precisar do arquivo depois, deve reposicionar o ponteiro.
-        # ==========================================================
-        pdf_bytes = uploaded_file.read()
-        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-            texto_extraido = ""
-            for pagina in doc:
-                texto_extraido += pagina.get_text("text")
-
-        print("[SynapseNext] Texto extraído com sucesso ✅")
-
-        # ==========================================================
-        # 2️⃣ Chamada da IA institucional (via utils/ai_client.py)
-        # ==========================================================
-        ai = AIClient()
-        prompt_base = f"Analise o documento de {artefato} e gere estrutura JSON."
-        resposta_ia = ai.ask(prompt=prompt_base, conteudo=texto_extraido, artefato=artefato)
-
-        print("[SynapseNext] Chamando IA institucional... 🧠")
-
-        # ==========================================================
-        # 3️⃣ Montagem do registro consolidado e exportação
-        # ==========================================================
-        base_dir = get_json_export_dir()
-        json_path = base_dir / f"{artefato}_ultimo.json"
-
-        resultado = {
-            "artefato": artefato,
-            "arquivo_origem": getattr(uploaded_file, "name", None),
-            "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "texto_extraido": texto_extraido[:1000],  # preview para auditoria
-            "resultado_ia": resposta_ia,
-        }
-
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(resultado, f, ensure_ascii=False, indent=2)
-
-        print(f"[SynapseNext] JSON gerado e salvo em: {json_path} 💾")
-        return resultado
-
-    except Exception as e:
-        print(f"[ERRO] Falha ao processar insumo: {e}")
-        return {"erro": str(e)}
-
-
-def listar_insumos():
-    """
-    Lista os arquivos JSON disponíveis no diretório de exportação.
-    """
-    base_dir = get_json_export_dir()
-    arquivos = list(base_dir.glob("*.json"))
-    return [f.name for f in arquivos]
-
-
-def get_ultimo_insumo_json(artefato: str) -> Path | None:
-    """
-    Retorna o caminho do último JSON gerado para um artefato específico,
-    se ele existir.
-    """
-    base_dir = get_json_export_dir()
-    candidate = base_dir / f"{artefato}_ultimo.json"
-    if candidate.exists():
-        return candidate
-    return None
+    st.success("✅ Insumo processado com sucesso!")
+    return payload
