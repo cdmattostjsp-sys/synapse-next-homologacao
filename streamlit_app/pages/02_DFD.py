@@ -2,7 +2,7 @@ import streamlit as st
 import json
 from typing import Any, Dict
 
-from utils.dfd.integration_dfd import (
+from utils.integration_dfd import (
     obter_dfd_da_sessao,
     salvar_dfd_em_json,
     gerar_rascunho_dfd_com_ia,
