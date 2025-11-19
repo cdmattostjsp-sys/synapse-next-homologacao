@@ -211,3 +211,36 @@ if submit:
     st.success("✅ DFD consolidado salvo com sucesso!")
     st.caption(f"Arquivo salvo em: `{caminho}`")
     st.json(dfd_final)
+
+from docx import Document
+import io
+
+st.subheader("📥 Exportar DFD")
+
+if st.button("📄 Baixar DFD em DOCX"):
+    doc = Document()
+
+    doc.add_heading("Formalização da Demanda (DFD)", level=1)
+
+    doc.add_heading("1. Dados Administrativos", level=2)
+    doc.add_paragraph(f"Unidade Demandante: {unidade}")
+    doc.add_paragraph(f"Responsável pela Demanda: {responsavel}")
+    doc.add_paragraph(f"Prazo Estimado: {prazo}")
+    doc.add_paragraph(f"Estimativa de Valor: R$ {valor_estimado}")
+
+    doc.add_heading("2. Descrição da Necessidade", level=2)
+    doc.add_paragraph(descricao)
+
+    doc.add_heading("3. Motivação / Objetivos / Justificativa", level=2)
+    doc.add_paragraph(motivacao)
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    st.download_button(
+        label="⬇️ Download DOCX",
+        data=buffer,
+        file_name="DFD_consolidado.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )

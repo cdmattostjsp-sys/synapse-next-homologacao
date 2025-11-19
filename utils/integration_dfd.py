@@ -197,21 +197,25 @@ def status_dfd() -> str:
 def gerar_rascunho_dfd_com_ia() -> dict:
     """
     Usa o texto bruto do último insumo para gerar um DFD estruturado via IA.
-    Não sobrescreve o arquivo de insumo; apenas atualiza a sessão.
+    Não sobrescreve insumo; apenas atualiza a sessão.
     """
 
+    # Caminho correto do insumo
     base = os.path.join("exports", "insumos", "json")
     ultimo = os.path.join(base, "DFD_ultimo.json")
 
+    # Caso não exista arquivo de insumo
     if not os.path.exists(ultimo):
         st.warning("⚠️ Nenhum insumo encontrado para gerar o DFD pela IA.")
         return {}
 
-    # Lê o texto base do insumo
+    # 🔥 LEITURA CORRETA DO TEXTO BRUTO
     try:
         with open(ultimo, "r", encoding="utf-8") as f:
             dados = json.load(f)
 
+        # PONTO CRÍTICO CORRIGIDO:
+        # Sempre usa conteudo_textual, nunca outra chave.
         texto = (dados.get("conteudo_textual") or "").strip()
 
     except Exception:
@@ -222,34 +226,31 @@ def gerar_rascunho_dfd_com_ia() -> dict:
         st.error("⚠️ Texto insuficiente para processamento pela IA.")
         return {}
 
-    # Execução da IA
+    # -------------------------------------------------------
+    # 🧠 Execução da IA (apenas este trecho chama o agente)
+    # -------------------------------------------------------
     try:
         from agents.document_agent import processar_dfd_com_ia
 
         resposta = processar_dfd_com_ia(texto)
 
         # Normaliza saída:
-        # - {"resultado_ia": {...}}
-        # - {"DFD": {...}}
-        # - {...}
         if isinstance(resposta, dict) and "resultado_ia" in resposta:
             r = resposta["resultado_ia"]
         else:
             r = resposta
 
-        dfd_struct = {}
-
+        # Caso a IA retorne {"DFD": {...}}
         if isinstance(r, dict):
-            if "DFD" in r and isinstance(r["DFD"], dict):
-                dfd_struct = r["DFD"]
-            else:
-                dfd_struct = r
+            dfd_struct = r.get("DFD", r)
+        else:
+            dfd_struct = {}
 
         if not dfd_struct:
             st.warning("⚠️ A IA não retornou um DFD estruturado.")
             return {}
 
-        # Atualiza sessão – a página 02_DFD.py usa isso após o st.rerun()
+        # Atualiza sessão
         st.session_state["dfd_campos_ai"] = dfd_struct
 
         return dfd_struct
