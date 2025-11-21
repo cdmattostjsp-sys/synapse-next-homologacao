@@ -1,8 +1,6 @@
 # ==========================================================
-# utils/ai_client.py
+# utils/ai_client.py — vNext_r3 (AJUSTE DEFINITIVO)
 # SynapseNext – Cliente Institucional OpenAI (TJSP)
-# Revisão: Engenheiro Synapse – 2025-11-08 (vNext_r2)
-# Compatibilidade: Streamlit 1.39.0 + openai 2.7.1
 # ==========================================================
 
 from dotenv import load_dotenv
@@ -16,100 +14,86 @@ from openai import OpenAI
 class AIClient:
     """
     Cliente institucional padronizado para uso interno dos agentes IA.
-    Implementa controle de modelo, chave segura e tratamento de exceções.
+    Agora com arquitetura system/user correta para priorização do prompt.
     """
 
     def __init__(self, model: str = None):
-        """
-        Inicializa o cliente OpenAI institucional.
 
-        Args:
-            model (str, opcional): modelo a ser usado (ex.: "gpt-4o-mini").
-                                   Se não informado, usa o modelo padrão
-                                   configurado via variável de ambiente.
-        """
-        # Obtém chave da OpenAI (Streamlit secrets ou ambiente)
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("❌ OPENAI_API_KEY não encontrada em ambiente (.env ou secrets.toml).")
+            raise ValueError("❌ OPENAI_API_KEY não encontrada em ambiente.")
 
-        # Inicializa cliente OpenAI
         self.client = OpenAI(api_key=api_key)
-
-        # Modelo padrão (configurável)
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # ==========================================================
-    # Método principal de inferência textual
+    # MÉTODO PRINCIPAL
     # ==========================================================
     def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
-        """
-        Envia um prompt para o modelo de linguagem institucional e retorna a resposta.
 
-        Args:
-            prompt (str): instrução textual principal (pergunta ou template).
-            conteudo (str | bytes): corpo do texto do documento analisado.
-            artefato (str): tipo de artefato (DFD, ETP, TR, Edital...).
+        # ---------------------------------------------
+        # Normalização do conteúdo recebido
+        # ---------------------------------------------
+        if isinstance(conteudo, bytes):
+            conteudo = conteudo.decode("utf-8", errors="ignore")
+        elif not isinstance(conteudo, str):
+            conteudo = str(conteudo)
 
-        Returns:
-            dict: resposta estruturada em JSON (ou texto cru, se falhar).
-        """
+        # Apenas um trecho do documento é necessário
+        trecho_documento = conteudo[:8000]
 
         try:
-            # ======================================================
-            # Garantia de tipo de conteúdo
-            # ======================================================
-            if isinstance(conteudo, bytes):
-                conteudo = conteudo.decode("utf-8", errors="ignore")
-            elif not isinstance(conteudo, str):
-                conteudo = str(conteudo)
 
             # ======================================================
-            # Montagem da mensagem de prompt contextualizada
+            # 🔥 ESTRUTURA CORRIGIDA (system + user)
             # ======================================================
-            mensagem = (
-                f"{prompt}\n\n"
-                f"---\n"
-                f"📄 Conteúdo do documento (trecho inicial):\n{conteudo[:4000]}\n"
-                f"---\n"
-                f"Responda no formato JSON estruturado para o artefato institucional: {artefato}."
-            )
+            mensagens = [
+                {
+                    "role": "system",
+                    "content": (
+                        "Você é o assistente institucional do Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                        "Sua função é gerar documentos administrativos formais (DFD, ETP, TR, Edital, Contrato) "
+                        "seguindo integralmente o prompt institucional fornecido."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"{prompt}\n\n"
+                        f"=== CONTEÚDO DO DOCUMENTO (INSUMO) ===\n"
+                        f"{trecho_documento}\n\n"
+                        f"=== INSTRUÇÃO FINAL ===\n"
+                        f"Responda EXCLUSIVAMENTE em JSON válido para o artefato institucional: {artefato}."
+                    ),
+                },
+            ]
 
             # ======================================================
-            # Chamada ao modelo OpenAI (chat.completions)
+            # Chamada ao modelo (OpenAI oficial)
             # ======================================================
             resposta = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Você é um assistente técnico institucional do Tribunal de Justiça de São Paulo (TJSP). "
-                            "Analise documentos administrativos e gere respostas estruturadas e compatíveis "
-                            "com os modelos oficiais (DFD, ETP, TR, Edital, Contrato)."
-                        ),
-                    },
-                    {"role": "user", "content": mensagem},
-                ],
-                temperature=0.4,
-                max_tokens=2000,
+                messages=mensagens,
+                temperature=0.25,
+                max_tokens=3000,
             )
 
-            # ======================================================
-            # Processamento da resposta
-            # ======================================================
             texto = resposta.choices[0].message.content.strip()
 
-            # Tenta converter para JSON direto
+            # TENTAR JSON DIRETO
             try:
                 return json.loads(texto)
-            except Exception:
-                # Retorna texto cru caso a IA não respeite o formato JSON
-                return {"resposta_texto": texto}
 
-        # ======================================================
-        # Tratamento de falhas de comunicação ou execução
-        # ======================================================
+            except Exception:
+                # Limpando formatação de código se vier com blocos
+                if texto.startswith("```"):
+                    texto = texto.replace("```json", "").replace("```", "").strip()
+
+                try:
+                    return json.loads(texto)
+                except Exception:
+                    return {"resposta_texto": texto}
+
         except Exception as e:
             return {
                 "erro": f"❌ Falha na chamada OpenAI: {e}",
