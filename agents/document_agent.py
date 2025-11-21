@@ -21,7 +21,6 @@ class DocumentAgent:
         self.artefato = artefato.upper()
         self.ai = AIClient()  # Cliente IA institucional
 
-
     # ======================================================
     # 🧠 GERAÇÃO DE CONTEÚDO VIA IA
     # ======================================================
@@ -37,43 +36,59 @@ class DocumentAgent:
             resposta = self.ai.ask(
                 prompt=prompt,
                 conteudo=conteudo_base,
-                artefato=self.artefato
+                artefato=self.artefato,
             )
 
-            if not resposta or not isinstance(resposta, dict):
+            # Resposta precisa ser um dicionário
+            if not isinstance(resposta, dict):
                 return {"erro": "Resposta IA inválida ou vazia."}
 
-            texto_bruto = resposta.get("resposta_texto", "").strip()
-            if not texto_bruto:
-                return {"erro": "IA não retornou conteúdo textual."}
+            # ==================================================
+            # CASO 1 – AIClient NÃO conseguiu dar json.loads()
+            #         e devolveu {"resposta_texto": "..."}
+            # ==================================================
+            if "resposta_texto" in resposta:
+                texto_bruto = (resposta.get("resposta_texto") or "").strip()
+                if not texto_bruto:
+                    return {"erro": "IA não retornou conteúdo textual."}
 
-            # Limpeza de blocos ```json
-            if texto_bruto.startswith("```json"):
-                texto_bruto = (
-                    texto_bruto.replace("```json", "")
-                    .replace("```", "")
-                    .strip()
-                )
+                # Limpeza de blocos ```json
+                if texto_bruto.startswith("```json"):
+                    texto_bruto = (
+                        texto_bruto.replace("```json", "")
+                        .replace("```", "")
+                        .strip()
+                    )
 
-            # -----------------------------------------------------
-            # 🎯 TENTATIVA DE INTERPRETAÇÃO JSON
-            # -----------------------------------------------------
-            try:
-                parsed = json.loads(texto_bruto)
+                # Tenta interpretar como JSON
+                try:
+                    parsed = json.loads(texto_bruto)
 
-                # O formato institucional é {"DFD": {...}}
-                if isinstance(parsed, dict) and "DFD" in parsed:
-                    return parsed["DFD"]
+                    # Formato institucional esperado: {"DFD": {...}}
+                    if isinstance(parsed, dict) and "DFD" in parsed:
+                        return parsed["DFD"]
 
-                return parsed
+                    return parsed
 
-            except Exception:
-                # IA devolveu texto puro – retorna bruto
-                return {"Conteúdo": texto_bruto}
+                except Exception:
+                    # IA devolveu texto puro – retorna bruto em campo padrão
+                    return {"Conteúdo": texto_bruto}
+
+            # ==================================================
+            # CASO 2 – AIClient JÁ devolveu JSON parseado
+            #         (json.loads(texto) funcionou)
+            # ==================================================
+            if isinstance(resposta, dict) and "DFD" in resposta:
+                # Ex.: {"DFD": {...}}
+                dfd = resposta.get("DFD")
+                if isinstance(dfd, dict):
+                    return dfd
+
+            # Caso geral: já é a estrutura final
+            return resposta
 
         except Exception as e:
             return {"erro": f"Falha na geração do documento ({e})"}
-
 
     # ======================================================
     # 🧩 PROMPT INSTITUCIONAL – *vNext* (Modernizado)
@@ -89,13 +104,11 @@ class DocumentAgent:
                 "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
                 "Com base exclusivamente no texto fornecido (insumo), produza um DFD completo, institucional, "
                 "em conformidade com a Lei nº 14.133/2021 e boas práticas de governança.\n\n"
-
                 "=== OBJETIVO ===\n"
                 "Gerar um documento robusto, organizado e pronto para análise administrativa, contendo:\n"
                 "1) Texto narrativo numerado ('texto_narrativo'), com 11 seções formais.\n"
                 "2) Objeto 'secoes' contendo as mesmas 11 seções individualmente.\n"
                 "3) Lista 'lacunas' com informações ausentes relevantes.\n\n"
-
                 "=== SEÇÕES OBRIGATÓRIAS ===\n"
                 "As seguintes 11 seções DEVERÃO existir em 'secoes', com esses títulos exatos:\n"
                 "- Contexto Institucional\n"
@@ -109,12 +122,10 @@ class DocumentAgent:
                 "- Riscos da Não Contratação\n"
                 "- Requisitos Mínimos\n"
                 "- Critérios de Sucesso\n\n"
-
                 "=== TEXTO NARRATIVO (CAMPO 'texto_narrativo') ===\n"
                 "Elabore um texto contínuo, claro e administrativo, numerado de 1 a 11, seguindo a ordem das seções.\n"
                 "Não use bullets, tabelas, emojis, elementos gráficos ou formatações especiais.\n"
                 "Use apenas texto limpo.\n\n"
-
                 "=== LACUNAS ===\n"
                 "Inclua em 'lacunas' as informações administrativas importantes que NÃO aparecem claramente no insumo, "
                 "por exemplo:\n"
@@ -123,13 +134,11 @@ class DocumentAgent:
                 "- Prazo estimado ausente.\n"
                 "- Estimativa de valor não localizada.\n"
                 "Somente registre lacunas reais.\n\n"
-
                 "=== REGRAS DE ESCRITA ===\n"
                 "• Linguagem formal, técnica, impessoal e institucional.\n"
                 "• Nada de floreios, firulas, figuras ou linguagem subjetiva.\n"
                 "• Não invente dados sensíveis (nomes, números de processo, valores reais).\n"
                 "• Utilize parágrafos curtos e coerentes.\n\n"
-
                 "=== FORMATO EXATO DE SAÍDA ===\n"
                 "A resposta deve ser APENAS um JSON válido, seguindo exatamente este modelo:\n"
                 "{\n"
@@ -161,7 +170,6 @@ class DocumentAgent:
             f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
             "Produza um documento administrativo formal e retorne APENAS JSON estruturado."
         )
-
 
 
 # ======================================================
