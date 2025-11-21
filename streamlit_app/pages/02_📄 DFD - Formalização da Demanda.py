@@ -37,24 +37,23 @@ def _to_str(value: Any) -> str:
     return str(value)
 
 
+# ---------------------------------------------------------------
+# 🧩 MAPEAMENTO vNext — Compatível com 11 SEÇÕES Moderno-Governança
+# ---------------------------------------------------------------
 def mapear_campos_para_form(dados_brutos: Dict[str, Any]) -> Dict[str, str]:
     """
-    Normaliza diferentes formatos de DFD para os campos do formulário.
-    Aceita:
-      - {"secoes": {...}, "lacunas": [...]}
-      - {"unidade_demandante": ..., "descricao_necessidade": ...}
-      - outros formatos simples.
+    Normaliza o JSON do DocumentAgent vNext (DFD Moderno-Governança)
+    para os campos do formulário tradicional do DFD.
     """
 
     campos = dados_brutos or {}
     if not isinstance(campos, dict):
         campos = {}
 
-    # Núcleo de seções (quando vier do DocumentAgent)
     secoes = campos.get("secoes") if isinstance(campos.get("secoes"), dict) else {}
 
     # ------------------------------------------------------------
-    # CAMPOS BÁSICOS (administrativos)
+    # CAMPOS ADMINISTRATIVOS
     # ------------------------------------------------------------
     unidade = (
         campos.get("unidade_demandante")
@@ -74,48 +73,52 @@ def mapear_campos_para_form(dados_brutos: Dict[str, Any]) -> Dict[str, str]:
     )
 
     # ------------------------------------------------------------
-    # DESCRIÇÃO DA NECESSIDADE
+    # 1) DESCRIÇÃO DA NECESSIDADE
+    # (Contexto + Diagnóstico + Fundamentação)
     # ------------------------------------------------------------
     descricao_txt = ""
 
-    # Se já houver descrição consolidada, priorizar
     if isinstance(campos.get("descricao_necessidade"), str) and campos["descricao_necessidade"].strip():
         descricao_txt = campos["descricao_necessidade"].strip()
 
-    # Caso contrário, montar a partir das seções do DFD
     elif secoes:
         partes_desc = []
-        for chave in ["Contexto", "Necessidade", "Escopo"]:
-            v = (
-                secoes.get(chave)
-                or secoes.get(chave.lower())
-                or secoes.get(chave.upper())
-            )
+        for chave in [
+            "Contexto Institucional",
+            "Diagnóstico da Situação Atual",
+            "Fundamentação da Necessidade",
+        ]:
+            v = secoes.get(chave)
             if isinstance(v, str) and v.strip():
                 partes_desc.append(v.strip())
+
         descricao_txt = "\n\n".join(partes_desc).strip()
 
-    # Fallback final
     if not descricao_txt:
-        descricao_txt = _to_str(campos.get("descricao") or campos.get("conteudo") or "")
+        descricao_txt = _to_str(campos.get("conteudo") or campos.get("descricao") or "")
 
     # ------------------------------------------------------------
-    # MOTIVAÇÃO / OBJETIVOS
+    # 2) MOTIVAÇÃO / OBJETIVOS / JUSTIFICATIVA
+    # (Objetivos + Resultados + Benefícios + Justificativa + Riscos)
     # ------------------------------------------------------------
     motivacao_txt = ""
 
     if isinstance(campos.get("motivacao"), str) and campos["motivacao"].strip():
         motivacao_txt = campos["motivacao"].strip()
+
     elif secoes:
         partes_mot = []
-        for chave in ["Justificativa Legal", "Resultados Esperados", "Critérios de Sucesso"]:
-            v = (
-                secoes.get(chave)
-                or secoes.get(chave.lower())
-                or secoes.get(chave.upper())
-            )
+        for chave in [
+            "Objetivos da Contratação",
+            "Resultados Esperados",
+            "Benefícios Institucionais",
+            "Justificativa Legal",
+            "Riscos da Não Contratação",
+        ]:
+            v = secoes.get(chave)
             if isinstance(v, str) and v.strip():
                 partes_mot.append(v.strip())
+
         motivacao_txt = "\n\n".join(partes_mot).strip()
 
     return {
@@ -192,7 +195,7 @@ with st.form(key="form_dfd"):
 
 
 # ---------------------------------------------------------------
-# 3️⃣ Salvamento final (em exports/dfd/json/)
+# 3️⃣ Salvamento final
 # ---------------------------------------------------------------
 if submit:
     dfd_final = {
@@ -202,8 +205,6 @@ if submit:
         "descricao_necessidade": descricao,
         "motivacao": motivacao,
         "valor_estimado": valor_estimado,
-        # opcionalmente podemos guardar também o bruto original:
-        # "origem_dados": dfd_campos_brutos,
     }
 
     caminho = salvar_dfd_em_json(dfd_final, origem="formulario_dfd_streamlit")
@@ -212,6 +213,10 @@ if submit:
     st.caption(f"Arquivo salvo em: `{caminho}`")
     st.json(dfd_final)
 
+
+# ---------------------------------------------------------------
+# 📥 Exportação DOCX
+# ---------------------------------------------------------------
 from docx import Document
 import io
 
@@ -224,7 +229,7 @@ if st.button("📄 Baixar DFD em DOCX"):
 
     doc.add_heading("1. Dados Administrativos", level=2)
     doc.add_paragraph(f"Unidade Demandante: {unidade}")
-    doc.add_paragraph(f"Responsável pela Demanda: {responsavel}")
+    doc.add_paragraph(f"Responsável: {responsavel}")
     doc.add_paragraph(f"Prazo Estimado: {prazo}")
     doc.add_paragraph(f"Estimativa de Valor: R$ {valor_estimado}")
 
