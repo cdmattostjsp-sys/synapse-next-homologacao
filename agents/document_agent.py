@@ -1,11 +1,7 @@
 # ==========================================================
 # agents/document_agent.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: 2025-11-18 – Compatível com AIClient atual (vNext)
-# ==========================================================
-# Função:
-#   Controla a geração de documentos administrativos
-#   (DFD, ETP, TR, Edital...) utilizando o AIClient padronizado.
+# Revisão: 2025-11-20 – vNext (DFD Moderno-Governança)
 # ==========================================================
 
 from __future__ import annotations
@@ -18,137 +14,154 @@ class DocumentAgent:
     """
     Agente responsável por coordenar a geração de documentos
     formais via IA institucional (DFD, ETP, TR, Edital etc.).
+    Compatível com o pipeline atual e AIClient padronizado.
     """
 
     def __init__(self, artefato: str):
         self.artefato = artefato.upper()
-        self.ai = AIClient()  # Instância do cliente IA institucional
+        self.ai = AIClient()  # Cliente IA institucional
+
 
     # ======================================================
-    # 🧠 Geração de conteúdo IA
+    # 🧠 GERAÇÃO DE CONTEÚDO VIA IA
     # ======================================================
     def generate(self, conteudo_base: str) -> dict:
         """
-        Gera o documento com base no texto processado (ex: PDF).
-        Retorna um dicionário JSON estruturado.
+        Envia o conteúdo bruto para IA usando o prompt institucional.
+        Retorna dicionário JSON estruturado.
         """
 
         prompt = self._montar_prompt_institucional()
 
         try:
-            # -----------------------------------------------------
-            # 🔥 CHAMADA ALINHADA AO AIClient ATUAL
-            # (não suporta: metadados)
-            # -----------------------------------------------------
             resposta = self.ai.ask(
                 prompt=prompt,
                 conteudo=conteudo_base,
                 artefato=self.artefato
             )
 
-            # Validação básica
             if not resposta or not isinstance(resposta, dict):
                 return {"erro": "Resposta IA inválida ou vazia."}
 
-            texto_bruto = resposta.get("resposta_texto", "")
+            texto_bruto = resposta.get("resposta_texto", "").strip()
             if not texto_bruto:
                 return {"erro": "IA não retornou conteúdo textual."}
 
-            # Limpeza de delimitadores Markdown
-            texto_bruto = texto_bruto.strip()
+            # Limpeza de blocos ```json
             if texto_bruto.startswith("```json"):
                 texto_bruto = (
-                    texto_bruto
-                    .replace("```json", "")
+                    texto_bruto.replace("```json", "")
                     .replace("```", "")
                     .strip()
                 )
 
             # -----------------------------------------------------
-            # ⚙️ Tenta interpretar JSON estruturado retornado pela IA
+            # 🎯 TENTATIVA DE INTERPRETAÇÃO JSON
             # -----------------------------------------------------
             try:
                 parsed = json.loads(texto_bruto)
 
-                # Se vier no formato {"DFD": {...}}
+                # O formato institucional é {"DFD": {...}}
                 if isinstance(parsed, dict) and "DFD" in parsed:
                     return parsed["DFD"]
 
                 return parsed
 
             except Exception:
-                # Conteúdo não era JSON → retorna como texto bruto
+                # IA devolveu texto puro – retorna bruto
                 return {"Conteúdo": texto_bruto}
 
         except Exception as e:
             return {"erro": f"Falha na geração do documento ({e})"}
 
+
     # ======================================================
-    # 🧩 Prompt institucional padronizado (REVISADO)
+    # 🧩 PROMPT INSTITUCIONAL – *vNext* (Modernizado)
     # ======================================================
     def _montar_prompt_institucional(self) -> str:
-        """
-        Monta um prompt formal com orientações administrativas.
-        """
 
         # ======================================================
-        # 📌 PROMPT REVISADO — DFD COMPLETO E ROBUSTO
+        # 📌 PROMPT ESPECIALIZADO PARA DFD
         # ======================================================
         if self.artefato == "DFD":
             return (
-                "Você é um assistente técnico da Secretaria de Administração e Abastecimento "
-                "do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                "Com base no texto fornecido (insumo), elabore o documento "
-                "Formalização da Demanda (DFD), seguindo os padrões administrativos "
-                "do TJSP e a Lei nº 14.133/2021.\n\n"
+                "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
+                "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                "Com base exclusivamente no texto fornecido (insumo), produza um DFD completo, institucional, "
+                "em conformidade com a Lei nº 14.133/2021 e boas práticas de governança.\n\n"
 
-                "Sua resposta deve ser um documento completo, detalhado e consistente, "
-                "organizado nas seções previstas no DFD institucional.\n\n"
+                "=== OBJETIVO ===\n"
+                "Gerar um documento robusto, organizado e pronto para análise administrativa, contendo:\n"
+                "1) Texto narrativo numerado ('texto_narrativo'), com 11 seções formais.\n"
+                "2) Objeto 'secoes' contendo as mesmas 11 seções individualmente.\n"
+                "3) Lista 'lacunas' com informações ausentes relevantes.\n\n"
 
-                "=== SEÇÕES OBRIGATÓRIAS DO DFD ===\n"
-                "As seguintes seções DEVEM estar presentes e totalmente preenchidas:\n"
-                "- Contexto: explique claramente a situação atual, o problema existente e o cenário institucional.\n"
-                "- Necessidade: descreva o que motivou a demanda, relacionando com o interesse público.\n"
-                "- Resultados Esperados: indique os efeitos concretos e mensuráveis esperados com a contratação.\n"
-                "- Justificativa Legal: fundamente a contratação de maneira institucional, "
-                "relacionando com a Lei nº 14.133/2021.\n"
-                "- Escopo: delimite o objeto pretendido, descrevendo o que será entregue e o que está excluído.\n"
-                "- Critérios de Sucesso: apresente critérios claros e verificáveis para mensurar o atendimento dos objetivos.\n\n"
+                "=== SEÇÕES OBRIGATÓRIAS ===\n"
+                "As seguintes 11 seções DEVERÃO existir em 'secoes', com esses títulos exatos:\n"
+                "- Contexto Institucional\n"
+                "- Diagnóstico da Situação Atual\n"
+                "- Fundamentação da Necessidade\n"
+                "- Objetivos da Contratação\n"
+                "- Escopo Inicial da Demanda\n"
+                "- Resultados Esperados\n"
+                "- Benefícios Institucionais\n"
+                "- Justificativa Legal\n"
+                "- Riscos da Não Contratação\n"
+                "- Requisitos Mínimos\n"
+                "- Critérios de Sucesso\n\n"
 
-                "=== REGRAS ADMINISTRATIVAS ===\n"
-                "1. Linguagem formal, impessoal e administrativa.\n"
-                "2. Nenhuma seção pode ficar vazia.\n"
-                "3. Não invente dados sensíveis (nomes, valores exatos, processos reais).\n"
-                "4. Se o insumo estiver incompleto, complemente com formulações institucionais adequadas.\n"
-                "5. Retorne APENAS JSON válido, sem explicações antes ou depois.\n\n"
+                "=== TEXTO NARRATIVO (CAMPO 'texto_narrativo') ===\n"
+                "Elabore um texto contínuo, claro e administrativo, numerado de 1 a 11, seguindo a ordem das seções.\n"
+                "Não use bullets, tabelas, emojis, elementos gráficos ou formatações especiais.\n"
+                "Use apenas texto limpo.\n\n"
 
-                "=== FORMATO EXATO DE RESPOSTA JSON ===\n"
-                "```json\n"
+                "=== LACUNAS ===\n"
+                "Inclua em 'lacunas' as informações administrativas importantes que NÃO aparecem claramente no insumo, "
+                "por exemplo:\n"
+                "- Unidade demandante não identificada.\n"
+                "- Responsável não informado.\n"
+                "- Prazo estimado ausente.\n"
+                "- Estimativa de valor não localizada.\n"
+                "Somente registre lacunas reais.\n\n"
+
+                "=== REGRAS DE ESCRITA ===\n"
+                "• Linguagem formal, técnica, impessoal e institucional.\n"
+                "• Nada de floreios, firulas, figuras ou linguagem subjetiva.\n"
+                "• Não invente dados sensíveis (nomes, números de processo, valores reais).\n"
+                "• Utilize parágrafos curtos e coerentes.\n\n"
+
+                "=== FORMATO EXATO DE SAÍDA ===\n"
+                "A resposta deve ser APENAS um JSON válido, seguindo exatamente este modelo:\n"
                 "{\n"
                 "  \"DFD\": {\n"
+                "    \"texto_narrativo\": \"1. ... 2. ... 3. ...\",\n"
                 "    \"secoes\": {\n"
-                "      \"Contexto\": \"...\",\n"
-                "      \"Necessidade\": \"...\",\n"
+                "      \"Contexto Institucional\": \"...\",\n"
+                "      \"Diagnóstico da Situação Atual\": \"...\",\n"
+                "      \"Fundamentação da Necessidade\": \"...\",\n"
+                "      \"Objetivos da Contratação\": \"...\",\n"
+                "      \"Escopo Inicial da Demanda\": \"...\",\n"
                 "      \"Resultados Esperados\": \"...\",\n"
+                "      \"Benefícios Institucionais\": \"...\",\n"
                 "      \"Justificativa Legal\": \"...\",\n"
-                "      \"Escopo\": \"...\",\n"
+                "      \"Riscos da Não Contratação\": \"...\",\n"
+                "      \"Requisitos Mínimos\": \"...\",\n"
                 "      \"Critérios de Sucesso\": \"...\"\n"
                 "    },\n"
-                "    \"lacunas\": [\"unidade\", \"responsavel\", \"prazo\", \"estimativa_valor\"]\n"
+                "    \"lacunas\": [\"...\"]\n"
                 "  }\n"
-                "}\n"
-                "```\n"
-                "Não inclua explicações adicionais."
+                "}\n\n"
+                "Não inclua comentários, explicações ou qualquer conteúdo fora do JSON final."
             )
 
         # ======================================================
-        # Artefatos futuros (ETP, TR, Edital, Contrato)
+        # PROMPT PADRÃO (ETP, TR, EDITAL, CONTRATO)
         # ======================================================
         return (
-            f"Você é um assistente técnico do Tribunal de Justiça de São Paulo. "
-            f"Elabore o documento institucional correspondente ao artefato {self.artefato}, "
-            "em linguagem formal e retornando APENAS JSON estruturado."
+            f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
+            "Produza um documento administrativo formal e retorne APENAS JSON estruturado."
         )
+
 
 
 # ======================================================
