@@ -1,8 +1,6 @@
-# ==========================================================
-# agents/document_agent.py
-# SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: 2025-11-20 – vNext (DFD Moderno-Governança + Logs)
-# ==========================================================
+# ==========================
+# agents/document_agent.py — vNext com melhorias completas
+# ==========================
 
 from __future__ import annotations
 import json
@@ -11,61 +9,27 @@ from datetime import datetime
 from utils.ai_client import AIClient
 
 
-# ==========================================================
-# 🔧 Função interna de log institucional
-# ==========================================================
 def _registrar_log_document_agent(payload: dict) -> str:
-    """
-    Salva logs completos do DocumentAgent para auditoria e diagnóstico.
-    """
     try:
         logs_dir = os.path.join("exports", "logs")
         os.makedirs(logs_dir, exist_ok=True)
-
         filename = f"document_agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         path = os.path.join(logs_dir, filename)
-
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=4)
-
         return path
-
     except Exception as e:
         return f"ERRO_LOG: {e}"
 
 
-# ==========================================================
-# 🤖 DOCUMENT AGENT – Geração de artefatos IA
-# ==========================================================
 class DocumentAgent:
-    """
-    Agente responsável por coordenar a geração de documentos formais via IA.
-    Agora com rastreamento completo via logs.
-    """
-
     def __init__(self, artefato: str):
         self.artefato = artefato.upper()
-        self.ai = AIClient()  # Cliente IA institucional
+        self.ai = AIClient()
 
-    # ======================================================
-    # 🧠 GERAÇÃO DE CONTEÚDO VIA IA — vNext + LOGS
-    # ======================================================
     def generate(self, conteudo_base: str) -> dict:
-        """
-        Envia o conteúdo bruto para IA usando o prompt institucional.
-        Retorna dicionário JSON estruturado e registra logs detalhados.
-        """
-
-        # ============================
-        # LOG 1 — registro inicial
-        # ============================
-        print("\n\n>>> [DocumentAgent] generate() chamado.")
-        print(f">>> Artefato: {self.artefato}")
-        print(f">>> Tamanho do conteúdo recebido: {len(conteudo_base or '')}")
-
         prompt = self._montar_prompt_institucional()
 
-        # Criar payload de auditoria
         log_payload = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "artefato": self.artefato,
@@ -74,112 +38,44 @@ class DocumentAgent:
             "prompt_usado": prompt,
         }
 
-        print(">>> [DocumentAgent] Prompt institucional carregado.")
-        print(">>> [DocumentAgent] Prévia do prompt:")
-        print(prompt[:500], "...\n")
-
         try:
-            print(">>> [DocumentAgent] Chamando AIClient.ask() ...")
-            resposta = self.ai.ask(
-                prompt=prompt,
-                conteudo=conteudo_base,
-                artefato=self.artefato,
-            )
+            resposta = self.ai.ask(prompt=prompt, conteudo=conteudo_base, artefato=self.artefato)
+            log_payload["resposta_bruta"] = resposta
 
-            print(">>> [DocumentAgent] Retorno bruto da IA:")
-            print(resposta)
-
-            # Resposta precisa ser um dicionário
             if not isinstance(resposta, dict):
-                print(">>> [DocumentAgent][ERRO] Retorno não é dict.")
                 return {"erro": "Resposta IA inválida ou vazia."}
 
-            # ==================================================
-            # CASO 1 – AIClient NÃO conseguiu json.loads()
-            #         e devolveu {"resposta_texto": "..."}
-            # ==================================================
             if "resposta_texto" in resposta:
-                print(">>> [DocumentAgent] IA retornou resposta_texto (não JSON).")
-
                 texto_bruto = (resposta.get("resposta_texto") or "").strip()
-
-                if not texto_bruto:
-                    print(">>> [DocumentAgent][ERRO] texto_bruto vazio.")
-                    return {"erro": "IA não retornou conteúdo textual."}
-
                 if texto_bruto.startswith("```json"):
-                    texto_bruto = (
-                        texto_bruto.replace("```json", "")
-                        .replace("```", "")
-                        .strip()
-                    )
-
+                    texto_bruto = texto_bruto.replace("```json", "").replace("```", "").strip()
                 try:
                     parsed = json.loads(texto_bruto)
-                    print(">>> [DocumentAgent] JSON reprocessado manualmente com sucesso.")
-
+                    log_payload["json_reprocessado"] = parsed
                     if isinstance(parsed, dict) and "DFD" in parsed:
                         return parsed["DFD"]
-
                     return parsed
+                except Exception:
+                    return {"Conteudo": texto_bruto}
 
-                except Exception as e:
-                    print(f">>> [DocumentAgent][WARN] IA devolveu texto puro, sem JSON. Erro: {e}")
-                    return {"Conteúdo": texto_bruto}
-
-            # ==================================================
-            # CASO 2 – AIClient JÁ devolveu JSON parseado
-            # ==================================================
-            if "DFD" in resposta:
-                print(">>> [DocumentAgent] JSON já contém DFD estruturado.")
-
-                dfd = resposta.get("DFD")
-                
-                # 🔥 registrar log
-                log_payload["resposta_bruta_ia"] = resposta
-                logfile = _registrar_log_document_agent(log_payload)
-                print(f">>> [DocumentAgent] Log salvo em: {logfile}")
-
-                if isinstance(dfd, dict):
-                    return dfd
-
-            # Caso geral
-            print(">>> [DocumentAgent] JSON retornado diretamente.")
-
-            # 🔥 registrar log
-            log_payload["resposta_bruta_ia"] = resposta
-            logfile = _registrar_log_document_agent(log_payload)
-            print(f">>> [DocumentAgent] Log salvo em: {logfile}")
+            if "DFD" in resposta and isinstance(resposta.get("DFD"), dict):
+                return resposta["DFD"]
 
             return resposta
 
-        except Exception as e:
-            print(f">>> [DocumentAgent][ERRO FATAL] Exceção inesperada: {e}")
+        finally:
+            _registrar_log_document_agent(log_payload)
 
-            # 🔥 registrar log de erro
-            log_payload["erro"] = str(e)
-            logfile = _registrar_log_document_agent(log_payload)
-            print(f">>> [DocumentAgent] Log salvo em: {logfile}")
-
-            return {"erro": f"Falha na geração do documento ({e})"}
-
-
-    # ======================================================
-    # 🧩 PROMPT INSTITUCIONAL – *vNext* (Modernizado)
-    # ======================================================
     def _montar_prompt_institucional(self) -> str:
-
         if self.artefato == "DFD":
             return (
                 "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
-                "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                "Com base exclusivamente no texto fornecido (insumo), produza um DFD completo, institucional, "
-                "em conformidade com a Lei nº 14.133/2021 e boas práticas de governança.\n\n"
-                "=== OBJETIVO ===\n"
-                "Gerar um documento robusto, organizado e pronto para análise administrativa, contendo:\n"
-                "1) Texto narrativo numerado ('texto_narrativo'), com 11 seções formais.\n"
-                "2) Objeto 'secoes' contendo as mesmas 11 seções individualmente.\n"
-                "3) Lista 'lacunas' com informações ausentes relevantes.\n\n"
+                "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). Produza um DFD completo, institucional, "
+                "conforme a Lei 14.133/2021.\n\n"
+                "=== OBRIGAÇÕES ===\n"
+                "1) Criar 'texto_narrativo' numerado de 1 a 11, sendo CADA NÚMERO EM NOVO PARÁGRAFO com quebra dupla.\n"
+                "2) Criar objeto 'secoes' com 11 seções formais.\n"
+                "3) Criar lista 'lacunas' SOMENTE com itens realmente faltantes NO CONTEXTO DE DFD (não TR, não Edital).\n\n"
                 "=== SEÇÕES OBRIGATÓRIAS ===\n"
                 "- Contexto Institucional\n"
                 "- Diagnóstico da Situação Atual\n"
@@ -192,34 +88,90 @@ class DocumentAgent:
                 "- Riscos da Não Contratação\n"
                 "- Requisitos Mínimos\n"
                 "- Critérios de Sucesso\n\n"
-                "=== TEXTO NARRATIVO ===\n"
-                "Elabore texto contínuo, numerado de 1 a 11, apenas texto limpo.\n\n"
-                "=== LACUNAS ===\n"
-                "Liste informações administrativas que NÃO apareçam no insumo.\n\n"
-                "=== FORMATO FINAL ===\n"
-                "{ \"DFD\": { \"texto_narrativo\": \"...\", \"secoes\": { ... }, \"lacunas\": [] } }\n"
-                "Responda APENAS com JSON válido."
+                "=== REGRAS ===\n"
+                "• Parágrafos curtos.\n"
+                "• Nada de bullets no texto narrativo.\n"
+                "• Não inventar dados sensíveis.\n"
+                "• Lacunas restritas a informações ADMINISTRATIVAS do DFD.\n\n"
+                "=== SAÍDA EXATA ===\n"
+                "{ 'DFD': { 'texto_narrativo': '...', 'secoes': {...}, 'lacunas': [] } }\n"
+                "Responda APENAS JSON válido."
             )
 
-        # Outros artefatos (ETP / TR / EDITAL etc.)
         return (
-            f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
-            "Produza um documento administrativo formal e retorne APENAS JSON estruturado."
+            f"Você é o agente institucional do TJSP para o artefato {self.artefato}. "
+            "Produza apenas JSON estruturado."
         )
 
 
-# ======================================================
-# 🔌 Função pública usada pelo pipeline DFD
-# ======================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
-
     if not conteudo_textual or len(conteudo_textual.strip()) < 15:
         return {"erro": "Conteúdo insuficiente para processamento IA."}
-
     agente = DocumentAgent("DFD")
     resultado = agente.generate(conteudo_textual)
+    return {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "resultado_ia": resultado}
 
-    return {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "resultado_ia": resultado,
-    }
+
+# ==========================
+# utils/ai_client.py — vNext com ajustes sugeridos
+# ==========================
+
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+import json
+from openai import OpenAI
+
+
+class AIClient:
+    def __init__(self, model: str = None):
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY não encontrada.")
+        self.client = OpenAI(api_key=api_key)
+        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
+        if isinstance(conteudo, bytes):
+            conteudo = conteudo.decode("utf-8", errors="ignore")
+        conteudo = conteudo or ""
+        trecho = conteudo[:8000]
+
+        mensagens = [
+            {
+                "role": "system",
+                "content": (
+                    "Você é o assistente institucional do TJSP. Siga integralmente o prompt institucional."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"{prompt}\n\n=== CONTEÚDO DO DOCUMENTO ===\n{trecho}\n\n"
+                    f"Responda SOMENTE com JSON válido para o artefato: {artefato}."
+                ),
+            },
+        ]
+
+        try:
+            resposta = self.client.chat.completions.create(
+                model=self.model,
+                messages=mensagens,
+                temperature=0.2,
+                max_tokens=3500,
+            )
+            texto = resposta.choices[0].message.content.strip()
+
+            try:
+                return json.loads(texto)
+            except Exception:
+                if texto.startswith("```"):
+                    texto = texto.replace("```json", "").replace("```", "").strip()
+                try:
+                    return json.loads(texto)
+                except Exception:
+                    return {"resposta_texto": texto}
+
+        except Exception as e:
+            return {"erro": f"Falha na chamada OpenAI: {e}", "modelo": self.model}
