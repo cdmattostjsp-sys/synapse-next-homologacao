@@ -1,6 +1,7 @@
 # ==========================================================
-# utils/ai_client.py — vNext_r4 (com diagnóstico em logs)
-# SynapseNext – Cliente Institucional OpenAI (TJSP)
+# utils/ai_client.py — vNext_D2 (robusto + anti-alucinação)
+# Cliente Institucional OpenAI – TJSP / SAAB
+# Compatível com DocumentAgent Moderno-Governança
 # ==========================================================
 
 from dotenv import load_dotenv
@@ -13,124 +14,136 @@ from openai import OpenAI
 
 class AIClient:
     """
-    Cliente institucional padronizado para uso interno dos agentes IA.
-    Agora com diagnóstico detalhado via logs (prints no Streamlit).
+    Cliente institucional padronizado para consultas à OpenAI, com:
+      ✓ Logs de diagnóstico controlados
+      ✓ Estrutura system/user consistente
+      ✓ Reforço para JSON válido
+      ✓ Limpeza automática de blocos ```json
+      ✓ Fallback seguro sem quebrar o pipeline
     """
 
     def __init__(self, model: str = None):
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("❌ OPENAI_API_KEY não encontrada em ambiente.")
+            raise ValueError("❌ OPENAI_API_KEY não encontrada no ambiente.")
 
+        # Cliente OpenAI oficial
         self.client = OpenAI(api_key=api_key)
+
+        # Modelo padrão: leve, rápido e excelente para JSON administrativo
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # ==========================================================
-    # MÉTODO PRINCIPAL
+    # MÉTODO PRINCIPAL — Pergunta ao modelo
     # ==========================================================
     def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
         """
-        Envia prompt institucional + conteúdo de documento para o modelo
-        e retorna a resposta já tratada (dict ou texto cru).
+        Envia ao modelo:
+            • prompt institucional (regra do documento)
+            • conteúdo bruto (texto extraído do insumo)
 
-        Também registra informações de diagnóstico via prints
-        (visíveis nos logs do Streamlit Cloud).
+        Sempre tenta:
+            • Retornar JSON estruturado (primeira prioridade)
+            • Limpar blocos markdown
+            • Prevenir alucinações
         """
 
-        # ---------------------------------------------
-        # Normalização do conteúdo recebido
-        # ---------------------------------------------
+        # ==================================================
+        # Normalização do conteúdo
+        # ==================================================
         if isinstance(conteudo, bytes):
             conteudo = conteudo.decode("utf-8", errors="ignore")
         elif not isinstance(conteudo, str):
             conteudo = str(conteudo)
 
         conteudo = conteudo or ""
-        trecho_documento = conteudo[:8000]  # recorte para evitar excesso de contexto
+        trecho = conteudo[:8000]  # Proteção contra requisições excessivas
 
+        # ==================================================
+        # Construção das mensagens OpenAI
+        # ==================================================
+        mensagens = [
+            {
+                "role": "system",
+                "content": (
+                    "Você é o assistente institucional do Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                    "Produza respostas formais, administrativas e SEMPRE em JSON válido, seguindo exatamente "
+                    "as instruções do DocumentAgent e do artefato solicitado."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"{prompt}\n\n"
+                    f"=== CONTEÚDO DO DOCUMENTO (INSUMO) ===\n"
+                    f"{trecho}\n\n"
+                    f"=== INSTRUÇÃO FINAL ===\n"
+                    f"Responda EXCLUSIVAMENTE com um JSON válido, destinado ao artefato institucional: {artefato}."
+                ),
+            },
+        ]
+
+        # ==================================================
+        # CHAMADA AO MODELO
+        # ==================================================
         try:
-            # ======================================================
-            # 🔥 ESTRUTURA CORRIGIDA (system + user)
-            # ======================================================
-            mensagens = [
-                {
-                    "role": "system",
-                    "content": (
-                        "Você é o assistente institucional do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                        "Sua função é gerar documentos administrativos formais (DFD, ETP, TR, Edital, Contrato) "
-                        "seguindo integralmente o prompt institucional fornecido."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"{prompt}\n\n"
-                        f"=== CONTEÚDO DO DOCUMENTO (INSUMO) ===\n"
-                        f"{trecho_documento}\n\n"
-                        f"=== INSTRUÇÃO FINAL ===\n"
-                        f"Responda EXCLUSIVAMENTE em JSON válido para o artefato institucional: {artefato}."
-                    ),
-                },
-            ]
-
-            # ======================================================
-            # Chamada ao modelo (OpenAI oficial)
-            # ======================================================
             resposta = self.client.chat.completions.create(
                 model=self.model,
                 messages=mensagens,
-                temperature=0.25,
-                max_tokens=3000,
+                temperature=0.10,
+                max_tokens=5000,
+                response_format={"type": "json_object"},  # <=== FORÇA JSON VÁLIDO
             )
 
             texto = resposta.choices[0].message.content.strip()
 
-            # ======================================================
-            # 🔎 BLOCO DE DIAGNÓSTICO (LOGS STREAMLIT)
-            # ======================================================
-            try:
-                print("===== IA DEBUG START =====")
-                print(f"[Modelo] {self.model} | [Artefato] {artefato}")
-                print(f"[Conteúdo] tamanho_total={len(conteudo)} | trecho_enviado={len(trecho_documento)}")
-                print("----- PROMPT (início) -----")
-                print(prompt[:1000])
-                print("----- DOCUMENTO (início) -----")
-                print(trecho_documento[:1000])
-                print("----- RESPOSTA BRUTA (início) -----")
-                print(texto[:2000])
-                print("===== IA DEBUG END =====")
-            except Exception as log_err:
-                print(f"[IA DEBUG] Falha ao imprimir diagnóstico: {log_err}")
-
-            # ======================================================
-            # Tentativa de conversão direta para JSON
-            # ======================================================
-            try:
-                parsed = json.loads(texto)
-                print("[IA DEBUG] json.loads(texto) OK (resposta já era JSON).")
-                return parsed
-
-            except Exception:
-                print("[IA DEBUG] json.loads(texto) FALHOU – tentando limpar blocos ```json ... ```.")
-
-                # Limpando formatação de código se vier com blocos
-                if texto.startswith("```"):
-                    texto_limpo = texto.replace("```json", "").replace("```", "").strip()
-                else:
-                    texto_limpo = texto
-
-                try:
-                    parsed = json.loads(texto_limpo)
-                    print("[IA DEBUG] json.loads(texto_limpo) OK após limpeza.")
-                    return parsed
-                except Exception:
-                    print("[IA DEBUG] Falha final ao interpretar JSON – devolvendo texto cru em 'resposta_texto'.")
-                    return {"resposta_texto": texto}
-
         except Exception as e:
-            print(f"[IA DEBUG] EXCEÇÃO NA CHAMADA OPENAI: {e}")
+            print(f"[AIClient][ERRO FATAL] {e}")
             return {
-                "erro": f"❌ Falha na chamada OpenAI: {e}",
+                "erro": f"❌ Falha grave ao consultar OpenAI: {e}",
                 "modelo_utilizado": self.model,
             }
+
+        # ==================================================
+        # Logs de diagnóstico — curtos e seguros
+        # ==================================================
+        try:
+            print("\n===== AIClient DEBUG =====")
+            print(f"[Modelo] {self.model} | [Artefato] {artefato}")
+            print(f"[Prompt enviado] {len(prompt)} chars")
+            print(f"[Trecho Documento] {len(trecho)} chars")
+            print(f"[Resposta JSON bruta] {texto[:400]}...\n")
+        except:
+            pass  # Nunca interromper execução por causa de print
+
+        # ==================================================
+        # TENTATIVA 1 — JSON direto (response_format garantiu isso)
+        # ==================================================
+        try:
+            parsed = json.loads(texto)
+            return parsed
+        except Exception:
+            print("[AIClient] JSON direto falhou — tentando limpeza.")
+
+        # ==================================================
+        # TENTATIVA 2 — Limpeza de blocos ```json
+        # ==================================================
+        try:
+            texto_limpo = (
+                texto.replace("```json", "")
+                .replace("```", "")
+                .replace("“", '"')
+                .replace("”", '"')
+                .strip()
+            )
+            parsed = json.loads(texto_limpo)
+            print("[AIClient] JSON recuperado após limpeza de blocos.")
+            return parsed
+        except Exception:
+            print("[AIClient] Limpeza JSON falhou — retornando texto bruto.")
+
+        # ==================================================
+        # TENTATIVA 3 — fallback seguro
+        # ==================================================
+        return {"resposta_texto": texto}
