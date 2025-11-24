@@ -1,7 +1,7 @@
 # ==========================================================
 # utils/ai_client.py — vNext_D2 (robusto + anti-alucinação)
 # Cliente Institucional OpenAI – TJSP / SAAB
-# Compatível com DocumentAgent Moderno-Governança
+# Compatível com DocumentAgent Moderno-Governança (D2)
 # ==========================================================
 
 from dotenv import load_dotenv
@@ -17,8 +17,8 @@ class AIClient:
     Cliente institucional padronizado para consultas à OpenAI, com:
       ✓ Logs de diagnóstico controlados
       ✓ Estrutura system/user consistente
-      ✓ Reforço para JSON válido
-      ✓ Limpeza automática de blocos ```json
+      ✓ Força JSON válido via response_format
+      ✓ Limpeza de blocos ```json
       ✓ Fallback seguro sem quebrar o pipeline
     """
 
@@ -28,48 +28,29 @@ class AIClient:
         if not api_key:
             raise ValueError("❌ OPENAI_API_KEY não encontrada no ambiente.")
 
-        # Cliente OpenAI oficial
         self.client = OpenAI(api_key=api_key)
-
-        # Modelo padrão: leve, rápido e excelente para JSON administrativo
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # ==========================================================
-    # MÉTODO PRINCIPAL — Pergunta ao modelo
+    # MÉTODO PRINCIPAL
     # ==========================================================
     def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
-        """
-        Envia ao modelo:
-            • prompt institucional (regra do documento)
-            • conteúdo bruto (texto extraído do insumo)
 
-        Sempre tenta:
-            • Retornar JSON estruturado (primeira prioridade)
-            • Limpar blocos markdown
-            • Prevenir alucinações
-        """
-
-        # ==================================================
-        # Normalização do conteúdo
-        # ==================================================
+        # Normalização
         if isinstance(conteudo, bytes):
             conteudo = conteudo.decode("utf-8", errors="ignore")
         elif not isinstance(conteudo, str):
             conteudo = str(conteudo)
 
         conteudo = conteudo or ""
-        trecho = conteudo[:8000]  # Proteção contra requisições excessivas
+        trecho = conteudo[:8000]
 
-        # ==================================================
-        # Construção das mensagens OpenAI
-        # ==================================================
         mensagens = [
             {
                 "role": "system",
                 "content": (
                     "Você é o assistente institucional do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                    "Produza respostas formais, administrativas e SEMPRE em JSON válido, seguindo exatamente "
-                    "as instruções do DocumentAgent e do artefato solicitado."
+                    "Produza respostas formais, administrativas e SEMPRE em JSON válido."
                 ),
             },
             {
@@ -79,23 +60,20 @@ class AIClient:
                     f"=== CONTEÚDO DO DOCUMENTO (INSUMO) ===\n"
                     f"{trecho}\n\n"
                     f"=== INSTRUÇÃO FINAL ===\n"
-                    f"Responda EXCLUSIVAMENTE com um JSON válido, destinado ao artefato institucional: {artefato}."
+                    f"Responda exclusivamente com JSON válido para o artefato: {artefato}."
                 ),
             },
         ]
 
-        # ==================================================
-        # CHAMADA AO MODELO
-        # ==================================================
+        # CHAMADA OFICIAL
         try:
             resposta = self.client.chat.completions.create(
                 model=self.model,
                 messages=mensagens,
                 temperature=0.10,
                 max_tokens=5000,
-                response_format={"type": "json_object"},  # <=== FORÇA JSON VÁLIDO
+                response_format={"type": "json_object"},  # força JSON
             )
-
             texto = resposta.choices[0].message.content.strip()
 
         except Exception as e:
@@ -105,30 +83,22 @@ class AIClient:
                 "modelo_utilizado": self.model,
             }
 
-        # ==================================================
-        # Logs de diagnóstico — curtos e seguros
-        # ==================================================
+        # Logs curtos
         try:
             print("\n===== AIClient DEBUG =====")
             print(f"[Modelo] {self.model} | [Artefato] {artefato}")
-            print(f"[Prompt enviado] {len(prompt)} chars")
-            print(f"[Trecho Documento] {len(trecho)} chars")
-            print(f"[Resposta JSON bruta] {texto[:400]}...\n")
+            print(f"[Trecho enviado] {len(trecho)} chars")
+            print(f"[Resposta JSON bruta] {texto[:500]}...\n")
         except:
-            pass  # Nunca interromper execução por causa de print
+            pass
 
-        # ==================================================
-        # TENTATIVA 1 — JSON direto (response_format garantiu isso)
-        # ==================================================
+        # 1) JSON direto
         try:
-            parsed = json.loads(texto)
-            return parsed
+            return json.loads(texto)
         except Exception:
             print("[AIClient] JSON direto falhou — tentando limpeza.")
 
-        # ==================================================
-        # TENTATIVA 2 — Limpeza de blocos ```json
-        # ==================================================
+        # 2) limpeza geral
         try:
             texto_limpo = (
                 texto.replace("```json", "")
@@ -137,13 +107,9 @@ class AIClient:
                 .replace("”", '"')
                 .strip()
             )
-            parsed = json.loads(texto_limpo)
-            print("[AIClient] JSON recuperado após limpeza de blocos.")
-            return parsed
+            return json.loads(texto_limpo)
         except Exception:
-            print("[AIClient] Limpeza JSON falhou — retornando texto bruto.")
+            print("[AIClient] JSON após limpeza falhou — fallback.")
 
-        # ==================================================
-        # TENTATIVA 3 — fallback seguro
-        # ==================================================
+        # 3) fallback seguro
         return {"resposta_texto": texto}
