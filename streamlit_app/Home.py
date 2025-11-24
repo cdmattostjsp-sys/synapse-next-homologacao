@@ -1,3 +1,4 @@
+# Atualização forçada para recarregar módulos - vNext
 # -*- coding: utf-8 -*-
 # ==============================================================
 # SynapseNext – SAAB 5.0
