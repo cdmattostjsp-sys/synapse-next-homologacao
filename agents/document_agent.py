@@ -1,7 +1,7 @@
 # ==========================================================
 # agents/document_agent.py — Versão D2 (Modo B – Equilibrado)
 # SynapseNext – SAAB / Tribunal de Justiça do Estado de São Paulo
-# Revisão: 2025-11-24 — Versão Consolidada e Corrigida
+# Revisão Consolidada — 2025-11-24
 # ==========================================================
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ def _registrar_log_document_agent(payload: dict) -> str:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=4)
         return path
-    except Exception as e:
-        return f"ERRO_LOG: {e}"
+    except Exception:
+        return ""
 
 
 # ==========================================================
@@ -79,10 +79,6 @@ SECOES_OBRIGATORIAS = [
 
 
 def _sanear_secoes(resposta: dict) -> dict:
-    """
-    Garante que todas as 11 seções existam.
-    Insere placeholder institucional quando faltar conteúdo.
-    """
     secoes = resposta.get("secoes", {})
     if not isinstance(secoes, dict):
         secoes = {}
@@ -105,7 +101,7 @@ def _sanear_texto_narrativo(txt: str) -> str:
 
 
 # ==========================================================
-# 🤖 DOCUMENT AGENT – Cenário D2 (Equilíbrio entre detalhado e preciso)
+# 🤖 DOCUMENT AGENT – D2 (Equilibrado)
 # ==========================================================
 class DocumentAgent:
 
@@ -123,9 +119,6 @@ class DocumentAgent:
 
         prompt = self._montar_prompt_institucional()
 
-        # ==============================
-        # 🔥 Chamando a IA (AIClient)
-        # ==============================
         try:
             resposta_raw = self.ai.ask(
                 prompt=prompt,
@@ -137,9 +130,7 @@ class DocumentAgent:
 
         print(">>> Resposta RAW recebida da IA")
 
-        # --------------------------------------------------
-        # Normalização de resposta
-        # --------------------------------------------------
+        # normalização
         if isinstance(resposta_raw, dict) and "DFD" in resposta_raw:
             resposta = resposta_raw["DFD"]
         elif isinstance(resposta_raw, dict):
@@ -150,96 +141,94 @@ class DocumentAgent:
         if not isinstance(resposta, dict):
             resposta = {"texto_narrativo": str(resposta)}
 
-        # --------------------------------------------------
-        # 🔧 SANITIZAÇÃO GLOBAL
-        # --------------------------------------------------
-
-        # 1) Texto narrativo
+        # sanitização
         resposta["texto_narrativo"] = _sanear_texto_narrativo(
             resposta.get("texto_narrativo", "")
         )
 
-        # 2) Seções obrigatórias
         resposta = _sanear_secoes(resposta)
 
-        # 3) Filtro numérico anti-alucinação
         resposta = _sanear_numeros_na_resposta(resposta, conteudo_base)
 
-        # 4) Lacunas
         lac = resposta.get("lacunas", [])
         resposta["lacunas"] = lac if isinstance(lac, list) else []
+
+        # 🔒 Garantir chaves administrativas
+        resposta.setdefault("unidade_demandante", "")
+        resposta.setdefault("responsavel", "")
+        resposta.setdefault("prazo_estimado", "")
+        resposta.setdefault("valor_estimado", "0,00")
+
+        if not isinstance(resposta.get("valor_estimado"), str):
+            resposta["valor_estimado"] = str(resposta["valor_estimado"])
 
         print(">>> DocumentAgent(D2) — Sanitização finalizada.")
         return resposta
 
     # ------------------------------------------------------
-    # 🧩 PROMPT INSTITUCIONAL (VERSÃO ALTA QUALIDADE)
+    # 🧩 PROMPT INSTITUCIONAL
     # ------------------------------------------------------
     def _montar_prompt_institucional(self) -> str:
 
         if self.artefato == "DFD":
-    return (
-        "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
-        "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-        "Com base EXCLUSIVAMENTE no texto fornecido (insumo), produza um DFD completo, detalhado, formal e "
-        "conforme a Lei nº 14.133/2021.\n\n"
+            return (
+                "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
+                "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                "Com base EXCLUSIVAMENTE no texto fornecido (insumo), produza um DFD completo, detalhado, formal e "
+                "conforme a Lei nº 14.133/2021.\n\n"
 
-        "=== ESTRUTURA OBRIGATÓRIA DO JSON ===\n"
-        "O JSON final DEVE conter obrigatoriamente as seguintes chaves no nível raiz de 'DFD':\n"
-        "- unidade_demandante (string)\n"
-        "- responsavel (string)\n"
-       "- prazo_estimado (string)\n"
-        "- valor_estimado (string — usar '0,00' se não constar no insumo)\n"
-        "- texto_narrativo (string)\n"
-        "- secoes (objeto)\n"
-        "- lacunas (lista)\n\n"
+                "=== ESTRUTURA OBRIGATÓRIA DO JSON ===\n"
+                "O JSON final DEVE conter obrigatoriamente as chaves:\n"
+                "- unidade_demandante\n"
+                "- responsavel\n"
+                "- prazo_estimado\n"
+                "- valor_estimado\n"
+                "- texto_narrativo\n"
+                "- secoes\n"
+                "- lacunas\n\n"
 
-        "Preencha unidade_demandante, responsavel e prazo_estimado como string vazia caso o insumo não traga essas informações.\n"
-        "Preencha valor_estimado como '0,00' caso não conste no insumo.\n\n"
+                "Use string vazia para campos administrativos ausentes. "
+                "Use '0,00' para valor_estimado quando não houver valor no insumo.\n\n"
 
-        "=== OBJETIVO ===\n"
-        "Gerar um documento robusto, fiel ao insumo e com a seguinte estrutura:\n"
-        "1) 'texto_narrativo' — texto contínuo numerado de 1 a 11.\n"
-        "2) 'secoes' — objeto contendo as 11 seções obrigatórias.\n"
-        "3) 'lacunas' — lista de informações ausentes.\n\n"
+                "=== OBJETIVO ===\n"
+                "Gerar texto robusto e coerente com o insumo, cobrindo as 11 seções obrigatórias.\n\n"
 
-        "=== SEÇÕES OBRIGATÓRIAS ===\n"
-        "- Contexto Institucional\n"
-        "- Diagnóstico da Situação Atual\n"
-        "- Fundamentação da Necessidade\n"
-        "- Objetivos da Contratação\n"
-        "- Escopo Inicial da Demanda\n"
-        "- Resultados Esperados\n"
-        "- Benefícios Institucionais\n"
-        "- Justificativa Legal\n"
-        "- Riscos da Não Contratação\n"
-        "- Requisitos Mínimos\n"
-        "- Critérios de Sucesso\n\n"
+                "=== SEÇÕES OBRIGATÓRIAS ===\n"
+                "- Contexto Institucional\n"
+                "- Diagnóstico da Situação Atual\n"
+                "- Fundamentação da Necessidade\n"
+                "- Objetivos da Contratação\n"
+                "- Escopo Inicial da Demanda\n"
+                "- Resultados Esperados\n"
+                "- Benefícios Institucionais\n"
+                "- Justificativa Legal\n"
+                "- Riscos da Não Contratação\n"
+                "- Requisitos Mínimos\n"
+                "- Critérios de Sucesso\n\n"
 
-        "=== FORMATO FINAL OBRIGATÓRIO ===\n"
-        "Responda APENAS com JSON, seguindo rigorosamente esta estrutura:\n"
-        "{\n"
-        "  \"DFD\": {\n"
-        "    \"unidade_demandante\": \"\",\n"
-        "    \"responsavel\": \"\",\n"
-        "    \"prazo_estimado\": \"\",\n"
-        "    \"valor_estimado\": \"0,00\",\n"
-        "    \"texto_narrativo\": \"1. ... 11. ...\",\n"
-        "    \"secoes\": { ... },\n"
-        "    \"lacunas\": [ ... ]\n"
-        "  }\n"
-        "}"
-    )
+                "=== FORMATO FINAL (OBRIGATÓRIO) ===\n"
+                "Responda APENAS com JSON:\n"
+                "{\n"
+                "  \"DFD\": {\n"
+                "    \"unidade_demandante\": \"\",\n"
+                "    \"responsavel\": \"\",\n"
+                "    \"prazo_estimado\": \"\",\n"
+                "    \"valor_estimado\": \"0,00\",\n"
+                "    \"texto_narrativo\": \"1. ... 11. ...\",\n"
+                "    \"secoes\": { ... },\n"
+                "    \"lacunas\": [ ... ]\n"
+                "  }\n"
+                "}"
+            )
 
-        # Default para outros artefatos
         return (
             f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
-            "Produza APENAS JSON estruturado e formal, seguindo normas administrativas."
+            "Produza APENAS JSON estruturado e formal."
         )
 
 
 # ==========================================================
-# 🔌 Função pública usada pelo pipeline INSUMOS
+# 🔌 Função pública do pipeline INSUMOS
 # ==========================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
     if not conteudo_textual or len(conteudo_textual.strip()) < 15:
