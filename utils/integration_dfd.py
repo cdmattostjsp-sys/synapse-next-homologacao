@@ -1,7 +1,7 @@
 # ======================================================================
-# utils/integration_dfd.py — VERSÃO CORRIGIDA 2025-D2
+# utils/integration_dfd.py — VERSÃO FINAL 2025-D2 (ESTÁVEL)
+# Compatível com DocumentAgent(D2) + IAClient vNext
 # Restaura preenchimento completo do formulário DFD
-# Compatível 100% com DocumentAgent(D2)
 # ======================================================================
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from datetime import datetime
 
 
 # ======================================================================
-# 🔧 Remover blocos Markdown
+# 🔧 Remover blocos Markdown/formatadores
 # ======================================================================
 def _limpar_markdown(texto: str) -> str:
     if not isinstance(texto, str):
@@ -28,29 +28,23 @@ def _limpar_markdown(texto: str) -> str:
 
 
 # ======================================================================
-# 🧩 Conversão do JSON moderno → formulário antigo
+# 🧩 Conversão do JSON moderno → campos tradicionais
 # ======================================================================
 def _mapear_moderno_para_campos_legados(dfd: dict) -> dict:
-    """
-    Mapeia o JSON moderno (com 'DFD', 'secoes', 'texto_narrativo', 'lacunas')
-    para o formato tradicional do formulário Streamlit (descricao_necessidade, motivacao etc.).
-    """
-
     if not isinstance(dfd, dict):
         return {}
 
-    # Caso padrão: resposta moderna {"DFD": {...}}
+    # IA moderna retorna {"DFD": {...}}
     if "DFD" in dfd and isinstance(dfd["DFD"], dict):
         dfd = dfd["DFD"]
 
-    # Extrai seções
     secoes = dfd.get("secoes", {})
     if not isinstance(secoes, dict):
         secoes = {}
 
-    # -----------------------------
-    # DESCRIÇÃO DA NECESSIDADE
-    # -----------------------------
+    # ------------------------------------------------------------
+    # DESCRIÇÃO
+    # ------------------------------------------------------------
     descricao = "\n\n".join(
         s for s in [
             secoes.get("Contexto Institucional", ""),
@@ -60,11 +54,11 @@ def _mapear_moderno_para_campos_legados(dfd: dict) -> dict:
     ).strip()
 
     if not descricao:
-        descricao = dfd.get("descricao_necessidade", "")
+        descricao = dfd.get("descricao_necessidade", "").strip()
 
-    # -----------------------------
-    # MOTIVAÇÃO / OBJETIVOS / JUSTIFICATIVA
-    # -----------------------------
+    # ------------------------------------------------------------
+    # MOTIVAÇÃO
+    # ------------------------------------------------------------
     motivacao = "\n\n".join(
         s for s in [
             secoes.get("Objetivos da Contratação", ""),
@@ -75,9 +69,9 @@ def _mapear_moderno_para_campos_legados(dfd: dict) -> dict:
         ] if s.strip()
     ).strip()
 
-    # -----------------------------
-    # CAMPOS ADMINISTRATIVOS (NOVO!)
-    # -----------------------------
+    # ------------------------------------------------------------
+    # CAMPOS ADMINISTRATIVOS
+    # ------------------------------------------------------------
     unidade = dfd.get("unidade_demandante") or ""
     responsavel = dfd.get("responsavel") or ""
     prazo = dfd.get("prazo_estimado") or ""
@@ -97,7 +91,7 @@ def _mapear_moderno_para_campos_legados(dfd: dict) -> dict:
 
 
 # ======================================================================
-# 📥 Ler arquivos (insumo / IA / consolidado)
+# 📥 Leitura de arquivos
 # ======================================================================
 def _carregar_dfd_de_arquivo(caminho: str) -> dict:
     try:
@@ -107,18 +101,18 @@ def _carregar_dfd_de_arquivo(caminho: str) -> dict:
         st.warning(f"⚠️ Falha ao ler {caminho}: {e}")
         return {}
 
-    # 1) Arquivo consolidado tradicional
+    # Caso 1 — arquivo consolidado (formulário)
     if isinstance(dados.get("campos_ai"), dict):
         return dados["campos_ai"]
 
-    # 2) Resposta da IA moderna
+    # Caso 2 — resultado da IA moderna
     if isinstance(dados.get("resultado_ia"), dict):
         bruto = dados["resultado_ia"]
         return _mapear_moderno_para_campos_legados(bruto)
 
-    # 3) Insumo bruto
+    # Caso 3 — insumo puro
     texto = dados.get("conteudo_textual")
-    if isinstance(texto, str) and len(texto.strip()) > 15:
+    if isinstance(texto, str) and len(texto.strip()) > 20:
         return {
             "unidade_demandante": "",
             "responsavel": "",
@@ -132,22 +126,25 @@ def _carregar_dfd_de_arquivo(caminho: str) -> dict:
 
 
 # ======================================================================
-# 🔄 Obter DFD carregado
+# 🔄 Obter DFD carregado (sessão → último arquivo → histórico)
 # ======================================================================
 def obter_dfd_da_sessao() -> dict:
 
+    # Sessão
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return st.session_state["dfd_campos_ai"]
 
     base = os.path.join("exports", "insumos", "json")
     ultimo = os.path.join(base, "DFD_ultimo.json")
 
+    # Último arquivo
     if os.path.exists(ultimo):
         dados = _carregar_dfd_de_arquivo(ultimo)
         if dados:
             st.session_state["dfd_campos_ai"] = dados
             return dados
 
+    # Histórico
     arquivos = sorted(
         glob.glob(os.path.join(base, "DFD_*.json")),
         key=os.path.getmtime,
@@ -164,10 +161,11 @@ def obter_dfd_da_sessao() -> dict:
 
     return {}
 
+
 # ======================================================================
 # 💾 Salvar DFD consolidado
 # ======================================================================
-def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_streamlit") -> str:
+def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_moderno_streamlit") -> str:
     base = os.path.join("exports", "insumos", "json")
     os.makedirs(base, exist_ok=True)
 
@@ -195,18 +193,11 @@ def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_streamlit") -
         st.error(f"❌ Falha ao salvar DFD: {e}")
         return ""
 
+
 # ======================================================================
-# 🧾 Status para o cabeçalho da página Streamlit
+# 🧾 Status exibido na página DFD
 # ======================================================================
 def status_dfd() -> str:
-    """
-    Retorna mensagem sobre o status atual do DFD carregado.
-    Mantém compatibilidade com a página 02_DFD.
-    """
-    import streamlit as st
-    import os
-
-    # Sessão já possui DFD carregado
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return "✅ DFD carregado automaticamente (sessão ativa)"
 
@@ -218,8 +209,9 @@ def status_dfd() -> str:
 
     return "⚠️ Nenhum DFD disponível — envie um insumo pelo módulo INSUMOS."
 
+
 # ======================================================================
-# 🧠 IA → Geração de rascunho DFD
+# 🧠 IA → Gerar rascunho do DFD
 # ======================================================================
 def gerar_rascunho_dfd_com_ia() -> dict:
     base = os.path.join("exports", "insumos", "json")
@@ -229,6 +221,7 @@ def gerar_rascunho_dfd_com_ia() -> dict:
         st.warning("⚠️ Nenhum insumo encontrado.")
         return {}
 
+    # Leitura do insumo
     try:
         with open(ultimo, "r", encoding="utf-8") as f:
             dados = json.load(f)
@@ -237,20 +230,21 @@ def gerar_rascunho_dfd_com_ia() -> dict:
         st.error("❌ Falha ao ler insumo.")
         return {}
 
-    if len(texto) < 30:
-        st.error("⚠️ Texto insuficiente.")
+    if len(texto) < 20:
+        st.error("⚠️ Texto insuficiente para IA.")
         return {}
 
+    # Chamada IA
     try:
         from agents.document_agent import processar_dfd_com_ia
         bruto = processar_dfd_com_ia(texto)
 
-        # unwrap bruto → resultado
+        # unwrap IA
         if "resultado_ia" in bruto:
             bruto = bruto["resultado_ia"]
 
+        # Conversão p/ formulário
         dfd_norm = _mapear_moderno_para_campos_legados(bruto)
-
         if not dfd_norm:
             st.warning("⚠️ A IA não retornou estrutura válida.")
             return {}
