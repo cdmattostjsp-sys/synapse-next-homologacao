@@ -1,20 +1,46 @@
 # ==========================================================
 # agents/document_agent.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: 2025-11-20 – vNext (DFD Moderno-Governança)
+# Revisão: 2025-11-20 – vNext (DFD Moderno-Governança + Logs)
 # ==========================================================
 
 from __future__ import annotations
 import json
+import os
 from datetime import datetime
 from utils.ai_client import AIClient
 
 
+# ==========================================================
+# 🔧 Função interna de log institucional
+# ==========================================================
+def _registrar_log_document_agent(payload: dict) -> str:
+    """
+    Salva logs completos do DocumentAgent para auditoria e diagnóstico.
+    """
+    try:
+        logs_dir = os.path.join("exports", "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+
+        filename = f"document_agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        path = os.path.join(logs_dir, filename)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=4)
+
+        return path
+
+    except Exception as e:
+        return f"ERRO_LOG: {e}"
+
+
+# ==========================================================
+# 🤖 DOCUMENT AGENT – Geração de artefatos IA
+# ==========================================================
 class DocumentAgent:
     """
-    Agente responsável por coordenar a geração de documentos
-    formais via IA institucional (DFD, ETP, TR, Edital etc.).
-    Compatível com o pipeline atual e AIClient padronizado.
+    Agente responsável por coordenar a geração de documentos formais via IA.
+    Agora com rastreamento completo via logs.
     """
 
     def __init__(self, artefato: str):
@@ -27,77 +53,90 @@ class DocumentAgent:
     def generate(self, conteudo_base: str) -> dict:
         """
         Envia o conteúdo bruto para IA usando o prompt institucional.
-        Retorna dicionário JSON estruturado.
+        Retorna dicionário JSON estruturado e registra logs detalhados.
         """
 
         prompt = self._montar_prompt_institucional()
+        log_payload = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "artefato": self.artefato,
+            "conteudo_input_len": len(conteudo_base or ""),
+            "conteudo_input_preview": (conteudo_base[:1500] if conteudo_base else ""),
+            "prompt_usado": prompt,
+        }
 
         try:
+            # =========================
+            # 🔥 Chamada para IA
+            # =========================
             resposta = self.ai.ask(
                 prompt=prompt,
                 conteudo=conteudo_base,
                 artefato=self.artefato,
             )
 
-            # Resposta precisa ser um dicionário
+            log_payload["resposta_bruta"] = resposta
+
+            # =========================
+            # 🎯 Caso resposta não seja dict
+            # =========================
             if not isinstance(resposta, dict):
+                log_payload["resultado_final"] = {
+                    "erro": "Resposta IA inválida (não é dict)."
+                }
+                _registrar_log_document_agent(log_payload)
                 return {"erro": "Resposta IA inválida ou vazia."}
 
             # ==================================================
-            # CASO 1 – AIClient NÃO conseguiu dar json.loads()
-            #         e devolveu {"resposta_texto": "..."}
+            # CASO 1 – {"resposta_texto": "..."} → tentar interpretar
             # ==================================================
             if "resposta_texto" in resposta:
                 texto_bruto = (resposta.get("resposta_texto") or "").strip()
-                if not texto_bruto:
-                    return {"erro": "IA não retornou conteúdo textual."}
 
-                # Limpeza de blocos ```json
                 if texto_bruto.startswith("```json"):
-                    texto_bruto = (
-                        texto_bruto.replace("```json", "")
-                        .replace("```", "")
-                        .strip()
-                    )
+                    texto_bruto = texto_bruto.replace("```json", "").replace("```", "").strip()
 
-                # Tenta interpretar como JSON
                 try:
                     parsed = json.loads(texto_bruto)
-
-                    # Formato institucional esperado: {"DFD": {...}}
                     if isinstance(parsed, dict) and "DFD" in parsed:
-                        return parsed["DFD"]
-
-                    return parsed
+                        final = parsed["DFD"]
+                    else:
+                        final = parsed
 
                 except Exception:
-                    # IA devolveu texto puro – retorna bruto em campo padrão
-                    return {"Conteúdo": texto_bruto}
+                    final = {"Conteúdo": texto_bruto}
+
+                log_payload["resultado_final"] = final
+                _registrar_log_document_agent(log_payload)
+                return final
 
             # ==================================================
-            # CASO 2 – AIClient JÁ devolveu JSON parseado
-            #         (json.loads(texto) funcionou)
+            # CASO 2 – IA já retornou JSON parseado
             # ==================================================
-            if isinstance(resposta, dict) and "DFD" in resposta:
-                # Ex.: {"DFD": {...}}
-                dfd = resposta.get("DFD")
-                if isinstance(dfd, dict):
-                    return dfd
+            if "DFD" in resposta and isinstance(resposta["DFD"], dict):
+                final = resposta["DFD"]
+                log_payload["resultado_final"] = final
+                _registrar_log_document_agent(log_payload)
+                return final
 
-            # Caso geral: já é a estrutura final
+            # Caso geral
+            log_payload["resultado_final"] = resposta
+            _registrar_log_document_agent(log_payload)
             return resposta
 
         except Exception as e:
-            return {"erro": f"Falha na geração do documento ({e})"}
+
+            erro_dict = {"erro": f"Falha na geração do documento ({e})"}
+            log_payload["resultado_final"] = erro_dict
+            _registrar_log_document_agent(log_payload)
+
+            return erro_dict
 
     # ======================================================
     # 🧩 PROMPT INSTITUCIONAL – *vNext* (Modernizado)
     # ======================================================
     def _montar_prompt_institucional(self) -> str:
 
-        # ======================================================
-        # 📌 PROMPT ESPECIALIZADO PARA DFD
-        # ======================================================
         if self.artefato == "DFD":
             return (
                 "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
@@ -110,7 +149,6 @@ class DocumentAgent:
                 "2) Objeto 'secoes' contendo as mesmas 11 seções individualmente.\n"
                 "3) Lista 'lacunas' com informações ausentes relevantes.\n\n"
                 "=== SEÇÕES OBRIGATÓRIAS ===\n"
-                "As seguintes 11 seções DEVERÃO existir em 'secoes', com esses títulos exatos:\n"
                 "- Contexto Institucional\n"
                 "- Diagnóstico da Situação Atual\n"
                 "- Fundamentação da Necessidade\n"
@@ -122,50 +160,16 @@ class DocumentAgent:
                 "- Riscos da Não Contratação\n"
                 "- Requisitos Mínimos\n"
                 "- Critérios de Sucesso\n\n"
-                "=== TEXTO NARRATIVO (CAMPO 'texto_narrativo') ===\n"
-                "Elabore um texto contínuo, claro e administrativo, numerado de 1 a 11, seguindo a ordem das seções.\n"
-                "Não use bullets, tabelas, emojis, elementos gráficos ou formatações especiais.\n"
-                "Use apenas texto limpo.\n\n"
+                "=== TEXTO NARRATIVO ===\n"
+                "Elabore texto contínuo, numerado de 1 a 11, apenas texto limpo.\n\n"
                 "=== LACUNAS ===\n"
-                "Inclua em 'lacunas' as informações administrativas importantes que NÃO aparecem claramente no insumo, "
-                "por exemplo:\n"
-                "- Unidade demandante não identificada.\n"
-                "- Responsável não informado.\n"
-                "- Prazo estimado ausente.\n"
-                "- Estimativa de valor não localizada.\n"
-                "Somente registre lacunas reais.\n\n"
-                "=== REGRAS DE ESCRITA ===\n"
-                "• Linguagem formal, técnica, impessoal e institucional.\n"
-                "• Nada de floreios, firulas, figuras ou linguagem subjetiva.\n"
-                "• Não invente dados sensíveis (nomes, números de processo, valores reais).\n"
-                "• Utilize parágrafos curtos e coerentes.\n\n"
-                "=== FORMATO EXATO DE SAÍDA ===\n"
-                "A resposta deve ser APENAS um JSON válido, seguindo exatamente este modelo:\n"
-                "{\n"
-                "  \"DFD\": {\n"
-                "    \"texto_narrativo\": \"1. ... 2. ... 3. ...\",\n"
-                "    \"secoes\": {\n"
-                "      \"Contexto Institucional\": \"...\",\n"
-                "      \"Diagnóstico da Situação Atual\": \"...\",\n"
-                "      \"Fundamentação da Necessidade\": \"...\",\n"
-                "      \"Objetivos da Contratação\": \"...\",\n"
-                "      \"Escopo Inicial da Demanda\": \"...\",\n"
-                "      \"Resultados Esperados\": \"...\",\n"
-                "      \"Benefícios Institucionais\": \"...\",\n"
-                "      \"Justificativa Legal\": \"...\",\n"
-                "      \"Riscos da Não Contratação\": \"...\",\n"
-                "      \"Requisitos Mínimos\": \"...\",\n"
-                "      \"Critérios de Sucesso\": \"...\"\n"
-                "    },\n"
-                "    \"lacunas\": [\"...\"]\n"
-                "  }\n"
-                "}\n\n"
-                "Não inclua comentários, explicações ou qualquer conteúdo fora do JSON final."
+                "Liste informações administrativas que NÃO apareçam no insumo.\n\n"
+                "=== FORMATO FINAL ===\n"
+                "{ \"DFD\": { \"texto_narrativo\": \"...\", \"secoes\": { ... }, \"lacunas\": [] } }\n"
+                "Responda APENAS com JSON válido."
             )
 
-        # ======================================================
-        # PROMPT PADRÃO (ETP, TR, EDITAL, CONTRATO)
-        # ======================================================
+        # Outros artefatos (ETP / TR / EDITAL etc.)
         return (
             f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
             "Produza um documento administrativo formal e retorne APENAS JSON estruturado."
@@ -176,10 +180,6 @@ class DocumentAgent:
 # 🔌 Função pública usada pelo pipeline DFD
 # ======================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
-    """
-    Função chamada pelo pipeline de INSUMOS.
-    Recebe o texto extraído do PDF e retorna o DFD estruturado.
-    """
 
     if not conteudo_textual or len(conteudo_textual.strip()) < 15:
         return {"erro": "Conteúdo insuficiente para processamento IA."}
