@@ -164,7 +164,6 @@ def obter_dfd_da_sessao() -> dict:
 
     return {}
 
-
 # ======================================================================
 # 💾 Salvar DFD consolidado
 # ======================================================================
@@ -196,6 +195,28 @@ def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_streamlit") -
         st.error(f"❌ Falha ao salvar DFD: {e}")
         return ""
 
+# ======================================================================
+# 🧾 Status para o cabeçalho da página Streamlit
+# ======================================================================
+def status_dfd() -> str:
+    """
+    Retorna mensagem sobre o status atual do DFD carregado.
+    Mantém compatibilidade com a página 02_DFD.
+    """
+    import streamlit as st
+    import os
+
+    # Sessão já possui DFD carregado
+    if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
+        return "✅ DFD carregado automaticamente (sessão ativa)"
+
+    base = os.path.join("exports", "insumos", "json")
+    ultimo = os.path.join(base, "DFD_ultimo.json")
+
+    if os.path.exists(ultimo):
+        return "🗂️ DFD disponível a partir dos insumos processados"
+
+    return "⚠️ Nenhum DFD disponível — envie um insumo pelo módulo INSUMOS."
 
 # ======================================================================
 # 🧠 IA → Geração de rascunho DFD
