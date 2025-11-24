@@ -101,7 +101,6 @@ class AIClient:
                 print(texto[:2000])
                 print("===== IA DEBUG END =====")
             except Exception as log_err:
-                # Nunca deixar o log quebrar a aplicação
                 print(f"[IA DEBUG] Falha ao imprimir diagnóstico: {log_err}")
 
             # ======================================================
