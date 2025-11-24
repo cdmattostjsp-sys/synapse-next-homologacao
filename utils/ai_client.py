@@ -1,5 +1,5 @@
 # ==========================================================
-# utils/ai_client.py — vNext_r3 (AJUSTE DEFINITIVO)
+# utils/ai_client.py — vNext_r4 (com diagnóstico em logs)
 # SynapseNext – Cliente Institucional OpenAI (TJSP)
 # ==========================================================
 
@@ -14,7 +14,7 @@ from openai import OpenAI
 class AIClient:
     """
     Cliente institucional padronizado para uso interno dos agentes IA.
-    Agora com arquitetura system/user correta para priorização do prompt.
+    Agora com diagnóstico detalhado via logs (prints no Streamlit).
     """
 
     def __init__(self, model: str = None):
@@ -30,6 +30,13 @@ class AIClient:
     # MÉTODO PRINCIPAL
     # ==========================================================
     def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
+        """
+        Envia prompt institucional + conteúdo de documento para o modelo
+        e retorna a resposta já tratada (dict ou texto cru).
+
+        Também registra informações de diagnóstico via prints
+        (visíveis nos logs do Streamlit Cloud).
+        """
 
         # ---------------------------------------------
         # Normalização do conteúdo recebido
@@ -39,11 +46,10 @@ class AIClient:
         elif not isinstance(conteudo, str):
             conteudo = str(conteudo)
 
-        # Apenas um trecho do documento é necessário
-        trecho_documento = conteudo[:8000]
+        conteudo = conteudo or ""
+        trecho_documento = conteudo[:8000]  # recorte para evitar excesso de contexto
 
         try:
-
             # ======================================================
             # 🔥 ESTRUTURA CORRIGIDA (system + user)
             # ======================================================
@@ -80,21 +86,51 @@ class AIClient:
 
             texto = resposta.choices[0].message.content.strip()
 
-            # TENTAR JSON DIRETO
+            # ======================================================
+            # 🔎 BLOCO DE DIAGNÓSTICO (LOGS STREAMLIT)
+            # ======================================================
             try:
-                return json.loads(texto)
+                print("===== IA DEBUG START =====")
+                print(f"[Modelo] {self.model} | [Artefato] {artefato}")
+                print(f"[Conteúdo] tamanho_total={len(conteudo)} | trecho_enviado={len(trecho_documento)}")
+                print("----- PROMPT (início) -----")
+                print(prompt[:1000])
+                print("----- DOCUMENTO (início) -----")
+                print(trecho_documento[:1000])
+                print("----- RESPOSTA BRUTA (início) -----")
+                print(texto[:2000])
+                print("===== IA DEBUG END =====")
+            except Exception as log_err:
+                # Nunca deixar o log quebrar a aplicação
+                print(f"[IA DEBUG] Falha ao imprimir diagnóstico: {log_err}")
+
+            # ======================================================
+            # Tentativa de conversão direta para JSON
+            # ======================================================
+            try:
+                parsed = json.loads(texto)
+                print("[IA DEBUG] json.loads(texto) OK (resposta já era JSON).")
+                return parsed
 
             except Exception:
+                print("[IA DEBUG] json.loads(texto) FALHOU – tentando limpar blocos ```json ... ```.")
+
                 # Limpando formatação de código se vier com blocos
                 if texto.startswith("```"):
-                    texto = texto.replace("```json", "").replace("```", "").strip()
+                    texto_limpo = texto.replace("```json", "").replace("```", "").strip()
+                else:
+                    texto_limpo = texto
 
                 try:
-                    return json.loads(texto)
+                    parsed = json.loads(texto_limpo)
+                    print("[IA DEBUG] json.loads(texto_limpo) OK após limpeza.")
+                    return parsed
                 except Exception:
+                    print("[IA DEBUG] Falha final ao interpretar JSON – devolvendo texto cru em 'resposta_texto'.")
                     return {"resposta_texto": texto}
 
         except Exception as e:
+            print(f"[IA DEBUG] EXCEÇÃO NA CHAMADA OPENAI: {e}")
             return {
                 "erro": f"❌ Falha na chamada OpenAI: {e}",
                 "modelo_utilizado": self.model,
