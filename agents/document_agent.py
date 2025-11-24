@@ -48,7 +48,7 @@ class DocumentAgent:
         self.ai = AIClient()  # Cliente IA institucional
 
     # ======================================================
-    # 🧠 GERAÇÃO DE CONTEÚDO VIA IA
+    # 🧠 GERAÇÃO DE CONTEÚDO VIA IA — vNext + LOGS
     # ======================================================
     def generate(self, conteudo_base: str) -> dict:
         """
@@ -56,7 +56,16 @@ class DocumentAgent:
         Retorna dicionário JSON estruturado e registra logs detalhados.
         """
 
+        # ============================
+        # LOG 1 — registro inicial
+        # ============================
+        print("\n\n>>> [DocumentAgent] generate() chamado.")
+        print(f">>> Artefato: {self.artefato}")
+        print(f">>> Tamanho do conteúdo recebido: {len(conteudo_base or '')}")
+
         prompt = self._montar_prompt_institucional()
+
+        # Criar payload de auditoria
         log_payload = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "artefato": self.artefato,
@@ -65,72 +74,95 @@ class DocumentAgent:
             "prompt_usado": prompt,
         }
 
+        print(">>> [DocumentAgent] Prompt institucional carregado.")
+        print(">>> [DocumentAgent] Prévia do prompt:")
+        print(prompt[:500], "...\n")
+
         try:
-            # =========================
-            # 🔥 Chamada para IA
-            # =========================
+            print(">>> [DocumentAgent] Chamando AIClient.ask() ...")
             resposta = self.ai.ask(
                 prompt=prompt,
                 conteudo=conteudo_base,
                 artefato=self.artefato,
             )
 
-            log_payload["resposta_bruta"] = resposta
+            print(">>> [DocumentAgent] Retorno bruto da IA:")
+            print(resposta)
 
-            # =========================
-            # 🎯 Caso resposta não seja dict
-            # =========================
+            # Resposta precisa ser um dicionário
             if not isinstance(resposta, dict):
-                log_payload["resultado_final"] = {
-                    "erro": "Resposta IA inválida (não é dict)."
-                }
-                _registrar_log_document_agent(log_payload)
+                print(">>> [DocumentAgent][ERRO] Retorno não é dict.")
                 return {"erro": "Resposta IA inválida ou vazia."}
 
             # ==================================================
-            # CASO 1 – {"resposta_texto": "..."} → tentar interpretar
+            # CASO 1 – AIClient NÃO conseguiu json.loads()
+            #         e devolveu {"resposta_texto": "..."}
             # ==================================================
             if "resposta_texto" in resposta:
+                print(">>> [DocumentAgent] IA retornou resposta_texto (não JSON).")
+
                 texto_bruto = (resposta.get("resposta_texto") or "").strip()
 
+                if not texto_bruto:
+                    print(">>> [DocumentAgent][ERRO] texto_bruto vazio.")
+                    return {"erro": "IA não retornou conteúdo textual."}
+
                 if texto_bruto.startswith("```json"):
-                    texto_bruto = texto_bruto.replace("```json", "").replace("```", "").strip()
+                    texto_bruto = (
+                        texto_bruto.replace("```json", "")
+                        .replace("```", "")
+                        .strip()
+                    )
 
                 try:
                     parsed = json.loads(texto_bruto)
+                    print(">>> [DocumentAgent] JSON reprocessado manualmente com sucesso.")
+
                     if isinstance(parsed, dict) and "DFD" in parsed:
-                        final = parsed["DFD"]
-                    else:
-                        final = parsed
+                        return parsed["DFD"]
 
-                except Exception:
-                    final = {"Conteúdo": texto_bruto}
+                    return parsed
 
-                log_payload["resultado_final"] = final
-                _registrar_log_document_agent(log_payload)
-                return final
+                except Exception as e:
+                    print(f">>> [DocumentAgent][WARN] IA devolveu texto puro, sem JSON. Erro: {e}")
+                    return {"Conteúdo": texto_bruto}
 
             # ==================================================
-            # CASO 2 – IA já retornou JSON parseado
+            # CASO 2 – AIClient JÁ devolveu JSON parseado
             # ==================================================
-            if "DFD" in resposta and isinstance(resposta["DFD"], dict):
-                final = resposta["DFD"]
-                log_payload["resultado_final"] = final
-                _registrar_log_document_agent(log_payload)
-                return final
+            if "DFD" in resposta:
+                print(">>> [DocumentAgent] JSON já contém DFD estruturado.")
+
+                dfd = resposta.get("DFD")
+                
+                # 🔥 registrar log
+                log_payload["resposta_bruta_ia"] = resposta
+                logfile = _registrar_log_document_agent(log_payload)
+                print(f">>> [DocumentAgent] Log salvo em: {logfile}")
+
+                if isinstance(dfd, dict):
+                    return dfd
 
             # Caso geral
-            log_payload["resultado_final"] = resposta
-            _registrar_log_document_agent(log_payload)
+            print(">>> [DocumentAgent] JSON retornado diretamente.")
+
+            # 🔥 registrar log
+            log_payload["resposta_bruta_ia"] = resposta
+            logfile = _registrar_log_document_agent(log_payload)
+            print(f">>> [DocumentAgent] Log salvo em: {logfile}")
+
             return resposta
 
         except Exception as e:
+            print(f">>> [DocumentAgent][ERRO FATAL] Exceção inesperada: {e}")
 
-            erro_dict = {"erro": f"Falha na geração do documento ({e})"}
-            log_payload["resultado_final"] = erro_dict
-            _registrar_log_document_agent(log_payload)
+            # 🔥 registrar log de erro
+            log_payload["erro"] = str(e)
+            logfile = _registrar_log_document_agent(log_payload)
+            print(f">>> [DocumentAgent] Log salvo em: {logfile}")
 
-            return erro_dict
+            return {"erro": f"Falha na geração do documento ({e})"}
+
 
     # ======================================================
     # 🧩 PROMPT INSTITUCIONAL – *vNext* (Modernizado)
