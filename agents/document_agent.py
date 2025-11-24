@@ -1,7 +1,7 @@
 # ==========================================================
 # agents/document_agent.py — Versão D2 (Modo B – Equilibrado)
 # SynapseNext – SAAB / Tribunal de Justiça do Estado de São Paulo
-# Revisão: 2025-11-24
+# Revisão: 2025-11-24 — Versão Consolidada e Corrigida
 # ==========================================================
 
 from __future__ import annotations
@@ -36,17 +36,17 @@ def _sanear_numeros_na_resposta(resposta_dict: dict, conteudo_fonte: str) -> dic
         return resposta_dict
 
     fonte = str(conteudo_fonte or "")
-    padrao_numeros = re.compile(r"\d[\d\.\,]*")
+    padrao = re.compile(r"\d[\d\.\,]*")
 
     def limpar(txt: str) -> str:
         if not isinstance(txt, str):
             return txt
 
-        def sub(m: re.Match) -> str:
-            token = m.group(0)
-            return token if token in fonte else "[VALOR A DEFINIR]"
+        def replace_fn(m: re.Match) -> str:
+            num = m.group(0)
+            return num if num in fonte else "[VALOR A DEFINIR]"
 
-        return padrao_numeros.sub(sub, txt)
+        return padrao.sub(replace_fn, txt)
 
     def varrer(obj):
         if isinstance(obj, dict):
@@ -61,7 +61,7 @@ def _sanear_numeros_na_resposta(resposta_dict: dict, conteudo_fonte: str) -> dic
 
 
 # ==========================================================
-# 🔒 SANEAR SEÇÕES OBRIGATÓRIAS (Modo B – Elaborado)
+# 🔒 SEÇÕES OBRIGATÓRIAS
 # ==========================================================
 SECOES_OBRIGATORIAS = [
     "Contexto Institucional",
@@ -81,9 +81,8 @@ SECOES_OBRIGATORIAS = [
 def _sanear_secoes(resposta: dict) -> dict:
     """
     Garante que todas as 11 seções existam.
-    Se faltar alguma, insere placeholder institucional.
+    Insere placeholder institucional quando faltar conteúdo.
     """
-
     secoes = resposta.get("secoes", {})
     if not isinstance(secoes, dict):
         secoes = {}
@@ -97,40 +96,36 @@ def _sanear_secoes(resposta: dict) -> dict:
 
 
 # ==========================================================
-# 🔒 SANEAR TEXTO NARRATIVO
+# 🔒 Sanitização do texto narrativo
 # ==========================================================
-def _sanear_texto_narrativo(texto: str) -> str:
-    if not isinstance(texto, str) or len(texto.strip()) < 10:
+def _sanear_texto_narrativo(txt: str) -> str:
+    if not isinstance(txt, str) or len(txt.strip()) < 10:
         return "Conteúdo não identificado de forma suficiente no insumo."
-    return texto.strip()
+    return txt.strip()
 
 
 # ==========================================================
-# 🤖 DOCUMENT AGENT D2 – Geração Final
+# 🤖 DOCUMENT AGENT – Cenário D2 (Equilíbrio entre detalhado e preciso)
 # ==========================================================
 class DocumentAgent:
-    """
-    Agente institucional para geração de artefatos administrativos.
-    Compatível com AIClient (response_format=json_object).
-    """
 
     def __init__(self, artefato: str):
         self.artefato = artefato.upper()
         self.ai = AIClient()
 
-    # ======================================================
-    # 🧠 EXECUTAR GERAÇÃO VIA IA
-    # ======================================================
+    # ------------------------------------------------------
+    # 🧠 GERAÇÃO PRINCIPAL
+    # ------------------------------------------------------
     def generate(self, conteudo_base: str) -> dict:
-        print("\n>>> DocumentAgent(D2) – Iniciando geração")
+        print("\n>>> DocumentAgent(D2) iniciado")
         print(f"Artefato: {self.artefato}")
         print(f"Tamanho do insumo: {len(conteudo_base)}")
 
         prompt = self._montar_prompt_institucional()
 
-        # --------------------------------------------------
-        # 🔥 CHAMADA AO CLIENTE IA
-        # --------------------------------------------------
+        # ==============================
+        # 🔥 Chamando a IA (AIClient)
+        # ==============================
         try:
             resposta_raw = self.ai.ask(
                 prompt=prompt,
@@ -140,99 +135,102 @@ class DocumentAgent:
         except Exception as e:
             return {"erro": f"Falha na chamada IA: {e}"}
 
-        print(">>> Resposta RAW recebida da IA.")
+        print(">>> Resposta RAW recebida da IA")
 
         # --------------------------------------------------
-        # 1) IA já retornou JSON válido
+        # Normalização de resposta
         # --------------------------------------------------
         if isinstance(resposta_raw, dict) and "DFD" in resposta_raw:
             resposta = resposta_raw["DFD"]
-
-        # --------------------------------------------------
-        # 2) IA retornou dicionário genérico
-        # --------------------------------------------------
         elif isinstance(resposta_raw, dict):
             resposta = resposta_raw
-
         else:
-            # fallback improvável
             resposta = {"texto_narrativo": str(resposta_raw)}
 
-        # --------------------------------------------------
-        # 3) Sanitização TOTAL
-        # --------------------------------------------------
         if not isinstance(resposta, dict):
             resposta = {"texto_narrativo": str(resposta)}
 
-        # 3.1 texto narrativo
+        # --------------------------------------------------
+        # 🔧 SANITIZAÇÃO GLOBAL
+        # --------------------------------------------------
+
+        # 1) Texto narrativo
         resposta["texto_narrativo"] = _sanear_texto_narrativo(
             resposta.get("texto_narrativo", "")
         )
 
-        # 3.2 seções obrigatórias
+        # 2) Seções obrigatórias
         resposta = _sanear_secoes(resposta)
 
-        # 3.3 filtro anti-alucinação numérica
+        # 3) Filtro numérico anti-alucinação
         resposta = _sanear_numeros_na_resposta(resposta, conteudo_base)
 
-        # 3.4 lacunas
-        lacunas = resposta.get("lacunas", [])
-        if not isinstance(lacunas, list):
-            lacunas = []
-        resposta["lacunas"] = lacunas
+        # 4) Lacunas
+        lac = resposta.get("lacunas", [])
+        resposta["lacunas"] = lac if isinstance(lac, list) else []
 
-        print(">>> DocumentAgent(D2) – Sanitização concluída.")
+        print(">>> DocumentAgent(D2) — Sanitização finalizada.")
         return resposta
 
-    # ======================================================
-    # 📌 PROMPT – MODO B (Equilibrado)
-    # ======================================================
+    # ------------------------------------------------------
+    # 🧩 PROMPT INSTITUCIONAL (VERSÃO ALTA QUALIDADE)
+    # ------------------------------------------------------
     def _montar_prompt_institucional(self) -> str:
+
         if self.artefato == "DFD":
             return (
-                "Você é o agente institucional responsável por elaborar a Formalização da "
-                "Demanda (DFD) conforme práticas de governança do TJSP. "
-                "Com base EXCLUSIVA no texto do insumo, produza um DFD completo e profissional, "
-                "permitindo apenas complementações institucionais genéricas quando coerentes "
-                "e nunca inventando valores numéricos, prazos ou quantidades.\n\n"
-                "=== ENTREGAS ===\n"
-                "Você deve retornar APENAS JSON com estrutura:\n"
+                "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
+                "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                "Com base EXCLUSIVAMENTE no texto fornecido (insumo), produza um DFD completo, detalhado, formal e "
+                "conforme a Lei nº 14.133/2021.\n\n"
+
+                "=== OBJETIVO ===\n"
+                "Gerar um documento robusto, fiel ao insumo e com a seguinte estrutura:\n"
+                "1) 'texto_narrativo' — texto contínuo numerado de 1 a 11.\n"
+                "2) 'secoes' — objeto contendo as 11 seções obrigatórias.\n"
+                "3) 'lacunas' — lista de informações ausentes.\n\n"
+
+                "=== SEÇÕES OBRIGATÓRIAS ===\n"
+                "- Contexto Institucional\n"
+                "- Diagnóstico da Situação Atual\n"
+                "- Fundamentação da Necessidade\n"
+                "- Objetivos da Contratação\n"
+                "- Escopo Inicial da Demanda\n"
+                "- Resultados Esperados\n"
+                "- Benefícios Institucionais\n"
+                "- Justificativa Legal\n"
+                "- Riscos da Não Contratação\n"
+                "- Requisitos Mínimos\n"
+                "- Critérios de Sucesso\n\n"
+
+                "=== REGRAS DE PRODUÇÃO ===\n"
+                "• Utilize ao máximo o conteúdo do insumo — não resuma demais.\n"
+                "• É permitido produzir um texto LONGO; priorize completude.\n"
+                "• Evite generalizações vagas.\n"
+                "• Não invente valores, datas, normas, ou fatos não presentes no insumo.\n"
+                "• O texto deve ser técnico, impessoal e institucional.\n\n"
+
+                "=== FORMATO OBRIGATÓRIO ===\n"
+                "Responda APENAS com JSON:\n"
                 "{\n"
                 "  \"DFD\": {\n"
-                "     \"texto_narrativo\": \"...\",\n"
-                "     \"secoes\": {\n"
-                "        \"Contexto Institucional\": \"...\",\n"
-                "        \"Diagnóstico da Situação Atual\": \"...\",\n"
-                "        \"Fundamentação da Necessidade\": \"...\",\n"
-                "        \"Objetivos da Contratação\": \"...\",\n"
-                "        \"Escopo Inicial da Demanda\": \"...\",\n"
-                "        \"Resultados Esperados\": \"...\",\n"
-                "        \"Benefícios Institucionais\": \"...\",\n"
-                "        \"Justificativa Legal\": \"...\",\n"
-                "        \"Riscos da Não Contratação\": \"...\",\n"
-                "        \"Requisitos Mínimos\": \"...\",\n"
-                "        \"Critérios de Sucesso\": \"...\"\n"
-                "     },\n"
-                "     \"lacunas\": []\n"
+                "    \"texto_narrativo\": \"1. ... 11. ...\",\n"
+                "    \"secoes\": { ... },\n"
+                "    \"lacunas\": [ ... ]\n"
                 "  }\n"
-                "}\n\n"
-                "=== INSTRUÇÕES ===\n"
-                "- Não invente valores numéricos.\n"
-                "- Não utilize informações externas ao insumo.\n"
-                "- Permita complementações institucionais gerais, sem criar dados.\n"
-                "- Texto deve ser robusto, coerente e bem redigido.\n"
-                "- Responda somente JSON.\n"
+                "}"
             )
 
+        # Default para outros artefatos
         return (
-            f"Você é o agente institucional para o artefato {self.artefato}. "
-            "Retorne APENAS JSON estruturado."
+            f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
+            "Produza APENAS JSON estruturado e formal, seguindo normas administrativas."
         )
 
 
-# ======================================================
+# ==========================================================
 # 🔌 Função pública usada pelo pipeline INSUMOS
-# ======================================================
+# ==========================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
     if not conteudo_textual or len(conteudo_textual.strip()) < 15:
         return {"erro": "Conteúdo insuficiente para processamento IA."}
