@@ -134,11 +134,11 @@ def _carregar_dfd_de_arquivo(caminho: str) -> dict:
     if isinstance(dados.get("resultado_ia"), dict):
         r = dados["resultado_ia"]
 
-        # Caso moderno
+        # Caso moderno (DFD Moderno-Governança)
         if isinstance(r, dict):
             if "DFD" in r and isinstance(r["DFD"], dict):
                 return _mapear_moderno_para_campos_legados(r)
-            # Se não tiver DFD mas tiver formato de IA antigo
+            # Se não tiver DFD mas tiver formato de IA antigo/genérico
             return _mapear_moderno_para_campos_legados(r)
 
     # ------------------------------------------------------------
@@ -272,6 +272,7 @@ def gerar_rascunho_dfd_com_ia() -> dict:
 
         bruto = processar_dfd_com_ia(texto)
 
+        # Desempacota {"timestamp": ..., "resultado_ia": {...}}
         if isinstance(bruto, dict) and "resultado_ia" in bruto:
             bruto = bruto["resultado_ia"]
 
