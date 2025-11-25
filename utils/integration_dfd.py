@@ -210,48 +210,46 @@ def status_dfd() -> str:
     return "⚠️ Nenhum DFD disponível — envie um insumo pelo módulo INSUMOS."
 
 
-# ======================================================================
-# 🧠 IA → Gerar rascunho do DFD
-# ======================================================================
-def gerar_rascunho_dfd_com_ia() -> dict:
-    base = os.path.join("exports", "insumos", "json")
-    ultimo = os.path.join(base, "DFD_ultimo.json")
+# ============================================================
+#  GERAÇÃO DO RASCUNHO DO DFD COM IA  (BLOCO CORRIGIDO)
+# ============================================================
 
-    if not os.path.exists(ultimo):
-        st.warning("⚠️ Nenhum insumo encontrado.")
-        return {}
+def gerar_rascunho_dfd_com_ia(texto_dfd: str):
+    """
+    Gera o DFD moderno usando a IA e retorna o JSON COMPLETO.
+    Esta versão NÃO achata o JSON para o formato antigo.
+    Mantém as seções, texto_narrativo, lacunas etc.
+    """
 
-    # Leitura do insumo
+    from agents.document_agent import processar_dfd_com_ia
+
     try:
-        with open(ultimo, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-        texto = (dados.get("conteudo_textual") or "").strip()
-    except Exception:
-        st.error("❌ Falha ao ler insumo.")
-        return {}
+        bruto = processar_dfd_com_ia(texto_dfd)
 
-    if len(texto) < 20:
-        st.error("⚠️ Texto insuficiente para IA.")
-        return {}
-
-    # Chamada IA
-    try:
-        from agents.document_agent import processar_dfd_com_ia
-        bruto = processar_dfd_com_ia(texto)
-
-        # unwrap IA
-        if "resultado_ia" in bruto:
+        # Caso venha encapsulado no padrão:
+        # {"timestamp": "...", "resultado_ia": {...}}
+        if isinstance(bruto, dict) and "resultado_ia" in bruto:
             bruto = bruto["resultado_ia"]
 
-        # Conversão p/ formulário
-        dfd_norm = _mapear_moderno_para_campos_legados(bruto)
-        if not dfd_norm:
-            st.warning("⚠️ A IA não retornou estrutura válida.")
-            return {}
+        # Caso venha no formato moderno (com seções), devolvemos intacto
+        if isinstance(bruto, dict) and (
+            "secoes" in bruto
+            or "texto_narrativo" in bruto
+            or "lacunas" in bruto
+        ):
+            dfd_final = bruto
 
-        st.session_state["dfd_campos_ai"] = dfd_norm
-        return dfd_norm
+        else:
+            # Caso MUITO antigo → converte para formato legado
+            dfd_final = _mapear_moderno_para_campos_legados(bruto)
+
+        # Salva no session_state para a página DFD usar
+        st.session_state["dfd_campos_ai"] = dfd_final
+
+        return dfd_final
 
     except Exception as e:
-        st.error(f"❌ Erro IA: {e}")
-        return {}
+        return {
+            "erro": str(e),
+            "mensagem": "Falha ao gerar rascunho do DFD com IA."
+        }
