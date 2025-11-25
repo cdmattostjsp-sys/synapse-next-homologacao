@@ -1,7 +1,7 @@
 # ==========================================================
-# agents/document_agent.py — Versão D2 (Modo B – Equilibrado)
+# agents/document_agent.py — Versão D2 (Universal – Opção B)
 # SynapseNext – SAAB / Tribunal de Justiça do Estado de São Paulo
-# Revisão Consolidada — 2025-11-24
+# Revisão Consolidada — 2025-11-25
 # ==========================================================
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from utils.ai_client import AIClient
 
 
 # ==========================================================
-# 🔧 SALVAR LOG OPCIONAL (não usado no fluxo principal)
+# 🔧 SALVAR LOG OPCIONAL
 # ==========================================================
 def _registrar_log_document_agent(payload: dict) -> str:
     try:
@@ -101,7 +101,7 @@ def _sanear_texto_narrativo(txt: str) -> str:
 
 
 # ==========================================================
-# 🤖 DOCUMENT AGENT – D2 (Equilibrado)
+# 🤖 DOCUMENT AGENT – D2
 # ==========================================================
 class DocumentAgent:
 
@@ -171,52 +171,39 @@ class DocumentAgent:
     def _montar_prompt_institucional(self) -> str:
 
         if self.artefato == "DFD":
+
             return (
-                "Você é o agente de Formalização da Demanda (DFD) da Secretaria de Administração e Abastecimento "
-                "(SAAB) do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                "Com base EXCLUSIVAMENTE no texto fornecido (insumo), produza um DFD completo, detalhado, formal e "
-                "conforme a Lei nº 14.133/2021.\n\n"
-
-                "=== ESTRUTURA OBRIGATÓRIA DO JSON ===\n"
-                "O JSON final DEVE conter obrigatoriamente as chaves:\n"
-                "- unidade_demandante\n"
-                "- responsavel\n"
-                "- prazo_estimado\n"
-                "- valor_estimado\n"
-                "- texto_narrativo\n"
-                "- secoes\n"
-                "- lacunas\n\n"
-
-                "Use string vazia para campos administrativos ausentes. "
-                "Use '0,00' para valor_estimado quando não houver valor no insumo.\n\n"
+                "Você é o agente institucional de Formalização da Demanda (DFD) do TJSP. "
+                "Receberá QUALQUER TEXTO (ETP, TR, edital, contrato, parecer, PDF solto ou texto informal) "
+                "e deverá PRODUZIR um DFD moderno completo, inferindo informações quando possível "
+                "e registrando lacunas quando necessário.\n\n"
 
                 "=== OBJETIVO ===\n"
-                "Gerar texto robusto e coerente com o insumo, cobrindo as 11 seções obrigatórias.\n\n"
+                "Gerar texto formal, robusto, coerente e aderente ao modelo institucional.\n\n"
 
-                "=== SEÇÕES OBRIGATÓRIAS ===\n"
-                "- Contexto Institucional\n"
-                "- Diagnóstico da Situação Atual\n"
-                "- Fundamentação da Necessidade\n"
-                "- Objetivos da Contratação\n"
-                "- Escopo Inicial da Demanda\n"
-                "- Resultados Esperados\n"
-                "- Benefícios Institucionais\n"
-                "- Justificativa Legal\n"
-                "- Riscos da Não Contratação\n"
-                "- Requisitos Mínimos\n"
-                "- Critérios de Sucesso\n\n"
-
-                "=== FORMATO FINAL (OBRIGATÓRIO) ===\n"
-                "Responda APENAS com JSON:\n"
+                "=== FORMATO (OBRIGATÓRIO) ===\n"
+                "Responda APENAS com JSON contendo:\n"
                 "{\n"
                 "  \"DFD\": {\n"
                 "    \"unidade_demandante\": \"\",\n"
                 "    \"responsavel\": \"\",\n"
                 "    \"prazo_estimado\": \"\",\n"
                 "    \"valor_estimado\": \"0,00\",\n"
-                "    \"texto_narrativo\": \"1. ... 11. ...\",\n"
-                "    \"secoes\": { ... },\n"
-                "    \"lacunas\": [ ... ]\n"
+                "    \"texto_narrativo\": \"...\",\n"
+                "    \"secoes\": {\n"
+                "      \"Contexto Institucional\": \"...\",\n"
+                "      \"Diagnóstico da Situação Atual\": \"...\",\n"
+                "      \"Fundamentação da Necessidade\": \"...\",\n"
+                "      \"Objetivos da Contratação\": \"...\",\n"
+                "      \"Escopo Inicial da Demanda\": \"...\",\n"
+                "      \"Resultados Esperados\": \"...\",\n"
+                "      \"Benefícios Institucionais\": \"...\",\n"
+                "      \"Justificativa Legal\": \"...\",\n"
+                "      \"Riscos da Não Contratação\": \"...\",\n"
+                "      \"Requisitos Mínimos\": \"...\",\n"
+                "      \"Critérios de Sucesso\": \"...\"\n"
+                "    },\n"
+                "    \"lacunas\": []\n"
                 "  }\n"
                 "}"
             )
@@ -228,16 +215,29 @@ class DocumentAgent:
 
 
 # ==========================================================
-# 🔌 Função pública do pipeline INSUMOS
+# 🟦 Função universal — versão B
 # ==========================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
+    """
+    Função UNIVERSAL: aceita qualquer texto como insumo.
+    Não exige ser um DFD anterior.
+    Não depende do tipo de documento.
+    """
+
     if not conteudo_textual or len(conteudo_textual.strip()) < 15:
         return {"erro": "Conteúdo insuficiente para processamento IA."}
 
-    agente = DocumentAgent("DFD")
-    resultado = agente.generate(conteudo_textual)
+    try:
+        agente = DocumentAgent("DFD")
+        resultado = agente.generate(conteudo_textual)
 
-    return {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "resultado_ia": resultado,
-    }
+        return {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "resultado_ia": resultado,
+        }
+
+    except Exception as e:
+        return {
+            "erro": f"Falha ao gerar DFD universal: {e}",
+            "conteudo_recebido": conteudo_textual[:500]
+        }
