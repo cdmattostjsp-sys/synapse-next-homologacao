@@ -14,6 +14,37 @@ import glob
 import streamlit as st
 from datetime import datetime
 
+
+# ==========================================================
+# 🔧 Fallback: construir campos básicos a partir de conteudo_textual
+# ==========================================================
+def _construir_campos_basicos_a_partir_do_texto(texto: str) -> dict:
+    """
+    Quando não houver 'campos_ai' nem 'campos' no JSON de insumo,
+    usamos o texto bruto como ponto de partida para pré-preencher o formulário.
+
+    Estratégia simples (mas funcional):
+      - requisitos  <- texto completo
+      - custos      <- vazio
+      - riscos      <- vazio
+      - responsavel_tecnico <- vazio
+
+    Isso permite demonstrar a viabilidade do sistema:
+    o usuário já recebe o formulário preenchido com o texto do ETP,
+    e pode editar/refinar, além de acionar a IA institucional depois.
+    """
+    texto = (texto or "").strip()
+    if not texto:
+        return {}
+
+    return {
+        "requisitos": texto,
+        "custos": "",
+        "riscos": "",
+        "responsavel_tecnico": "",
+    }
+
+
 # ==========================================================
 # 🧠 Função principal – obter ETP ativo
 # ==========================================================
@@ -25,24 +56,37 @@ def obter_etp_da_sessao() -> dict:
     1️⃣ st.session_state["etp_campos_ai"]
     2️⃣ exports/insumos/json/ETP_ultimo.json
     3️⃣ Último arquivo ETP_*.json no diretório de insumos
+    4️⃣ Fallback: usar 'conteudo_textual' do insumo bruto
     """
 
     # 1️⃣ Sessão ativa
     if "etp_campos_ai" in st.session_state and st.session_state["etp_campos_ai"]:
         return st.session_state["etp_campos_ai"]
 
-    # 2️⃣ Último insumo salvo (ETP_ultimo.json)
+    # Diretório base
     base_dir = os.path.join("exports", "insumos", "json")
     ultimo_json = os.path.join(base_dir, "ETP_ultimo.json")
 
+    # 2️⃣ Último insumo salvo (ETP_ultimo.json)
     if os.path.exists(ultimo_json):
         try:
             with open(ultimo_json, "r", encoding="utf-8") as f:
                 dados = json.load(f)
-            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
-            if campos:
+
+            # Caso já exista estrutura consolidada
+            campos = dados.get("campos_ai") or dados.get("campos")
+            if isinstance(campos, dict) and campos:
                 st.session_state["etp_campos_ai"] = campos
                 return campos
+
+            # Fallback: usar conteudo_textual do insumo bruto
+            texto = (dados.get("conteudo_textual") or "").strip()
+            if texto:
+                campos_fallback = _construir_campos_basicos_a_partir_do_texto(texto)
+                if campos_fallback:
+                    st.session_state["etp_campos_ai"] = campos_fallback
+                    return campos_fallback
+
         except Exception as e:
             st.warning(f"⚠️ Falha ao ler ETP_ultimo.json: {e}")
 
@@ -56,12 +100,26 @@ def obter_etp_da_sessao() -> dict:
         for arquivo in arquivos:
             if "ETP_ultimo.json" in arquivo:
                 continue
-            with open(arquivo, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            campos = dados.get("campos_ai", {}) or dados.get("campos", {})
-            if campos:
-                st.session_state["etp_campos_ai"] = campos
-                return campos
+            try:
+                with open(arquivo, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+
+                campos = dados.get("campos_ai") or dados.get("campos")
+                if isinstance(campos, dict) and campos:
+                    st.session_state["etp_campos_ai"] = campos
+                    return campos
+
+                texto = (dados.get("conteudo_textual") or "").strip()
+                if texto:
+                    campos_fallback = _construir_campos_basicos_a_partir_do_texto(texto)
+                    if campos_fallback:
+                        st.session_state["etp_campos_ai"] = campos_fallback
+                        return campos_fallback
+
+            except Exception:
+                # Se der erro em um arquivo, tenta o próximo
+                continue
+
     except Exception as e:
         st.warning(f"⚠️ Nenhum ETP válido encontrado ({e})")
 
@@ -108,8 +166,10 @@ def salvar_etp_em_json(campos_etp: dict, origem: str = "formulario") -> str:
 def status_etp():
     """Retorna uma string de status para exibição no topo do módulo ETP."""
     if "etp_campos_ai" in st.session_state and st.session_state["etp_campos_ai"]:
-        return "✅ Dados carregados automaticamente (sessão ativa ou JSON)"
+        return "✅ Dados carregados automaticamente (sessão ativa ou JSON)."
+
     base_dir = os.path.join("exports", "insumos", "json")
     if os.path.exists(os.path.join(base_dir, "ETP_ultimo.json")):
         return "🗂️ Dados disponíveis no último processamento de INSUMOS."
+
     return "⚠️ Nenhum ETP ativo encontrado – envie um insumo em '🔧 Insumos'."
