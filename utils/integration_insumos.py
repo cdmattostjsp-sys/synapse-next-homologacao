@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-integration_insumos.py – versão estável 2025 (multi-artefato)
+integration_insumos.py – versão estável 2025-D2
 Compatível com fluxo DFD / ETP / TR / EDITAL
 """
 
@@ -15,10 +15,10 @@ import docx2txt
 
 
 # ----------------------------------------------------------
-# Detectar tipo
+# Detectar tipo de arquivo
 # ----------------------------------------------------------
 def detectar_tipo(nome: str) -> str:
-    nome = nome.lower()
+    nome = (nome or "").lower()
     if nome.endswith(".pdf"):
         return "pdf"
     if nome.endswith(".docx"):
@@ -29,13 +29,15 @@ def detectar_tipo(nome: str) -> str:
 
 
 # ----------------------------------------------------------
-# Extrair texto local
+# Extrair texto local (sempre string)
 # ----------------------------------------------------------
 def extrair_texto_local(caminho: str, tipo: str) -> str:
     """
-    SEMPRE retorna string.
-    Nunca retorna dict.
+    SEMPRE retorna string (pode ser vazia).
+    Nunca retorna dict nem None.
     """
+    if not caminho or not os.path.exists(caminho):
+        return ""
 
     if tipo == "pdf":
         try:
@@ -53,7 +55,8 @@ def extrair_texto_local(caminho: str, tipo: str) -> str:
 
     if tipo == "txt":
         try:
-            return open(caminho, "r", encoding="utf-8").read()
+            with open(caminho, "r", encoding="utf-8") as f:
+                return f.read()
         except Exception:
             return ""
 
@@ -61,58 +64,72 @@ def extrair_texto_local(caminho: str, tipo: str) -> str:
 
 
 # ----------------------------------------------------------
-# Processar insumo
+# Processar insumo (DFD / ETP / TR / EDITAL)
 # ----------------------------------------------------------
 def processar_insumo(uploaded_file, artefato: str = "DFD") -> dict:
     """
-    Processa um arquivo de insumo (PDF / DOCX / TXT) e salva o texto
-    em exports/insumos/json/<ARTEFATO>_ultimo.json.
+    Processa o arquivo enviado e salva um JSON bruto de insumo em:
+      exports/insumos/json/<ARTEFATO>_ultimo.json
 
-    artefato: "DFD", "ETP", "TR", "EDITAL" etc.
+    O JSON contém:
+      - artefato (DFD / ETP / TR / EDITAL)
+      - arquivo (nome original)
+      - tipo (pdf / docx / txt)
+      - conteudo_textual (texto extraído)
+      - data_processamento
     """
+
     if uploaded_file is None:
         st.warning("Nenhum arquivo enviado.")
         return {}
 
-    artefato = (artefato or "DFD").upper()
+    artefato = (artefato or "DFD").upper().strip()
+    if artefato not in {"DFD", "ETP", "TR", "EDITAL"}:
+        # fallback seguro
+        artefato = "DFD"
 
     nome = uploaded_file.name
     tipo = detectar_tipo(nome)
 
     if tipo == "desconhecido":
-        st.error("Formato não suportado. Use PDF, DOCX ou TXT.")
+        st.error("Formato de arquivo não suportado. Use PDF, DOCX ou TXT.")
         return {}
 
-    st.info(f"📄 Tipo detectado: **{tipo.upper()}** (artefato: {artefato})")
+    st.info(f"📄 Arquivo: **{nome}** — tipo detectado: **{tipo.upper()}**")
+    st.caption(f"Artefato de destino selecionado: **{artefato}**")
 
-    # -------------------------------
-    # Salvar arquivo em temp_insumo
-    # -------------------------------
+    # ---------------------------------------------
+    # Salvar arquivo físico temporário
+    # ---------------------------------------------
     temp_dir = "temp_insumo"
     os.makedirs(temp_dir, exist_ok=True)
     temp_path = os.path.join(temp_dir, nome)
 
-    with open(temp_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+    try:
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+    except Exception as e:
+        st.error(f"❌ Falha ao salvar arquivo temporário: {e}")
+        return {}
 
-    # -------------------------------
+    # ---------------------------------------------
     # Extrair texto
-    # -------------------------------
+    # ---------------------------------------------
     texto = extrair_texto_local(temp_path, tipo)
 
     if not isinstance(texto, str):
-        st.error("Erro interno: extração não retornou texto.")
+        st.error("❌ Erro interno: a extração de texto não retornou string.")
         return {}
 
     texto = texto.strip()
 
     if len(texto) < 20:
-        st.error("O arquivo não possui texto legível suficiente para processamento.")
+        st.error("⚠️ O arquivo não possui texto legível suficiente para processamento.")
         return {}
 
-    # -------------------------------
-    # Montar payload genérico
-    # -------------------------------
+    # ---------------------------------------------
+    # Montar payload padrão de insumo
+    # ---------------------------------------------
     payload = {
         "artefato": artefato,
         "arquivo": nome,
@@ -121,31 +138,30 @@ def processar_insumo(uploaded_file, artefato: str = "DFD") -> dict:
         "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    # -------------------------------
-    # Salvar JSON por artefato
-    # -------------------------------
+    # ---------------------------------------------
+    # Salvar JSON em exports/insumos/json
+    # ---------------------------------------------
     base = os.path.join("exports", "insumos", "json")
     os.makedirs(base, exist_ok=True)
 
-    # Ex.: DFD_ultimo.json, ETP_ultimo.json, TR_ultimo.json...
-    arquivo_ultimo = os.path.join(base, f"{artefato}_ultimo.json")
-    arquivo_historico = os.path.join(
-        base,
-        f"{artefato}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-    )
+    slug = artefato  # já está em maiúsculas
+    arquivo_ultimo = os.path.join(base, f"{slug}_ultimo.json")
+    arquivo_ts = os.path.join(base, f"{slug}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
 
     try:
         with open(arquivo_ultimo, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
-        with open(arquivo_historico, "w", encoding="utf-8") as f:
+        with open(arquivo_ts, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
-        st.success(f"✅ Insumo para o artefato {artefato} processado com sucesso!")
-        st.caption(f"💾 Arquivo salvo em: {arquivo_ultimo}")
-
+        st.success(f"✅ Insumo para **{artefato}** processado e salvo com sucesso.")
+        st.toast(
+            f"💾 Resultado armazenado em exports/insumos/json/ ({slug}_ultimo.json)",
+            icon="📁",
+        )
         return payload
 
     except Exception as e:
-        st.error(f"❌ Falha ao salvar JSON de insumo para {artefato}: {e}")
+        st.error(f"❌ Falha ao salvar JSON de insumo: {e}")
         return {}
