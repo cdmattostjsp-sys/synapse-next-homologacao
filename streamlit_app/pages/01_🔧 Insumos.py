@@ -1,7 +1,7 @@
 # ==========================================================
 # pages/01_🔧 Insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – INC-2025-11-09 (versão unificada e otimizada)
+# Revisão: Engenheiro Synapse – Versão 2025-D3 (Cloud-stable)
 # ==========================================================
 
 import os
@@ -24,6 +24,10 @@ st.set_page_config(
     page_icon="🧩"
 )
 
+# Limpeza de estado antigo que causava conflito no Cloud
+# (garante que o file_uploader nasça "limpo")
+st.session_state.pop("insumo_upload", None)
+
 # Aplicar estilo e cabeçalho institucional
 aplicar_estilo_global()
 exibir_cabecalho_padrao(
@@ -41,7 +45,7 @@ st.subheader("📎 Envio de documento administrativo")
 uploaded_file = st.file_uploader(
     "Selecione o arquivo de insumo (formatos aceitos: TXT, DOCX, PDF)",
     type=["txt", "docx", "pdf"],
-    key="insumo_upload"
+    key="insumo_upload_v2"   # 🔥 chave nova para evitar conflito do Cloud
 )
 
 # ==========================================================
@@ -63,18 +67,19 @@ if uploaded_file is not None:
     if st.button(f"🚀 Processar e encaminhar para {artefato}", key="btn_processar_insumo"):
         with st.spinner(f"Processando insumo para o módulo {artefato}..."):
             try:
-                # ✅ Processamento via motor IA institucional (AIClient encapsulado)
                 resultado = processar_insumo(uploaded_file, artefato)
 
                 if resultado:
-                    # ✅ O próprio processar_insumo já salva o JSON consolidado em:
-                    # exports/insumos/json/<ARTEFATO>_ultimo.json
                     st.success(f"✅ Insumo {artefato} processado com sucesso e integrado ao módulo {artefato}.")
-                    st.toast("💾 Resultado armazenado em exports/insumos/json/ (ex: DFD_ultimo.json)", icon="📁")
+                    st.toast(
+                        "💾 Resultado armazenado em exports/insumos/json/ (ex: DFD_ultimo.json)",
+                        icon="📁"
+                    )
                 else:
                     st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
             except Exception as e:
                 st.error(f"❌ Erro ao processar insumo: {e}")
+
 else:
     st.info("Aguardando seleção de arquivo para iniciar o processamento.")
 
