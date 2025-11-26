@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-integration_insumos.py – versão estável 2025-D2
+integration_insumos.py – versão estável 2025-D3
 Compatível com fluxo DFD / ETP / TR / EDITAL
+Ajustado para Streamlit Cloud (leitura via stream /tmp-safe)
 """
 
 from __future__ import annotations
+
 import os
 import json
-import streamlit as st
+import tempfile
 from datetime import datetime
 
-from utils.parser_pdf import extract_text_from_pdf
+import streamlit as st
+import fitz  # PyMuPDF – usado com stream em memória
 import docx2txt
 
 
@@ -18,6 +21,9 @@ import docx2txt
 # Detectar tipo de arquivo
 # ----------------------------------------------------------
 def detectar_tipo(nome: str) -> str:
+    """
+    Detecta o tipo de arquivo com base na extensão.
+    """
     nome = (nome or "").lower()
     if nome.endswith(".pdf"):
         return "pdf"
@@ -29,37 +35,77 @@ def detectar_tipo(nome: str) -> str:
 
 
 # ----------------------------------------------------------
-# Extrair texto local (sempre string)
+# Extração de texto a partir dos bytes do upload
+# (sem depender de caminho físico no container)
 # ----------------------------------------------------------
-def extrair_texto_local(caminho: str, tipo: str) -> str:
+def extrair_texto_de_upload(uploaded_file, tipo: str) -> str:
     """
-    SEMPRE retorna string (pode ser vazia).
-    Nunca retorna dict nem None.
+    Recebe o UploadedFile do Streamlit e retorna SEMPRE uma string de texto.
+    Em caso de falha, retorna string vazia.
     """
-    if not caminho or not os.path.exists(caminho):
+    if uploaded_file is None:
         return ""
 
+    # Lê o conteúdo bruto em memória (bytes)
+    try:
+        arquivo_bytes = uploaded_file.getvalue()
+    except Exception:
+        # fallback defensivo
+        try:
+            arquivo_bytes = uploaded_file.read()
+        except Exception:
+            return ""
+
+    if not arquivo_bytes:
+        return ""
+
+    # ---------------- PDF ----------------
     if tipo == "pdf":
         try:
-            txt = extract_text_from_pdf(caminho)
-            return txt if isinstance(txt, str) else ""
-        except Exception:
+            texto_paginas = []
+            # Leitura via stream (compatível com PyMuPDF >= 1.26.6)
+            with fitz.open(stream=arquivo_bytes, filetype="pdf") as pdf:
+                for pagina in pdf:
+                    texto_paginas.append(pagina.get_text("text"))
+
+            return "\n".join(texto_paginas).strip()
+        except Exception as e:
+            # Não expõe erro interno ao usuário final; retorna vazio
+            # e deixa o fluxo superior tratar como "sem texto suficiente".
+            print(f"[integration_insumos] Erro ao extrair texto de PDF via stream: {e}")
             return ""
 
+    # ---------------- DOCX ----------------
     if tipo == "docx":
         try:
-            txt = docx2txt.process(caminho)
-            return txt if isinstance(txt, str) else ""
-        except Exception:
+            # Usa arquivo temporário em /tmp (mais seguro no Cloud)
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".docx"
+            ) as tmp:
+                tmp.write(arquivo_bytes)
+                tmp_path = tmp.name
+
+            try:
+                txt = docx2txt.process(tmp_path)
+                return txt if isinstance(txt, str) else ""
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[integration_insumos] Erro ao extrair texto de DOCX: {e}")
             return ""
 
+    # ---------------- TXT ----------------
     if tipo == "txt":
         try:
-            with open(caminho, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception:
+            return arquivo_bytes.decode("utf-8", errors="ignore")
+        except Exception as e:
+            print(f"[integration_insumos] Erro ao extrair texto de TXT: {e}")
             return ""
 
+    # Tipo desconhecido
     return ""
 
 
@@ -79,6 +125,9 @@ def processar_insumo(uploaded_file, artefato: str = "DFD") -> dict:
       - data_processamento
     """
 
+    # ---------------------------------------------
+    # Validação básica
+    # ---------------------------------------------
     if uploaded_file is None:
         st.warning("Nenhum arquivo enviado.")
         return {}
@@ -99,23 +148,9 @@ def processar_insumo(uploaded_file, artefato: str = "DFD") -> dict:
     st.caption(f"Artefato de destino selecionado: **{artefato}**")
 
     # ---------------------------------------------
-    # Salvar arquivo físico temporário
+    # Extração de texto diretamente do upload
     # ---------------------------------------------
-    temp_dir = "temp_insumo"
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_path = os.path.join(temp_dir, nome)
-
-    try:
-        with open(temp_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-    except Exception as e:
-        st.error(f"❌ Falha ao salvar arquivo temporário: {e}")
-        return {}
-
-    # ---------------------------------------------
-    # Extrair texto
-    # ---------------------------------------------
-    texto = extrair_texto_local(temp_path, tipo)
+    texto = extrair_texto_de_upload(uploaded_file, tipo)
 
     if not isinstance(texto, str):
         st.error("❌ Erro interno: a extração de texto não retornou string.")
@@ -140,13 +175,20 @@ def processar_insumo(uploaded_file, artefato: str = "DFD") -> dict:
 
     # ---------------------------------------------
     # Salvar JSON em exports/insumos/json
+    # (mantém compatibilidade com DFD e demais módulos)
     # ---------------------------------------------
     base = os.path.join("exports", "insumos", "json")
-    os.makedirs(base, exist_ok=True)
+    try:
+        os.makedirs(base, exist_ok=True)
+    except Exception as e:
+        st.error(f"❌ Falha ao preparar diretório de exportação: {e}")
+        return {}
 
     slug = artefato  # já está em maiúsculas
     arquivo_ultimo = os.path.join(base, f"{slug}_ultimo.json")
-    arquivo_ts = os.path.join(base, f"{slug}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    arquivo_ts = os.path.join(
+        base, f"{slug}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
 
     try:
         with open(arquivo_ultimo, "w", encoding="utf-8") as f:
