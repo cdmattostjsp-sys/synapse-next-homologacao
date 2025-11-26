@@ -8,11 +8,10 @@ headless = true
 enableCORS = false
 enableXsrfProtection = true
 
-# Define o diretório de trabalho como a raiz do repositório
-workingDirectory = "."
-
-# Define explicitamente o script principal
-mainScriptPath = "streamlit_app/Home.py"
+# AS LINHAS ABAIXO FORAM COMENTADAS POIS ESTAVAM CAUSANDO ERRO NO DEPLOY
+# O Streamlit Cloud agora gerencia esses caminhos automaticamente.
+# workingDirectory = "."
+# mainScriptPath = "streamlit_app/Home.py"
 
 [theme]
 base = "light"
@@ -21,4 +20,3 @@ backgroundColor = "#f6f8fa"
 secondaryBackgroundColor = "#ffffff"
 textColor = "#000000"
 font = "sans serif"
-
