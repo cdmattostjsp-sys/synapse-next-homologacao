@@ -1,7 +1,7 @@
 # ==========================================================
 # pages/01_🔧 Insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – Versão 2025-D3 (Cloud-stable)
+# Revisão: Engenheiro Synapse – Versão 2025-D3 + DEBUG
 # ==========================================================
 
 import os
@@ -24,8 +24,7 @@ st.set_page_config(
     page_icon="🧩"
 )
 
-# Limpeza de estado antigo que causava conflito no Cloud
-# (garante que o file_uploader nasça "limpo")
+# Limpeza pontual de chave antiga que pode ter ficado em cache
 st.session_state.pop("insumo_upload", None)
 
 # Aplicar estilo e cabeçalho institucional
@@ -45,8 +44,16 @@ st.subheader("📎 Envio de documento administrativo")
 uploaded_file = st.file_uploader(
     "Selecione o arquivo de insumo (formatos aceitos: TXT, DOCX, PDF)",
     type=["txt", "docx", "pdf"],
-    key="insumo_upload_v2"   # 🔥 chave nova para evitar conflito do Cloud
+    key="insumo_upload_v3"   # chave NOVA para quebrar qualquer cache antigo
 )
+
+# 🔍 BLOCO DEBUG – VISIBILIDADE DE BACKEND
+with st.expander("🔍 DEBUG – Estado atual do uploader e sessão", expanded=False):
+    st.write("uploaded_file é None?", uploaded_file is None)
+    if uploaded_file is not None:
+        st.write("Nome do arquivo:", uploaded_file.name)
+        st.write("Tamanho em bytes (aprox.):", getattr(uploaded_file, "size", "N/D"))
+    st.write("Chaves em st.session_state:", list(st.session_state.keys()))
 
 # ==========================================================
 # 🧭 Seleção do módulo de destino
@@ -75,6 +82,11 @@ if uploaded_file is not None:
                         "💾 Resultado armazenado em exports/insumos/json/ (ex: DFD_ultimo.json)",
                         icon="📁"
                     )
+
+                    # DEBUG: mostrar payload resumido
+                    with st.expander("🔍 DEBUG – Payload retornado por processar_insumo", expanded=False):
+                        st.json(resultado)
+
                 else:
                     st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
             except Exception as e:
@@ -91,11 +103,15 @@ st.subheader("📚 Histórico de insumos disponíveis")
 
 EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
+st.caption(f"🔍 Diretório esperado de JSONs: `{EXPORTS_JSON_DIR}`")
+
 if os.path.exists(EXPORTS_JSON_DIR):
     arquivos = sorted(
         [f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")],
         reverse=True
     )
+
+    st.caption(f"Encontrados {len(arquivos)} arquivo(s) JSON neste diretório.")
 
     if arquivos:
         for arquivo in arquivos[:5]:
@@ -110,7 +126,7 @@ if os.path.exists(EXPORTS_JSON_DIR):
     else:
         st.info("Nenhum insumo processado ainda.")
 else:
-    st.info("Nenhum insumo processado ainda.")
+    st.info("Nenhum insumo processado ainda (diretório não existe).")
 
 # ==========================================================
 # 🌟 Rodapé institucional
