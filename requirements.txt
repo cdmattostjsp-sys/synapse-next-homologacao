@@ -1,75 +1,19 @@
-# ==========================================
-# SynapseNext – Requisitos de Execução (Cloud Safe)
-# Versão: 5.1b – Build compatível com Streamlit Cloud
-# ==========================================
-
-# ---- Núcleo da aplicação ----
 streamlit==1.39.0
-pandas>=2.0.0
-numpy>=1.25.0
-python-docx>=1.0.1
-docx2txt>=0.8
-PyMuPDF>=1.24.0
-pypandoc>=1.13
-openai>=1.50.0
-requests>=2.31.0
-markdown>=3.6
-markdown2>=2.5.0
-reportlab>=4.2.2
+pandas==2.2.2
+numpy==1.26.4
 
-# ---- Validação e processamento ----
-PyYAML>=6.0.2
-regex>=2023.12.25
-tqdm>=4.66.5
-PyPDF2>=3.0.0
+python-docx==1.1.2
+docx2txt==0.8
+PyMuPDF==1.22.5
 
-# ---- Conversão e exportação ----
-pdfkit>=1.0.0
-beautifulsoup4>=4.12.2
+pypandoc==1.12
+reportlab==4.2.2
+PyYAML==6.0.1
+regex==2023.12.25
+PyPDF2==3.0.1
 
-# ---- Testes e depuração ----
-pytest>=8.2.2
-debugpy>=1.8.1
+beautifulsoup4==4.12.2
+requests==2.31.0
+python-dateutil==2.9.0.post0
 
-# ---- Logging e controle ----
-loguru>=0.7.2
-colorama>=0.4.6
-
-# ---- Compatibilidade e tipagem ----
-pathlib
-typing_extensions
-python-dateutil>=2.9.0
-
-# ==========================================
-# Integrações Microsoft / API REST (Cloud Safe)
-# ==========================================
-msal>=1.28.0
-Office365-REST-Python-Client>=2.5.11
-requests-oauthlib>=2.0.0
-shareplum>=0.5.1
-aiohttp>=3.9.5
-
-# ==========================================
-# Visualização e análise de dados
-# ==========================================
-matplotlib>=3.9.0
-plotly>=5.23.0
-seaborn>=0.13.2
-
-# ==========================================
-# Segurança e auditoria
-# ==========================================
-cryptography>=43.0.0
-python-dotenv>=1.0.1
-validators>=0.28.0
-
-# ==========================================
-# Pacotes desativados para Cloud (ativar localmente se necessário)
-# ==========================================
-# wkhtmltopdf-pack>=0.12.6
-# faiss-cpu>=1.8.0
-# langchain>=0.2.14
-# sentence-transformers>=3.0.1
-# python-onedrive>=15.0.2
-# msal-extensions>=1.1.0
-# ==========================================
+typing_extensions==4.10.0
