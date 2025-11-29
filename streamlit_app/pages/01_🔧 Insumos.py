@@ -1,7 +1,7 @@
 # ==========================================================
 # pages/01_🔧 Insumos.py
 # SynapseNext – Secretaria de Administração e Abastecimento (TJSP)
-# Revisão: Engenheiro Synapse – Versão 2025-D3 + DEBUG
+# Revisão: Engenheiro Synapse – Versão 2025-D4 (Upload Fix)
 # ==========================================================
 
 import os
@@ -24,8 +24,9 @@ st.set_page_config(
     page_icon="🧩"
 )
 
-# Limpeza pontual de chave antiga que pode ter ficado em cache
-st.session_state.pop("insumo_upload", None)
+# [CORREÇÃO CRÍTICA]: Removida a linha st.session_state.pop()
+# A manipulação manual do state no topo do script causava race condition
+# no Streamlit Cloud, resetando o arquivo enviado para None.
 
 # Aplicar estilo e cabeçalho institucional
 aplicar_estilo_global()
@@ -41,19 +42,16 @@ st.divider()
 # ==========================================================
 st.subheader("📎 Envio de documento administrativo")
 
+# Atualizei a chave para garantir um estado limpo nesta nova versão
 uploaded_file = st.file_uploader(
     "Selecione o arquivo de insumo (formatos aceitos: TXT, DOCX, PDF)",
     type=["txt", "docx", "pdf"],
-    key="insumo_upload_v3"   # chave NOVA para quebrar qualquer cache antigo
+    key="insumo_upload_final"
 )
 
-# 🔍 BLOCO DEBUG – VISIBILIDADE DE BACKEND
-with st.expander("🔍 DEBUG – Estado atual do uploader e sessão", expanded=False):
-    st.write("uploaded_file é None?", uploaded_file is None)
-    if uploaded_file is not None:
-        st.write("Nome do arquivo:", uploaded_file.name)
-        st.write("Tamanho em bytes (aprox.):", getattr(uploaded_file, "size", "N/D"))
-    st.write("Chaves em st.session_state:", list(st.session_state.keys()))
+# 🔍 BLOCO DEBUG (Pode remover após confirmar o funcionamento)
+if uploaded_file is not None:
+    st.info(f"✅ Arquivo carregado na memória: {uploaded_file.name} ({uploaded_file.size} bytes)")
 
 # ==========================================================
 # 🧭 Seleção do módulo de destino
@@ -69,31 +67,31 @@ artefato = st.selectbox(
 # 🚀 Processamento automático (com IA institucional)
 # ==========================================================
 if uploaded_file is not None:
-    st.success(f"📄 Arquivo detectado: {uploaded_file.name}")
-
+    # Espaço visual para separar o botão
+    st.write("")
+    
     if st.button(f"🚀 Processar e encaminhar para {artefato}", key="btn_processar_insumo"):
         with st.spinner(f"Processando insumo para o módulo {artefato}..."):
             try:
                 resultado = processar_insumo(uploaded_file, artefato)
 
                 if resultado:
-                    st.success(f"✅ Insumo {artefato} processado com sucesso e integrado ao módulo {artefato}.")
+                    st.success(f"✅ Insumo processado com sucesso e integrado ao módulo {artefato}.")
                     st.toast(
-                        "💾 Resultado armazenado em exports/insumos/json/ (ex: DFD_ultimo.json)",
+                        "💾 Resultado armazenado em exports/insumos/json/",
                         icon="📁"
                     )
 
-                    # DEBUG: mostrar payload resumido
-                    with st.expander("🔍 DEBUG – Payload retornado por processar_insumo", expanded=False):
+                    with st.expander("🔍 Detalhes do JSON Gerado", expanded=False):
                         st.json(resultado)
 
                 else:
-                    st.warning("⚠️ O processamento não retornou dados válidos. Verifique o arquivo enviado.")
+                    st.warning("⚠️ O processamento não retornou dados válidos. Verifique o conteúdo do arquivo.")
             except Exception as e:
                 st.error(f"❌ Erro ao processar insumo: {e}")
 
 else:
-    st.info("Aguardando seleção de arquivo para iniciar o processamento.")
+    st.info("👆 Selecione um arquivo acima para habilitar o processamento.")
 
 # ==========================================================
 # 🗒️ Histórico de insumos processados
@@ -103,17 +101,14 @@ st.subheader("📚 Histórico de insumos disponíveis")
 
 EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
-st.caption(f"🔍 Diretório esperado de JSONs: `{EXPORTS_JSON_DIR}`")
-
 if os.path.exists(EXPORTS_JSON_DIR):
     arquivos = sorted(
         [f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")],
         reverse=True
     )
 
-    st.caption(f"Encontrados {len(arquivos)} arquivo(s) JSON neste diretório.")
-
     if arquivos:
+        st.caption(f"Últimos arquivos processados ({len(arquivos)} encontrados):")
         for arquivo in arquivos[:5]:
             caminho = os.path.join(EXPORTS_JSON_DIR, arquivo)
             try:
@@ -126,7 +121,12 @@ if os.path.exists(EXPORTS_JSON_DIR):
     else:
         st.info("Nenhum insumo processado ainda.")
 else:
-    st.info("Nenhum insumo processado ainda (diretório não existe).")
+    # Cria o diretório silenciosamente para evitar erro visual na próxima execução
+    try:
+        os.makedirs(EXPORTS_JSON_DIR, exist_ok=True)
+        st.info("Diretório de exportação inicializado.")
+    except:
+        st.info("Nenhum histórico encontrado.")
 
 # ==========================================================
 # 🌟 Rodapé institucional
@@ -134,5 +134,4 @@ else:
 st.divider()
 st.caption(
     "📎 Módulo de Insumos – SynapseNext (TJSP/SAAB). "
-    "Os insumos processados são automaticamente integrados aos módulos DFD, ETP, TR e Edital."
 )
