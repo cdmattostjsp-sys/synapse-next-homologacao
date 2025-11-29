@@ -1,33 +1,30 @@
-# ==========================================================
-# SynapseNext – Requisitos (Cloud Safe - Python 3.12)
-# ==========================================================
-
-# ---- Núcleo da aplicação ----
+# ==========================================
+# SynapseNext – Cloud UV Runtime (Python 3.13 Compatible)
+# ==========================================
 streamlit==1.39.0
-pandas==2.1.4
+pandas==2.2.3
 numpy==1.26.4
 requests==2.31.0
 python-dateutil==2.9.0.post0
-typing_extensions==4.10.0
+# Destravado para evitar conflito com OpenAI
+typing_extensions>=4.11
 
-# ---- Processamento de Texto / Documentos ----
+# Documentos
 python-docx==1.1.2
 docx2txt==0.8
 PyPDF2==3.0.1
-# A correção crítica: versão compatível com Python 3.12+
-PyMuPDF==1.24.4
+# Versão crítica para Python 3.13
+PyMuPDF==1.25.1
 
-# ---- Conversão e Exportação ----
-pypandoc==1.12
+# Conversão e Exportação
 reportlab==4.2.2
+# pypandoc removido temporariamente para garantir o boot
 
-# ---- Parsing HTML / Auxiliares ----
+# Parsing HTML / Auxiliares
 beautifulsoup4==4.12.2
 regex==2023.12.25
 PyYAML==6.0.1
 
-# ---- Segurança / Utilidades Básicas ----
+# Segurança e IA
 validators==0.28.0
-
-# ---- IA ----
 openai==1.52.2
