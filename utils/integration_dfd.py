@@ -1,37 +1,34 @@
 # ======================================================================
-# utils/integration_dfd.py — Versão 2025-D2.4 (Fluxo A – 100% Moderno)
-# Compatível com DocumentAgent(D2) + AIClient vNext
-# Fluxo oficial: INSUMOS → DFD Moderno (texto_narrativo + 11 seções + lacunas)
+# utils/integration_dfd.py — VERSÃO FINAL 2025-D6
+# Compatível com:
+#   - DocumentAgent(D3)
+#   - AIClient vNext
+#   - integration_insumos.py 2025-D4
+#   - Página Streamlit DFD (dfd_moderno)
+#
+# Responsabilidades:
+#   • Ler insumos (exports/insumos/json/DFD_ultimo.json)
+#   • Ler DFD consolidados (campos_ai) e DFD gerados por IA
+#   • Manter dfd_campos_ai em sessão
+#   • Invocar a IA para gerar rascunho moderno do DFD
+#   • Salvar DFD consolidados em JSON
 # ======================================================================
 
 from __future__ import annotations
+
 import os
 import json
 import glob
 from datetime import datetime
+
 import streamlit as st
 
 
 # ======================================================================
-# 🔧 Utilitários básicos
+# 🔧 Sanitização simples de texto
 # ======================================================================
-
-SECOES_DFD_PADRAO = [
-    "Contexto Institucional",
-    "Diagnóstico da Situação Atual",
-    "Fundamentação da Necessidade",
-    "Objetivos da Contratação",
-    "Escopo Inicial da Demanda",
-    "Resultados Esperados",
-    "Benefícios Institucionais",
-    "Justificativa Legal",
-    "Riscos da Não Contratação",
-    "Requisitos Mínimos",
-    "Critérios de Sucesso",
-]
-
-
 def _limpar_markdown(texto: str) -> str:
+    """Remove marcadores simples de Markdown/JSON em texto bruto."""
     if not isinstance(texto, str):
         return ""
     return (
@@ -43,158 +40,96 @@ def _limpar_markdown(texto: str) -> str:
     )
 
 
-def _to_str(valor) -> str:
-    if valor is None:
+# ======================================================================
+# 🔧 Derivar texto-base para IA a partir de um JSON qualquer
+# ======================================================================
+def _extrair_texto_base_para_ia(dados: dict) -> str:
+    """
+    Tenta obter o melhor texto-base para enviar à IA a partir de um JSON:
+
+      1) conteudo_textual (insumo bruto)
+      2) campos_ai.texto_narrativo
+      3) campos_ai.descricao_necessidade
+      4) concatenação de secoes
+      5) fallback: string vazia
+    """
+    if not isinstance(dados, dict):
         return ""
-    if isinstance(valor, (dict, list)):
-        try:
-            return json.dumps(valor, ensure_ascii=False, indent=2)
-        except Exception:
-            return str(valor)
-    return str(valor).strip()
 
+    # 1) Insumo bruto
+    texto = dados.get("conteudo_textual")
+    if isinstance(texto, str) and len(texto.strip()) > 0:
+        return _limpar_markdown(texto)
 
-# ======================================================================
-# 🧩 Normalização para o MODELO MODERNO
-# ======================================================================
-def _normalizar_para_moderno(dados_brutos: dict) -> dict:
-    """
-    Recebe QUALQUER formato parcialmente estruturado e devolve SEMPRE
-    um DFD MODERNO completo, com as chaves:
+    # 2) DFD consolidado (campos_ai)
+    campos_ai = dados.get("campos_ai")
+    if isinstance(campos_ai, dict):
+        # 2.1) texto_narrativo
+        tn = campos_ai.get("texto_narrativo")
+        if isinstance(tn, str) and len(tn.strip()) > 0:
+            return _limpar_markdown(tn)
 
-    - unidade_demandante
-    - responsavel
-    - prazo_estimado
-    - valor_estimado
-    - descricao_necessidade
-    - motivacao
-    - texto_narrativo
-    - secoes (11 seções Moderno-Governança)
-    - lacunas (lista)
-    """
+        # 2.2) descricao_necessidade
+        desc = campos_ai.get("descricao_necessidade")
+        if isinstance(desc, str) and len(desc.strip()) > 0:
+            return _limpar_markdown(desc)
 
-    if not isinstance(dados_brutos, dict):
-        dados_brutos = {}
-
-    # Compatibilidade: IA pode devolver {"DFD": {...}}
-    if "DFD" in dados_brutos and isinstance(dados_brutos["DFD"], dict):
-        dados_brutos = dados_brutos["DFD"]
-
-    # ---------------------------
-    # Campos administrativos
-    # ---------------------------
-    unidade = _to_str(
-        dados_brutos.get("unidade_demandante")
-        or dados_brutos.get("unidade")
-    )
-    responsavel = _to_str(dados_brutos.get("responsavel"))
-    prazo = _to_str(
-        dados_brutos.get("prazo_estimado")
-        or dados_brutos.get("prazo")
-    )
-
-    valor_raw = (
-        dados_brutos.get("valor_estimado")
-        or dados_brutos.get("estimativa_valor")
-        or "0,00"
-    )
-    valor = _to_str(valor_raw) or "0,00"
-
-    # ---------------------------
-    # Síntese tradicional
-    # ---------------------------
-    descricao = _to_str(
-        dados_brutos.get("descricao_necessidade")
-        or dados_brutos.get("descricao")
-        or dados_brutos.get("conteudo")
-    )
-
-    motivacao = _to_str(dados_brutos.get("motivacao"))
-
-    # ---------------------------
-    # Seções Moderno-Governança
-    # ---------------------------
-    secoes_orig = dados_brutos.get("secoes")
-    secoes = {}
-    if isinstance(secoes_orig, dict):
-        for k, v in secoes_orig.items():
-            secoes[k] = _limpar_markdown(_to_str(v))
-
-    # Se não houver seções, criar estrutura mínima a partir da descrição/motivação
-    if not secoes:
-        for nome in SECOES_DFD_PADRAO:
-            secoes[nome] = "Conteúdo não identificado explicitamente no insumo."
-
-        if descricao:
-            secoes["Fundamentação da Necessidade"] = descricao
-
-        if motivacao:
-            secoes["Resultados Esperados"] = motivacao
-
-    # Garantir todas as 11 seções
-    for nome in SECOES_DFD_PADRAO:
-        if nome not in secoes or not isinstance(secoes[nome], str) or not secoes[nome].strip():
-            secoes[nome] = "Conteúdo não identificado explicitamente no insumo."
-
-    # ---------------------------
-    # Texto narrativo consolidado
-    # ---------------------------
-    texto_narrativo = _limpar_markdown(_to_str(dados_brutos.get("texto_narrativo")))
-
-    if not texto_narrativo:
-        # Monta a partir das seções (versão numerada)
-        partes = []
-        idx = 1
-        for nome in SECOES_DFD_PADRAO:
-            t = secoes.get(nome, "").strip()
-            if t:
-                partes.append(f"{idx}. {t}")
-                idx += 1
-
-        if partes:
-            texto_narrativo = "\n\n".join(partes)
-        else:
-            # Fallback: descrição + motivação
+        # 2.3) concatenação das seções
+        secoes = campos_ai.get("secoes")
+        if isinstance(secoes, dict):
             partes = []
-            if descricao:
-                partes.append(f"1. {descricao}")
-            if motivacao:
-                partes.append(f"2. {motivacao}")
-            texto_narrativo = "\n\n".join(partes)
+            for v in secoes.values():
+                if isinstance(v, str) and v.strip():
+                    partes.append(v.strip())
+            if partes:
+                return _limpar_markdown("\n\n".join(partes))
 
-    # ---------------------------
-    # Lacunas
-    # ---------------------------
-    lacunas_raw = dados_brutos.get("lacunas", [])
-    lacunas = []
-    if isinstance(lacunas_raw, list):
-        for item in lacunas_raw:
-            t = _to_str(item)
-            if t:
-                lacunas.append(t)
+    # 3) DFD moderno diretamente em dados["DFD"]
+    dfd_mod = dados.get("DFD")
+    if isinstance(dfd_mod, dict):
+        tn = dfd_mod.get("texto_narrativo")
+        if isinstance(tn, str) and len(tn.strip()) > 0:
+            return _limpar_markdown(tn)
 
-    # ---------------------------
-    # Resultado MODERNO
-    # ---------------------------
-    dfd_moderno = {
-        "unidade_demandante": unidade,
-        "responsavel": responsavel,
-        "prazo_estimado": prazo,
-        "valor_estimado": valor,
-        "descricao_necessidade": descricao,
-        "motivacao": motivacao,
-        "texto_narrativo": texto_narrativo,
-        "secoes": secoes,
-        "lacunas": lacunas,
+    return ""
+
+
+# ======================================================================
+# 🔧 Conversão de insumo puro → esqueleto de DFD
+# ======================================================================
+def _criar_dfd_basico_a_partir_de_insumo(texto: str, origem: str = "insumo_raw") -> dict:
+    """
+    Cria um DFD básico, preenchendo apenas descrição e texto narrativo
+    com o conteúdo bruto do insumo.
+    """
+    texto = _limpar_markdown(texto)
+    return {
+        "unidade_demandante": "",
+        "responsavel": "",
+        "prazo_estimado": "",
+        "valor_estimado": "0,00",
+        "descricao_necessidade": texto,
+        "motivacao": "",
+        "texto_narrativo": texto,
+        "secoes": {},
+        "lacunas": [],
+        "origem": origem,
+        "atualizado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    return dfd_moderno
-
 
 # ======================================================================
-# 📥 Leitura de arquivos DFD
+# 📥 Leitura de arquivos DFD / insumos
 # ======================================================================
 def _carregar_dfd_de_arquivo(caminho: str) -> dict:
+    """
+    Carrega um JSON e tenta extrair o melhor "pacote DFD" possível.
+    Suporta:
+      • payloads com campos_ai (DFD consolidado)
+      • payloads com resultado_ia (saída de DocumentAgent)
+      • payloads com DFD (raiz moderna)
+      • payloads de insumo puro (conteudo_textual)
+    """
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             dados = json.load(f)
@@ -202,23 +137,27 @@ def _carregar_dfd_de_arquivo(caminho: str) -> dict:
         st.warning(f"⚠️ Falha ao ler {caminho}: {e}")
         return {}
 
-    # Caso 1 — DFD consolidado (formulário moderno)
+    # Caso 1 — formulário consolidado
     if isinstance(dados.get("campos_ai"), dict):
-        return _normalizar_para_moderno(dados["campos_ai"])
+        return dados["campos_ai"]
 
-    # Caso 2 — resultado IA moderna gravado diretamente
+    # Caso 2 — resultado da IA moderno
     if isinstance(dados.get("resultado_ia"), dict):
-        return _normalizar_para_moderno(dados["resultado_ia"])
+        bruto = dados["resultado_ia"]
+        if isinstance(bruto, dict) and "DFD" in bruto and isinstance(bruto["DFD"], dict):
+            return bruto["DFD"]
+        if isinstance(bruto, dict):
+            return bruto
 
-    if "DFD" in dados:
-        return _normalizar_para_moderno(dados)
+    # Caso 3 — objeto moderno já no nível raiz
+    if isinstance(dados.get("DFD"), dict):
+        return dados["DFD"]
 
-    # Caso 3 — insumo puro (apenas texto bruto do PDF/TXT)
+    # Caso 4 — insumo puro com texto
     texto = dados.get("conteudo_textual")
     if isinstance(texto, str) and len(texto.strip()) > 20:
-        return _normalizar_para_moderno(
-            {"descricao_necessidade": texto.strip()}
-        )
+        origem = dados.get("origem", "insumo_raw")
+        return _criar_dfd_basico_a_partir_de_insumo(texto, origem=origem)
 
     return {}
 
@@ -228,72 +167,67 @@ def _carregar_dfd_de_arquivo(caminho: str) -> dict:
 # ======================================================================
 def obter_dfd_da_sessao() -> dict:
     """
-    Fonte de verdade para a página DFD.
+    Fonte de verdade para a página DFD:
 
-    1. Se existir na sessão: dfd_moderno
-    2. Se existir dfd_campos_ai (legado), normaliza e migra
-    3. Se existir DFD_ultimo.json → carrega e normaliza
-    4. Se existir histórico DFD_*.json → pega o mais recente
+      1) Se houver dfd_campos_ai na sessão → usa.
+      2) Caso contrário, tenta ler exports/insumos/json/DFD_ultimo.json.
+      3) Se ainda não houver, varre o histórico DFD_*.json.
     """
 
-    # Sessão – novo padrão
-    if "dfd_moderno" in st.session_state and st.session_state["dfd_moderno"]:
-        return st.session_state["dfd_moderno"]
-
-    # Sessão – legado recente
+    # 1) Sessão
     if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
-        dfd_norm = _normalizar_para_moderno(st.session_state["dfd_campos_ai"])
-        st.session_state["dfd_moderno"] = dfd_norm
-        return dfd_norm
+        return st.session_state["dfd_campos_ai"]
 
     base = os.path.join("exports", "insumos", "json")
     ultimo = os.path.join(base, "DFD_ultimo.json")
 
-    # Último arquivo
+    # 2) Último arquivo
     if os.path.exists(ultimo):
         dados = _carregar_dfd_de_arquivo(ultimo)
         if dados:
-            st.session_state["dfd_moderno"] = dados
+            st.session_state["dfd_campos_ai"] = dados
             return dados
 
-    # Histórico
-    arquivos = sorted(
-        glob.glob(os.path.join(base, "DFD_*.json")),
-        key=os.path.getmtime,
-        reverse=True,
-    )
-
-    for arq in arquivos:
-        if arq.endswith("DFD_ultimo.json"):
-            continue
-        dados = _carregar_dfd_de_arquivo(arq)
-        if dados:
-            st.session_state["dfd_moderno"] = dados
-            return dados
+    # 3) Histórico
+    if os.path.exists(base):
+        arquivos = sorted(
+            glob.glob(os.path.join(base, "DFD_*.json")),
+            key=os.path.getmtime,
+            reverse=True,
+        )
+        for arq in arquivos:
+            dados = _carregar_dfd_de_arquivo(arq)
+            if dados:
+                st.session_state["dfd_campos_ai"] = dados
+                return dados
 
     return {}
 
 
 # ======================================================================
-# 💾 Salvar DFD consolidado (formulário → JSON)
+# 💾 Salvar DFD consolidado
 # ======================================================================
 def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_moderno_streamlit") -> str:
     """
-    Recebe um dicionário (vindo do formulário) e garante que será salvo
-    no formato MODERNO, em:
-
+    Salva o DFD consolidado (preenchido via formulário) em:
       exports/insumos/json/DFD_ultimo.json
       exports/insumos/json/DFD_<timestamp>.json
+    no formato:
+
+      {
+        "artefato": "DFD",
+        "origem": "...",
+        "campos_ai": { ... DFD moderno ... },
+        "data_salvamento": "YYYY-MM-DD HH:MM:SS"
+      }
     """
     base = os.path.join("exports", "insumos", "json")
     os.makedirs(base, exist_ok=True)
 
-    dfd_moderno = _normalizar_para_moderno(campos)
-
     payload = {
         "artefato": "DFD",
         "origem": origem,
-        "campos_ai": dfd_moderno,
+        "campos_ai": campos,
         "data_salvamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
@@ -307,7 +241,7 @@ def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_moderno_strea
         with open(arq2, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
-        st.session_state["dfd_moderno"] = dfd_moderno
+        st.session_state["dfd_campos_ai"] = campos
         return arq1
 
     except Exception as e:
@@ -319,7 +253,11 @@ def salvar_dfd_em_json(campos: dict, origem: str = "formulario_dfd_moderno_strea
 # 🧾 Status exibido na página DFD
 # ======================================================================
 def status_dfd() -> str:
-    if "dfd_moderno" in st.session_state and st.session_state["dfd_moderno"]:
+    """
+    Mensagem amigável exibida no topo da página DFD.
+    """
+
+    if "dfd_campos_ai" in st.session_state and st.session_state["dfd_campos_ai"]:
         return "✅ DFD carregado automaticamente (sessão ativa)"
 
     base = os.path.join("exports", "insumos", "json")
@@ -332,74 +270,61 @@ def status_dfd() -> str:
 
 
 # ======================================================================
-# 🧠 IA → Gerar rascunho do DFD MODERNO (Versão final compatível)
+# 🧠 IA → Gerar rascunho do DFD (VERSÃO FINAL COMPATÍVEL)
 # ======================================================================
 def gerar_rascunho_dfd_com_ia() -> dict:
     """
-    Lê o insumo DFD_ultimo.json (conteudo_textual),
-    envia o texto bruto para o DocumentAgent(D2),
-    e normaliza SEMPRE para o modelo MODERNO completo.
-    """
+    Lê o insumo (ou DFD consolidado), extrai um texto-base
+    e aciona o DocumentAgent(D3) para gerar um DFD moderno completo.
 
+    Resultado:
+      • Atualiza st.session_state["dfd_campos_ai"]
+      • Retorna o dict com o DFD moderno
+    """
     base = os.path.join("exports", "insumos", "json")
     ultimo = os.path.join(base, "DFD_ultimo.json")
 
     if not os.path.exists(ultimo):
-        st.warning("⚠️ Nenhum insumo encontrado para DFD (DFD_ultimo.json inexistente).")
+        st.warning("⚠️ Nenhum insumo encontrado para DFD (DFD_ultimo.json não existe).")
         return {}
 
-    # 1) Leitura do insumo bruto
+    # 1) Leitura do arquivo
     try:
         with open(ultimo, "r", encoding="utf-8") as f:
             dados = json.load(f)
-
-        texto = (dados.get("conteudo_textual") or "").strip()
-
     except Exception as e:
-        st.error(f"❌ Falha ao ler insumo DFD_ultimo.json: {e}")
+        st.error(f"❌ Falha ao ler insumo: {e}")
         return {}
 
-    if len(texto) < 20:
-        st.error("⚠️ Texto insuficiente para processamento pela IA.")
+    # 2) Extrair texto-base
+    texto = _extrair_texto_base_para_ia(dados)
+    if len(texto.strip()) < 20:
+        st.error("⚠️ Texto insuficiente para geração automática do DFD pela IA.")
         return {}
 
-    # 2) Chamada da IA (DocumentAgent)
+    # 3) Chamada da IA
     try:
         from agents.document_agent import processar_dfd_com_ia
 
         bruto = processar_dfd_com_ia(texto)
 
-        # unwrap padrão {"resultado_ia": {...}}
+        # unwrap padrão {"timestamp": "...", "resultado_ia": {...}}
         if isinstance(bruto, dict) and "resultado_ia" in bruto:
             bruto = bruto["resultado_ia"]
 
-        dfd_moderno = _normalizar_para_moderno(bruto)
+        # Se ainda vier no formato {"DFD": {...}}
+        if isinstance(bruto, dict) and "DFD" in bruto and isinstance(bruto["DFD"], dict):
+            dfd_final = bruto["DFD"]
+        elif isinstance(bruto, dict):
+            dfd_final = bruto
+        else:
+            st.error("❌ A IA não retornou um JSON estruturado de DFD.")
+            return {}
 
-        # 3) Persistência em arquivo (substitui DFD_ultimo.json por versão moderna)
-        os.makedirs(base, exist_ok=True)
-
-        payload = {
-            "artefato": "DFD",
-            "origem": "ia_dfd_moderno",
-            "campos_ai": dfd_moderno,
-            "data_salvamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "fonte_insumo": {
-                "arquivo": dados.get("arquivo"),
-                "tipo": dados.get("tipo"),
-            },
-        }
-
-        with open(ultimo, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-
-        historico = os.path.join(base, f"DFD_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-        with open(historico, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-
-        # 4) Persistência na sessão
-        st.session_state["dfd_moderno"] = dfd_moderno
-        return dfd_moderno
+        # 4) Persistência em sessão
+        st.session_state["dfd_campos_ai"] = dfd_final
+        return dfd_final
 
     except Exception as e:
-        st.error(f"❌ Erro ao processar DFD com IA: {e}")
+        st.error(f"❌ Erro ao gerar DFD com IA: {e}")
         return {}
