@@ -229,7 +229,6 @@ if st.button("✨ Gerar rascunho com IA"):
             st.rerun()
         else:
             st.warning("⚠️ A IA não conseguiu gerar um DFD estruturado.")
-
     except Exception as e:
         st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
 
@@ -237,27 +236,27 @@ if st.button("✨ Gerar rascunho com IA"):
 # ---------------------------------------------------------------
 # 1️⃣ Carregar dados já existentes (sessão ou arquivos)
 # ---------------------------------------------------------------
-dfd_campos_brutos = obter_dfd_da_sessao()
+dfd_dados = obter_dfd_da_sessao()
 
-if not dfd_campos_brutos:
+if not dfd_dados:
     st.error("Nenhum DFD encontrado. Envie um documento no módulo INSUMOS e processe como DFD.")
     st.stop()
 
 # Caso venha algo como {"DFD": {...}}, normalizar para o interior
-if isinstance(dfd_campos_brutos, dict) and "DFD" in dfd_campos_brutos:
-    dfd_campos_brutos = dfd_campos_brutos.get("DFD") or {}
+if isinstance(dfd_dados, dict) and "DFD" in dfd_dados:
+    dfd_dados = dfd_dados.get("DFD") or {}
 
-campos_trad = _extrair_admin_e_campos_tradicionais(dfd_campos_brutos)
-secoes_iniciais = _extrair_secoes(dfd_campos_brutos)
-lacunas_iniciais = _extrair_lacunas(dfd_campos_brutos)
+campos_trad = _extrair_admin_e_campos_tradicionais(dfd_dados)
+secoes_iniciais = _extrair_secoes(dfd_dados)
+lacunas_iniciais = _extrair_lacunas(dfd_dados)
 texto_narrativo_inicial = _montar_texto_narrativo_inicial(
-    dfd_campos_brutos,
+    dfd_dados,
     secoes_iniciais,
     campos_trad,
 )
 
 with st.expander("🔍 Visualizar dados brutos importados (JSON completo)", expanded=False):
-    st.json(dfd_campos_brutos)
+    st.json(dfd_dados)
 
 
 # ---------------------------------------------------------------
@@ -327,7 +326,7 @@ with st.form(key="form_dfd_moderno"):
 
 
 # ---------------------------------------------------------------
-# 3️⃣ Salvamento final (JSON completo)
+# 3️⃣ Salvamento final (JSON completo – modelo moderno)
 # ---------------------------------------------------------------
 if submit:
     dfd_final = {
@@ -336,7 +335,7 @@ if submit:
         "responsavel": responsavel,
         "prazo_estimado": prazo,
         "valor_estimado": valor_estimado,
-        # Campo tradicional
+        # Campo tradicional (síntese)
         "descricao_necessidade": descricao,
         "motivacao": motivacao,
         # Estrutura moderna
