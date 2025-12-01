@@ -1,7 +1,7 @@
 # ==========================================================
-# agents/document_agent.py — Versão D2 (Universal – Opção B)
+# agents/document_agent.py — Versão D2.1 (Universal – Revisada)
 # SynapseNext – SAAB / Tribunal de Justiça do Estado de São Paulo
-# Revisão Consolidada — 2025-11-25
+# Revisão Consolidada — 2025-11-30 (Patch Oficial JSON)
 # ==========================================================
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ import os
 import re
 from datetime import datetime
 from utils.ai_client import AIClient
-
 
 # ==========================================================
 # 🔧 SALVAR LOG OPCIONAL
@@ -61,7 +60,7 @@ def _sanear_numeros_na_resposta(resposta_dict: dict, conteudo_fonte: str) -> dic
 
 
 # ==========================================================
-# 🔒 SEÇÕES OBRIGATÓRIAS
+# 🔒 SEÇÕES OBRRIGATÓRIAS
 # ==========================================================
 SECOES_OBRIGATORIAS = [
     "Contexto Institucional",
@@ -101,7 +100,7 @@ def _sanear_texto_narrativo(txt: str) -> str:
 
 
 # ==========================================================
-# 🤖 DOCUMENT AGENT – D2
+# 🤖 DOCUMENT AGENT – D2.1 (com Patch JSON)
 # ==========================================================
 class DocumentAgent:
 
@@ -113,7 +112,7 @@ class DocumentAgent:
     # 🧠 GERAÇÃO PRINCIPAL
     # ------------------------------------------------------
     def generate(self, conteudo_base: str) -> dict:
-        print("\n>>> DocumentAgent(D2) iniciado")
+        print("\n>>> DocumentAgent(D2.1) iniciado")
         print(f"Artefato: {self.artefato}")
         print(f"Tamanho do insumo: {len(conteudo_base)}")
 
@@ -130,18 +129,35 @@ class DocumentAgent:
 
         print(">>> Resposta RAW recebida da IA")
 
-        # normalização
-        if isinstance(resposta_raw, dict) and "DFD" in resposta_raw:
-            resposta = resposta_raw["DFD"]
-        elif isinstance(resposta_raw, dict):
-            resposta = resposta_raw
-        else:
+        # ------------------------------------------------------
+        # 🔥 PATCH OFICIAL: Normalização Universal JSON
+        # ------------------------------------------------------
+        resposta = None
+
+        # Caso 1 — já é dict
+        if isinstance(resposta_raw, dict):
+            resposta = resposta_raw.get("DFD", resposta_raw)
+
+        # Caso 2 — veio como string (o caso real no seu app)
+        elif isinstance(resposta_raw, str):
+            try:
+                json_data = json.loads(resposta_raw)
+
+                if isinstance(json_data, dict):
+                    resposta = json_data.get("DFD", json_data)
+                else:
+                    resposta = {"texto_narrativo": resposta_raw}
+
+            except Exception:
+                resposta = {"texto_narrativo": resposta_raw}
+
+        # Caso 3 — fallback
+        if not isinstance(resposta, dict):
             resposta = {"texto_narrativo": str(resposta_raw)}
 
-        if not isinstance(resposta, dict):
-            resposta = {"texto_narrativo": str(resposta)}
-
-        # sanitização
+        # ------------------------------------------------------
+        # 🔧 Sanitização final
+        # ------------------------------------------------------
         resposta["texto_narrativo"] = _sanear_texto_narrativo(
             resposta.get("texto_narrativo", "")
         )
@@ -162,7 +178,7 @@ class DocumentAgent:
         if not isinstance(resposta.get("valor_estimado"), str):
             resposta["valor_estimado"] = str(resposta["valor_estimado"])
 
-        print(">>> DocumentAgent(D2) — Sanitização finalizada.")
+        print(">>> DocumentAgent(D2.1) — Sanitização finalizada.")
         return resposta
 
     # ------------------------------------------------------
