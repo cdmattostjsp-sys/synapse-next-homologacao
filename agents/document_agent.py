@@ -1,7 +1,7 @@
 # ==========================================================
-# agents/document_agent.py — Versão D2.1 (Universal – Revisada)
+# agents/document_agent.py — Versão D2 (Universal – Fluxo A)
 # SynapseNext – SAAB / Tribunal de Justiça do Estado de São Paulo
-# Revisão Consolidada — 2025-11-30 (Patch Oficial JSON)
+# Compatível com modelo DFD Moderno-Governança
 # ==========================================================
 
 from __future__ import annotations
@@ -11,8 +11,9 @@ import re
 from datetime import datetime
 from utils.ai_client import AIClient
 
+
 # ==========================================================
-# 🔧 SALVAR LOG OPCIONAL
+# 🔧 SALVAR LOG OPCIONAL (para diagnóstico)
 # ==========================================================
 def _registrar_log_document_agent(payload: dict) -> str:
     try:
@@ -60,7 +61,7 @@ def _sanear_numeros_na_resposta(resposta_dict: dict, conteudo_fonte: str) -> dic
 
 
 # ==========================================================
-# 🔒 SEÇÕES OBRRIGATÓRIAS
+# 🔒 SEÇÕES OBRIGATÓRIAS
 # ==========================================================
 SECOES_OBRIGATORIAS = [
     "Contexto Institucional",
@@ -100,7 +101,7 @@ def _sanear_texto_narrativo(txt: str) -> str:
 
 
 # ==========================================================
-# 🤖 DOCUMENT AGENT – D2.1 (com Patch JSON)
+# 🤖 DOCUMENT AGENT – D2 (Fluxo A)
 # ==========================================================
 class DocumentAgent:
 
@@ -112,7 +113,7 @@ class DocumentAgent:
     # 🧠 GERAÇÃO PRINCIPAL
     # ------------------------------------------------------
     def generate(self, conteudo_base: str) -> dict:
-        print("\n>>> DocumentAgent(D2.1) iniciado")
+        print("\n>>> DocumentAgent(D2) iniciado")
         print(f"Artefato: {self.artefato}")
         print(f"Tamanho do insumo: {len(conteudo_base)}")
 
@@ -129,41 +130,23 @@ class DocumentAgent:
 
         print(">>> Resposta RAW recebida da IA")
 
-        # ------------------------------------------------------
-        # 🔥 PATCH OFICIAL: Normalização Universal JSON
-        # ------------------------------------------------------
-        resposta = None
-
-        # Caso 1 — já é dict
-        if isinstance(resposta_raw, dict):
-            resposta = resposta_raw.get("DFD", resposta_raw)
-
-        # Caso 2 — veio como string (o caso real no seu app)
-        elif isinstance(resposta_raw, str):
-            try:
-                json_data = json.loads(resposta_raw)
-
-                if isinstance(json_data, dict):
-                    resposta = json_data.get("DFD", json_data)
-                else:
-                    resposta = {"texto_narrativo": resposta_raw}
-
-            except Exception:
-                resposta = {"texto_narrativo": resposta_raw}
-
-        # Caso 3 — fallback
-        if not isinstance(resposta, dict):
+        # Normalização básica
+        if isinstance(resposta_raw, dict) and "DFD" in resposta_raw:
+            resposta = resposta_raw["DFD"]
+        elif isinstance(resposta_raw, dict):
+            resposta = resposta_raw
+        else:
             resposta = {"texto_narrativo": str(resposta_raw)}
 
-        # ------------------------------------------------------
-        # 🔧 Sanitização final
-        # ------------------------------------------------------
+        if not isinstance(resposta, dict):
+            resposta = {"texto_narrativo": str(resposta)}
+
+        # Sanitização
         resposta["texto_narrativo"] = _sanear_texto_narrativo(
             resposta.get("texto_narrativo", "")
         )
 
         resposta = _sanear_secoes(resposta)
-
         resposta = _sanear_numeros_na_resposta(resposta, conteudo_base)
 
         lac = resposta.get("lacunas", [])
@@ -178,7 +161,16 @@ class DocumentAgent:
         if not isinstance(resposta.get("valor_estimado"), str):
             resposta["valor_estimado"] = str(resposta["valor_estimado"])
 
-        print(">>> DocumentAgent(D2.1) — Sanitização finalizada.")
+        # Log opcional
+        _registrar_log_document_agent(
+            {
+                "artefato": self.artefato,
+                "timestamp": datetime.now().isoformat(),
+                "resposta_saneada": resposta,
+            }
+        )
+
+        print(">>> DocumentAgent(D2) — Sanitização finalizada.")
         return resposta
 
     # ------------------------------------------------------
@@ -193,10 +185,8 @@ class DocumentAgent:
                 "Receberá QUALQUER TEXTO (ETP, TR, edital, contrato, parecer, PDF solto ou texto informal) "
                 "e deverá PRODUZIR um DFD moderno completo, inferindo informações quando possível "
                 "e registrando lacunas quando necessário.\n\n"
-
                 "=== OBJETIVO ===\n"
                 "Gerar texto formal, robusto, coerente e aderente ao modelo institucional.\n\n"
-
                 "=== FORMATO (OBRIGATÓRIO) ===\n"
                 "Responda APENAS com JSON contendo:\n"
                 "{\n"
@@ -231,7 +221,7 @@ class DocumentAgent:
 
 
 # ==========================================================
-# 🟦 Função universal — versão B
+# 🟦 Função universal — DFD
 # ==========================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
     """
@@ -255,5 +245,5 @@ def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
     except Exception as e:
         return {
             "erro": f"Falha ao gerar DFD universal: {e}",
-            "conteudo_recebido": conteudo_textual[:500]
+            "conteudo_recebido": conteudo_textual[:500],
         }
