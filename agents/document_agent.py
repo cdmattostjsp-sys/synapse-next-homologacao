@@ -1,19 +1,21 @@
 # ==========================================================
-# agents/document_agent.py — Versão D2 (Universal – Fluxo A)
+# agents/document_agent.py — Versão D3 (Universal – DFD Moderno)
 # SynapseNext – SAAB / Tribunal de Justiça do Estado de São Paulo
-# Compatível com modelo DFD Moderno-Governança
+# Revisão Consolidada — 2025-11-30
 # ==========================================================
 
 from __future__ import annotations
+
 import json
 import os
 import re
 from datetime import datetime
+
 from utils.ai_client import AIClient
 
 
 # ==========================================================
-# 🔧 SALVAR LOG OPCIONAL (para diagnóstico)
+# 🔧 SALVAR LOG OPCIONAL (para auditoria técnica)
 # ==========================================================
 def _registrar_log_document_agent(payload: dict) -> str:
     try:
@@ -32,6 +34,11 @@ def _registrar_log_document_agent(payload: dict) -> str:
 # 🔒 Filtro anti-alucinação numérica
 # ==========================================================
 def _sanear_numeros_na_resposta(resposta_dict: dict, conteudo_fonte: str) -> dict:
+    """
+    Percorre todo o JSON de resposta e garante que números
+    que não aparecem no texto-fonte sejam substituídos por
+    um marcador neutro ("[VALOR A DEFINIR]").
+    """
     if not isinstance(resposta_dict, dict):
         return resposta_dict
 
@@ -61,7 +68,7 @@ def _sanear_numeros_na_resposta(resposta_dict: dict, conteudo_fonte: str) -> dic
 
 
 # ==========================================================
-# 🔒 SEÇÕES OBRIGATÓRIAS
+# 🔒 SEÇÕES OBRIGATÓRIAS (DFD Moderno – 11 seções)
 # ==========================================================
 SECOES_OBRIGATORIAS = [
     "Contexto Institucional",
@@ -101,9 +108,69 @@ def _sanear_texto_narrativo(txt: str) -> str:
 
 
 # ==========================================================
-# 🤖 DOCUMENT AGENT – D2 (Fluxo A)
+# 🔧 Geração automática de descrição e motivação
+# ==========================================================
+def _preencher_descricao_e_motivacao(resposta: dict) -> dict:
+    """
+    Gera / completa os campos tradicionais:
+      - descricao_necessidade
+      - motivacao
+    com base nas 11 seções estruturadas, caso venham vazios.
+    """
+    secoes = resposta.get("secoes", {})
+    if not isinstance(secoes, dict):
+        secoes = {}
+
+    # ---------------- DESCRIÇÃO ----------------
+    desc_existente = ""
+    if isinstance(resposta.get("descricao_necessidade"), str):
+        desc_existente = resposta["descricao_necessidade"].strip()
+
+    if not desc_existente:
+        partes_desc = []
+        for chave in [
+            "Contexto Institucional",
+            "Diagnóstico da Situação Atual",
+            "Fundamentação da Necessidade",
+        ]:
+            v = secoes.get(chave)
+            if isinstance(v, str) and v.strip():
+                partes_desc.append(v.strip())
+        desc_calc = "\n\n".join(partes_desc).strip()
+        resposta["descricao_necessidade"] = desc_calc
+
+    # ---------------- MOTIVAÇÃO ----------------
+    mot_existente = ""
+    if isinstance(resposta.get("motivacao"), str):
+        mot_existente = resposta["motivacao"].strip()
+
+    if not mot_existente:
+        partes_mot = []
+        for chave in [
+            "Objetivos da Contratação",
+            "Resultados Esperados",
+            "Benefícios Institucionais",
+            "Justificativa Legal",
+            "Riscos da Não Contratação",
+        ]:
+            v = secoes.get(chave)
+            if isinstance(v, str) and v.strip():
+                partes_mot.append(v.strip())
+        mot_calc = "\n\n".join(partes_mot).strip()
+        resposta["motivacao"] = mot_calc
+
+    return resposta
+
+
+# ==========================================================
+# 🤖 DOCUMENT AGENT – D3
 # ==========================================================
 class DocumentAgent:
+    """
+    Agente de documentos institucional do TJSP.
+    Nesta versão está focado no artefato DFD, mas já
+    preparado para ser reutilizado em outros (ETP, TR, Edital).
+    """
 
     def __init__(self, artefato: str):
         self.artefato = artefato.upper()
@@ -113,7 +180,7 @@ class DocumentAgent:
     # 🧠 GERAÇÃO PRINCIPAL
     # ------------------------------------------------------
     def generate(self, conteudo_base: str) -> dict:
-        print("\n>>> DocumentAgent(D2) iniciado")
+        print("\n>>> DocumentAgent(D3) iniciado")
         print(f"Artefato: {self.artefato}")
         print(f"Tamanho do insumo: {len(conteudo_base)}")
 
@@ -130,7 +197,7 @@ class DocumentAgent:
 
         print(">>> Resposta RAW recebida da IA")
 
-        # Normalização básica
+        # Normalização da raiz
         if isinstance(resposta_raw, dict) and "DFD" in resposta_raw:
             resposta = resposta_raw["DFD"]
         elif isinstance(resposta_raw, dict):
@@ -141,14 +208,21 @@ class DocumentAgent:
         if not isinstance(resposta, dict):
             resposta = {"texto_narrativo": str(resposta)}
 
-        # Sanitização
+        # Sanitização do texto narrativo
         resposta["texto_narrativo"] = _sanear_texto_narrativo(
             resposta.get("texto_narrativo", "")
         )
 
+        # Garantir seções obrigatórias
         resposta = _sanear_secoes(resposta)
+
+        # Garantir campos tradicionais de síntese
+        resposta = _preencher_descricao_e_motivacao(resposta)
+
+        # Anti-alucinação numérica
         resposta = _sanear_numeros_na_resposta(resposta, conteudo_base)
 
+        # Lista de lacunas
         lac = resposta.get("lacunas", [])
         resposta["lacunas"] = lac if isinstance(lac, list) else []
 
@@ -161,16 +235,24 @@ class DocumentAgent:
         if not isinstance(resposta.get("valor_estimado"), str):
             resposta["valor_estimado"] = str(resposta["valor_estimado"])
 
-        # Log opcional
+        # Metadados mínimos
+        resposta.setdefault("origem", "document_agent_D3")
+        resposta.setdefault(
+            "gerado_em",
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+        # Log opcional (pode ser comentado se não quiser gerar arquivos)
         _registrar_log_document_agent(
             {
                 "artefato": self.artefato,
-                "timestamp": datetime.now().isoformat(),
-                "resposta_saneada": resposta,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "entrada_tamanho": len(conteudo_base),
+                "resposta": resposta,
             }
         )
 
-        print(">>> DocumentAgent(D2) — Sanitização finalizada.")
+        print(">>> DocumentAgent(D3) — Sanitização finalizada.")
         return resposta
 
     # ------------------------------------------------------
@@ -186,7 +268,7 @@ class DocumentAgent:
                 "e deverá PRODUZIR um DFD moderno completo, inferindo informações quando possível "
                 "e registrando lacunas quando necessário.\n\n"
                 "=== OBJETIVO ===\n"
-                "Gerar texto formal, robusto, coerente e aderente ao modelo institucional.\n\n"
+                "Gerar texto formal, robusto, coerente e aderente ao modelo institucional do TJSP.\n\n"
                 "=== FORMATO (OBRIGATÓRIO) ===\n"
                 "Responda APENAS com JSON contendo:\n"
                 "{\n"
@@ -195,6 +277,8 @@ class DocumentAgent:
                 "    \"responsavel\": \"\",\n"
                 "    \"prazo_estimado\": \"\",\n"
                 "    \"valor_estimado\": \"0,00\",\n"
+                "    \"descricao_necessidade\": \"...\",\n"
+                "    \"motivacao\": \"...\",\n"
                 "    \"texto_narrativo\": \"...\",\n"
                 "    \"secoes\": {\n"
                 "      \"Contexto Institucional\": \"...\",\n"
@@ -214,14 +298,15 @@ class DocumentAgent:
                 "}"
             )
 
+        # Fallback genérico para futuros artefatos
         return (
             f"Você é o agente institucional do TJSP responsável pelo artefato {self.artefato}. "
-            "Produza APENAS JSON estruturado e formal."
+            "Produza APENAS JSON estruturado e formal, seguindo o padrão institucional."
         )
 
 
 # ==========================================================
-# 🟦 Função universal — DFD
+# 🟦 Função universal — interface usada pelo integration_dfd
 # ==========================================================
 def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
     """
