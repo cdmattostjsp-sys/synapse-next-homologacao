@@ -1,7 +1,7 @@
 # ==========================================================
-# utils/ai_client.py — vNext_D2.1 (compatível com OpenAI Responses API)
-# Cliente Institucional OpenAI – TJSP / SAAB
-# TOTALMENTE COMPATÍVEL com DocumentAgent D2.1
+# utils/ai_client.py — vNext_D4 (2025)
+# Compatível com OpenAI Responses API + DocumentAgent D3
+# SEM proxies — SEM parâmetros legados — 100% estável
 # ==========================================================
 
 from dotenv import load_dotenv
@@ -14,69 +14,59 @@ from openai import OpenAI
 
 class AIClient:
     """
-    Cliente institucional padronizado para consultas à OpenAI usando o
-    NOVO ENDPOINT 'responses.create', obrigatório nos modelos 4o e 4o-mini.
-
-    Benefícios:
-      ✓ Suporte nativo a JSON via response_format
-      ✓ Retorno sempre limpo como string JSON
-      ✓ Compatível com DocumentAgent D2.1
+    Cliente institucional padronizado para o TJSP.
+    Compatível com a API oficial OpenAI (responses.create).
     """
 
     def __init__(self, model: str = None):
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("❌ OPENAI_API_KEY não encontrada no ambiente.")
+            raise ValueError("❌ OPENAI_API_KEY não encontrada.")
 
-        # Cliente OpenAI oficial (novo SDK)
+        # Cliente oficial — sem proxies / sem parâmetros legados
         self.client = OpenAI(api_key=api_key)
 
+        # Modelo institucional padrão
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
     # ==========================================================
-    # MÉTODO PRINCIPAL
+    # CHAMADA PRINCIPAL — JSON SEMPRE VÁLIDO
     # ==========================================================
     def ask(self, prompt: str, conteudo: str | bytes = "", artefato: str = "DFD") -> dict:
 
-        # ------------------------------------------------------
-        # Normalização do conteúdo enviado
-        # ------------------------------------------------------
+        # Normalização
         if isinstance(conteudo, bytes):
             conteudo = conteudo.decode("utf-8", errors="ignore")
         elif not isinstance(conteudo, str):
             conteudo = str(conteudo)
 
-        conteudo = conteudo or ""
-        trecho = conteudo[:8000]
+        conteudo = conteudo.strip()
+        trecho = conteudo[:8000]  # limite seguro
 
-        # ------------------------------------------------------
-        # Montagem do bloco de mensagens
-        # ------------------------------------------------------
+        # Mensagens
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "Você é o assistente institucional do Tribunal de Justiça do Estado de São Paulo (TJSP). "
-                    "Sua resposta deve ser EXCLUSIVAMENTE JSON válido, sem comentários."
-                ),
+                    "Você é o assistente institucional oficial do Tribunal de Justiça do Estado de São Paulo (TJSP). "
+                    "Sua resposta deve ser EXCLUSIVAMENTE um JSON válido."
+                )
             },
             {
                 "role": "user",
                 "content": (
                     f"{prompt}\n\n"
-                    f"=== CONTEÚDO DO DOCUMENTO (INSUMO) ===\n"
+                    f"=== CONTEÚDO DO DOCUMENTO ===\n"
                     f"{trecho}\n\n"
                     f"=== INSTRUÇÃO FINAL ===\n"
-                    f"Responda APENAS com um JSON válido referente ao artefato: {artefato}."
-                ),
-            },
+                    f"Responda APENAS com JSON para o artefato {artefato}."
+                )
+            }
         ]
 
-        # ------------------------------------------------------
-        # CHAMADA COM O NOVO ENDPOINT
-        # ------------------------------------------------------
+        # Chamada à API
         try:
             resposta = self.client.responses.create(
                 model=self.model,
@@ -90,38 +80,28 @@ class AIClient:
 
         except Exception as e:
             print(f"[AIClient][ERRO FATAL] {e}")
-            return {"erro": f"Falha grave ao consultar OpenAI: {e}"}
+            return {"erro": f"Falha ao consultar a OpenAI: {e}"}
 
-        # ------------------------------------------------------
-        # LOG CURTO
-        # ------------------------------------------------------
+        # Log curto
         print("\n===== AIClient DEBUG =====")
-        print(f"[Modelo] {self.model}")
-        print(f"[Trecho enviado] {len(trecho)} chars")
-        print(f"[Resposta JSON bruta] {texto[:300]}...\n")
+        print(f"Modelo: {self.model}")
+        print(f"Trecho enviado: {len(trecho)} caracteres")
+        print(f"Início da resposta: {texto[:200]}")
+        print("===== FIM DEBUG =====\n")
 
-        # ------------------------------------------------------
-        # 1) Tentativa direta de json.loads
-        # ------------------------------------------------------
+        # Tentativa de decodificação
         try:
             return json.loads(texto)
         except Exception:
-            print("[AIClient] JSON direto falhou — tentando limpeza.")
+            pass
 
-        # ------------------------------------------------------
-        # 2) Limpeza de bloco markdown
-        # ------------------------------------------------------
+        # Remover markdown, se existir
         try:
-            texto_limpo = (
+            txt = (
                 texto.replace("```json", "")
                 .replace("```", "")
                 .strip()
             )
-            return json.loads(texto_limpo)
+            return json.loads(txt)
         except Exception:
-            print("[AIClient] JSON após limpeza falhou — fallback final.")
-
-        # ------------------------------------------------------
-        # 3) Fallback de segurança
-        # ------------------------------------------------------
-        return {"resposta_texto": texto}
+            return {"resposta_texto": texto}
