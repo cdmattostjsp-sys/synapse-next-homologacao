@@ -25,6 +25,9 @@ beautifulsoup4==4.12.2
 regex==2023.12.25
 PyYAML==6.0.1
 
+# ---- Visualização / Gráficos ----
+plotly==5.23.0
+
 # ---- Segurança / Utilidades ----
 validators==0.28.0
 python-dotenv==1.0.1
