@@ -111,3 +111,41 @@ class DocumentAgent:
             "  }\n"
             "}"
         )
+
+# ==========================================================
+# Função universal — chamada pelo integration_dfd
+# ==========================================================
+def processar_dfd_com_ia(conteudo_textual: str = "") -> dict:
+    """
+    Wrapper universal utilizado pelo integration_dfd.
+    Recebe texto puro e retorna:
+        { "timestamp": "...", "resultado_ia": { ...DFD... } }
+    """
+
+    if not conteudo_textual or len(conteudo_textual.strip()) < 15:
+        return {
+            "erro": "Conteúdo insuficiente para processamento IA.",
+            "conteudo_recebido": conteudo_textual,
+        }
+
+    try:
+        agente = DocumentAgent("DFD")
+        resultado = agente.generate(conteudo_textual)
+
+        # Se houve erro interno → propagar
+        if isinstance(resultado, dict) and "erro" in resultado:
+            return {
+                "erro": resultado["erro"],
+                "conteudo_recebido": conteudo_textual[:500],
+            }
+
+        return {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "resultado_ia": resultado,
+        }
+
+    except Exception as e:
+        return {
+            "erro": f"Falha ao gerar DFD universal: {e}",
+            "conteudo_recebido": conteudo_textual[:500],
+        }
