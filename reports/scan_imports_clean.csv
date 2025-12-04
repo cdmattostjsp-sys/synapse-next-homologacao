@@ -1,0 +1,122 @@
+file_path,import_count,imports,top_level_modules
+agents/agente_modelos_contrato.py,5,import os; import json; from datetime import; from pathlib import; from openai import,datetime; json; openai; os; pathlib
+agents/document_agent.py,4,from __future__ import; import json; from datetime import; from utils.ai_client import,__future__; datetime; json; utils
+agents/github_bridge.py,3,import os; import subprocess; from datetime import,datetime; os; subprocess
+agents/guide_agent.py,4,import os; import json; from datetime import; from openai import,datetime; json; openai; os
+agents/stage_detector.py,3,import os; import json; from datetime import,datetime; json; os
+apply_path_patch.py,1,import os,os
+apply_safe_path_patch.py,3,import os; import re; from datetime import,datetime; os; re
+debug_alertas.py,6,import importlib; import sys; import os; import json; from datetime import; import utils.alertas_pipeline,datetime; importlib; json; os; sys; utils
+diagnostic_pipeline.py,8,import os; import sys; import json; import importlib.util; from pathlib import; from datetime import; from utils.next_pipeline import; import inspect,datetime; importlib; inspect; json; os; pathlib; sys; utils
+exports/backup_integration_tr_duplicado_20251110_0220.py,5,import os; import json; from datetime import; from pathlib import; from utils.ai_client import,datetime; json; os; pathlib; utils
+exports/backup_integration_tr_duplicado_20251110_0221.py,5,import os; import json; from datetime import; from pathlib import; from utils.ai_client import,datetime; json; os; pathlib; utils
+generate_agents_homologation_report.py,3,import os; from datetime import; from docx import,datetime; docx; os
+generate_auditoria_tecnica_vNext.py,6,import os; import json; import platform; import subprocess; from datetime import; from docx import,datetime; docx; json; os; platform; subprocess
+generate_ptre_vNext.py,3,import os; from datetime import; from docx import,datetime; docx; os
+knowledge/validators/Validador de Editais.py,13,import sys; import io; from datetime import; from pathlib import; import streamlit; from PIL import; from validators.edital_validator import; from knowledge.validators.edital_semantic_validator import; from reportlab.lib.pagesizes import; from reportlab.lib.styles import; from reportlab.platypus import; from reportlab.lib import; import pandas,PIL; datetime; io; knowledge; pandas; pathlib; reportlab; streamlit; sys; validators
+knowledge/validators/__init__.py,0,,
+knowledge/validators/contrato_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/contrato_tecnico_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/contrato_tecnico_validator.py,4,from __future__ import; from typing import; from pathlib import; import yaml,__future__; pathlib; typing; yaml
+knowledge/validators/contrato_validator.py,4,from __future__ import; from typing import; from pathlib import; import yaml,__future__; pathlib; typing; yaml
+knowledge/validators/dfd_semantic_validator.py,5,from __future__ import; from typing import; from openai import; import json; import re,__future__; json; openai; re; typing
+knowledge/validators/dfd_validator.py,2,import yaml; import os,os; yaml
+knowledge/validators/edital_semantic_validator.py,3,from typing import; import re; import json,json; re; typing
+knowledge/validators/edital_validator.py,4,from pathlib import; import json; import datetime; from utils.edital_loader import,datetime; json; pathlib; utils
+knowledge/validators/edital_validator_legacy.py,4,from __future__ import; from typing import; from pathlib import; import yaml,__future__; pathlib; typing; yaml
+knowledge/validators/etp_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/etp_validator.py,4,from pathlib import; import re; import yaml; from typing import,pathlib; re; typing; yaml
+knowledge/validators/fiscalizacao_semantic_validator.py,3,from __future__ import; from typing import; import pandas,__future__; pandas; typing
+knowledge/validators/fiscalizacao_validator.py,0,,
+knowledge/validators/itf_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/itf_validator.py,4,from __future__ import; from typing import; from pathlib import; import yaml,__future__; pathlib; typing; yaml
+knowledge/validators/mapa_riscos_semantic_validator.py,2,from __future__ import; from typing import,__future__; typing
+knowledge/validators/mapa_riscos_validator.py,5,from __future__ import; from typing import; from pathlib import; import re; import yaml,__future__; pathlib; re; typing; yaml
+knowledge/validators/obras_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/obras_validator.py,4,from __future__ import; from typing import; from pathlib import; import yaml,__future__; pathlib; typing; yaml
+knowledge/validators/pca_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/pca_validator.py,0,,
+knowledge/validators/pesquisa_precos_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/pesquisa_precos_validator.py,0,,
+knowledge/validators/tr_semantic_validator.py,6,from __future__ import; from typing import; from pathlib import; import json; import re; import yaml,__future__; json; pathlib; re; typing; yaml
+knowledge/validators/tr_validator.py,4,from pathlib import; import re; import yaml; from typing import,pathlib; re; typing; yaml
+knowledge/validators/validator_engine.py,9,from __future__ import; import os; import re; import glob; import json; import unicodedata; from typing import; import yaml; from openai import,__future__; glob; json; openai; os; re; typing; unicodedata; yaml
+knowledge/validators/validator_engine_backup.py,15,from __future__ import; from typing import; from pathlib import; import yaml; from knowledge.validators.etp_semantic_validator import; from knowledge.validators.tr_semantic_validator import; from knowledge.validators.contrato_semantic_validator import; from knowledge.validators.obras_semantic_validator import; from knowledge.validators.dfd_semantic_validator import; from knowledge.validators.pca_semantic_validator import; from knowledge.validators.pesquisa_precos_semantic_validator import; from knowledge.validators.edital_semantic_validator import; from knowledge.validators.fiscalizacao_semantic_validator import; from knowledge.validators.itf_semantic_validator import; from knowledge.validators.mapa_riscos_semantic_validator import,__future__; knowledge; pathlib; typing; yaml
+knowledge/validators/validator_engine_vNext.py,8,from __future__ import; import os; import re; import glob; import math; import json; import pathlib; from typing import,__future__; glob; json; math; os; pathlib; re; typing
+stabilization_pipeline_v3.py,5,import os; import re; import shutil; from datetime import; from pathlib import,datetime; os; pathlib; re; shutil
+streamlit_app/DOCs/1_SynapseNext.py,2,import streamlit; from datetime import,datetime; streamlit
+streamlit_app/DOCs/Next_00_Home (1).py,4,import sys; from pathlib import; import streamlit; from datetime import,datetime; pathlib; streamlit; sys
+streamlit_app/DOCs/Next_00_Sobre_SynapseNext.py,1,import streamlit,streamlit
+streamlit_app/DOCs/Next_40_Edital_legacy.py,7,import sys; from pathlib import; from datetime import; import streamlit; from utils.next_pipeline import; from utils.formatter_docx import; from utils.auditoria_pipeline import,datetime; pathlib; streamlit; sys; utils
+streamlit_app/Home.py,5,import sys; from pathlib import; import streamlit; import base64; from datetime import,base64; datetime; pathlib; streamlit; sys
+streamlit_app/Home_legacy.py,6,import streamlit; from pathlib import; import sys; from utils.ui_components import; from utils.ui_style import; import base64,base64; pathlib; streamlit; sys; utils
+streamlit_app/check_paths.py,1,from pathlib import,pathlib
+streamlit_app/pages/01_🔧 Insumos.py,6,import os; import json; import streamlit; from pathlib import; from utils.integration_insumos import; from utils.ui_components import,json; os; pathlib; streamlit; utils
+streamlit_app/pages/02_📄 DFD - Formalização da Demanda.py,8,from __future__ import; import json; import io; from typing import; from datetime import; import streamlit; from docx import; from utils.integration_dfd import,__future__; datetime; docx; io; json; streamlit; typing; utils
+streamlit_app/pages/03_📘 ETP – Estudo Técnico Preliminar.py,8,import os; import json; from io import; from docx import; import streamlit; from utils.agents_bridge import; from utils.integration_etp import; from utils.ui_components import,docx; io; json; os; streamlit; utils
+streamlit_app/pages/05_📑 TR – Termo de Referência.py,10,import streamlit; from datetime import; import os; import sys; import json; from io import; from docx import; from utils.ui_components import; from utils.integration_tr import; from openai import,datetime; docx; io; json; openai; os; streamlit; sys; utils
+streamlit_app/pages/06_📜Edital – Minuta do Edital.py,10,import os; import sys; import json; from datetime import; from io import; from pathlib import; import streamlit; from docx import; from utils.ui_components import; from utils.integration_edital import,datetime; docx; io; json; os; pathlib; streamlit; sys; utils
+streamlit_app/pages/07_🧩 Validador de Editais.py,11,import sys; import os; import sys; import os; import streamlit; import json; import os; from datetime import; from reportlab.lib.pagesizes import; from reportlab.pdfgen import; from utils.ui_components import,datetime; json; os; reportlab; streamlit; sys; utils
+streamlit_app/pages/08_📜 Contrato.py,9,import os; import json; from io import; from datetime import; import streamlit; from docx import; from openai import; from pathlib import; from utils.ui_components import,datetime; docx; io; json; openai; os; pathlib; streamlit; utils
+streamlit_app/pages/09_⚠️ Alertas.py,7,import streamlit; import plotly.express; import pandas; from datetime import; import sys; import os; from utils.ui_style import,datetime; os; pandas; plotly; streamlit; sys; utils
+streamlit_app/pages/10_💡 Análise de Desempenho.py,7,import streamlit; import pandas; import plotly.express; from datetime import; import sys; import os; from utils.ui_style import,datetime; os; pandas; plotly; streamlit; sys; utils
+streamlit_app/pages/11_📊 Painel de Governança.py,7,import streamlit; import pandas; import plotly.express; import sys; import os; from utils.ui_style import; from utils.alertas_pipeline import,os; pandas; plotly; streamlit; sys; utils
+streamlit_app/pages/12_📈 Painel Executivo.py,10,import streamlit; import pandas; import plotly.express; from datetime import; import sys; import os; from pathlib import; from utils.ui_style import; from utils.alertas_pipeline import; from utils.relatorio_executivo_pdf import,datetime; os; pandas; pathlib; plotly; streamlit; sys; utils
+streamlit_app/pages/13_🧾 Relatório Técnico.py,9,import sys; import os; from pathlib import; from datetime import; import streamlit; import pandas; from utils.relatorio_consolidado_pipeline import; from utils.alertas_pipeline import; from utils.ui_components import,datetime; os; pandas; pathlib; streamlit; sys; utils
+streamlit_app/pages/14_🔍 Comparador.py,7,import sys; import os; from pathlib import; from datetime import; import streamlit; from utils.comparador_pipeline import; from utils.ui_components import,datetime; os; pathlib; streamlit; sys; utils
+streamlit_app/pages/15_🗂️ Gerar Registro de Versão.py,9,import sys; import os; import json; import shutil; import zipfile; from pathlib import; from datetime import; import streamlit; from utils.ui_components import,datetime; json; os; pathlib; shutil; streamlit; sys; utils; zipfile
+streamlit_app/pages/16_🔗 Integração.py,5,import os; import sys; from datetime import; import streamlit; from utils.ui_components import,datetime; os; streamlit; sys; utils
+synapse_chat.py,9,import streamlit; from openai import; import base64; import os; import io; from knowledge.validators.validator_engine import; from PyPDF2 import; import docx; import uuid,PyPDF2; base64; docx; io; knowledge; openai; os; streamlit; uuid
+synapse_chat_vNext.py,10,from __future__ import; import os; import io; import base64; from datetime import; import streamlit; from docx import; from docx.shared import; from openai import; from validator_engine_vNext import,__future__; base64; datetime; docx; io; openai; os; streamlit; validator_engine_vNext
+test_agent.py,3,from agents.document_agent import; import json; import os,agents; json; os
+test_agents_integration_vNext.py,6,import os; import json; from agents.document_agent import; from agents.stage_detector import; from agents.guide_agent import; from agents.github_bridge import,agents; json; os
+test_all_validators.py,2,from knowledge.validators.validator_engine import; from openai import,knowledge; openai
+test_dfd_cli.py,4,import json; import re; from pathlib import; from utils.integration_dfd import,json; pathlib; re; utils
+test_formatter_docx.py,1,from utils.formatter_docx import,utils
+test_validator.py,2,from knowledge.validators.validator_engine import; from openai import,knowledge; openai
+tests/data/generate_fictitious_inputs.py,3,import os; from docx import; from reportlab.pdfgen import,docx; os; reportlab
+tests/synapse_codex_runner.py,6,import os; import json; from datetime import; from validator_engine_vNext import; from utils.formatter_docx import; from openai import,datetime; json; openai; os; utils; validator_engine_vNext
+tests/test_data_integrity.py,2,import os; import pytest,os; pytest
+tests/test_layout_consistency.py,2,import importlib; import pytest,importlib; pytest
+tests/test_semantic_pipeline.py,4,import pytest; from pathlib import; from docx import; import re,docx; pathlib; pytest; re
+tests/test_ui_integrity.py,3,import importlib; import os; import pytest,importlib; os; pytest
+tests/test_validation_pipeline.py,3,import pytest; from pathlib import; from docx import,docx; pathlib; pytest
+tools/apply_layout_patch_saab5.py,2,import os; import re,os; re
+tools/apply_visual_patch_saab5.py,3,import os; from pathlib import; from datetime import,datetime; os; pathlib
+utils/__init__.py,2,import sys; from pathlib import,pathlib; sys
+utils/agents_bridge.py,3,from __future__ import; from typing import; from agents.document_agent import,__future__; agents; typing
+utils/ai_client.py,4,from dotenv import; import os; import json; from openai import,dotenv; json; openai; os
+utils/alertas_pipeline.py,3,import json; import os; from datetime import,datetime; json; os
+utils/analytics_engine_vNext.py,5,import os; import json; import pandas; from datetime import; from pathlib import,datetime; json; os; pandas; pathlib
+utils/auditoria_pipeline.py,6,from __future__ import; from pathlib import; from datetime import; import hashlib; import json; from typing import,__future__; datetime; hashlib; json; pathlib; typing
+utils/comparador_pipeline.py,7,from __future__ import; from pathlib import; from datetime import; from typing import; import json; import re; from difflib import,__future__; datetime; difflib; json; pathlib; re; typing
+utils/diagnostic_fase2.py,8,from __future__ import; import os; import sys; import json; import platform; from datetime import; from utils.knowledge_loader import; from utils.agents_bridge import,__future__; datetime; json; os; platform; sys; utils
+utils/diagnostic_fase3_vNext.py,4,import os; import json; from datetime import; from pathlib import,datetime; json; os; pathlib
+utils/edital_loader.py,4,from pathlib import; import yaml; import datetime; import streamlit,datetime; pathlib; streamlit; yaml
+utils/export_sharepoint_pipeline.py,5,from datetime import; from pathlib import; import json; import requests; import os,datetime; json; os; pathlib; requests
+utils/export_snapshot.py,4,from pathlib import; from datetime import; import json; from utils.governanca_pipeline import,datetime; json; pathlib; utils
+utils/formatter_docx.py,6,import os; import re; from datetime import; from docx import; from docx.shared import; from docx.enum.text import,datetime; docx; os; re
+utils/governanca_pipeline.py,4,import os; import json; from datetime import; from pathlib import,datetime; json; os; pathlib
+utils/insights_pipeline.py,4,import os; import json; from datetime import; from pathlib import,datetime; json; os; pathlib
+utils/integration_contrato.py,9,import os; import re; import json; from io import; from typing import; from pathlib import; import docx2txt; import fitz; from utils.ai_client import,docx2txt; fitz; io; json; os; pathlib; re; typing; utils
+utils/integration_dfd.py,7,from __future__ import; import os; import json; import glob; import streamlit; from datetime import; from agents.document_agent import,__future__; agents; datetime; glob; json; os; streamlit
+utils/integration_edital.py,13,from __future__ import; import os; import io; import re; import json; from pathlib import; from datetime import; from typing import; import streamlit; import fitz; import docx2txt; from docx import; from openai import,__future__; datetime; docx; docx2txt; fitz; io; json; openai; os; pathlib; re; streamlit; typing
+utils/integration_etp.py,6,from __future__ import; import os; import json; import glob; import streamlit; from datetime import,__future__; datetime; glob; json; os; streamlit
+utils/integration_insumos.py,8,from __future__ import; import os; import json; import tempfile; from datetime import; import streamlit; import fitz; import docx2txt,__future__; datetime; docx2txt; fitz; json; os; streamlit; tempfile
+utils/integration_placeholders.py,3,from datetime import; from pathlib import; import json,datetime; json; pathlib
+utils/integration_tr.py,9,import json; import os; import re; from typing import; from pathlib import; from utils.ai_client import; from io import; import fitz; import docx2txt,docx2txt; fitz; io; json; os; pathlib; re; typing; utils
+utils/knowledge_loader.py,3,from __future__ import; import os; from typing import,__future__; os; typing
+utils/layout_institucional.py,3,import streamlit; from pathlib import; import base64,base64; pathlib; streamlit
+utils/layout_manager.py,4,import streamlit; from plotly.graph_objs import; import matplotlib.pyplot; import plotly.express,matplotlib; plotly; streamlit
+utils/next_pipeline.py,5,from datetime import; import os; import json; import openai; import streamlit,datetime; json; openai; os; streamlit
+utils/parser_pdf.py,1,import fitz,fitz
+utils/paths.py,1,from pathlib import,pathlib
+utils/relatorio_consolidado_pipeline.py,18,from __future__ import; from pathlib import; from datetime import; from typing import; import json; import os; from utils.comparador_pipeline import; import sys; from utils.comparador_pipeline import; from utils.auditoria_pipeline import; import sys; from utils.auditoria_pipeline import; from utils.next_pipeline import; import sys; from utils.next_pipeline import; from utils.formatter_docx import; import sys; from utils.formatter_docx import,__future__; datetime; json; os; pathlib; sys; typing; utils
+utils/relatorio_consolidado_pipeline_vNext.py,10,import os; import json; from datetime import; import pandas; from utils.analytics_engine_vNext import; from utils.validator_engine_vNext import; from utils.comparador_pipeline import; from utils.export_snapshot import; from docx import; from docx.shared import,datetime; docx; json; os; pandas; utils
+utils/relatorio_executivo_pdf.py,11,import io; from datetime import; from pathlib import; import matplotlib; import matplotlib.pyplot; from reportlab.lib import; from reportlab.lib.pagesizes import; from reportlab.lib.styles import; from reportlab.platypus import; from reportlab.platypus.tableofcontents import; from reportlab.pdfgen import,datetime; io; matplotlib; pathlib; reportlab
+utils/test_integration_exports.py,6,import os; import json; from datetime import; from utils.integration_dfd import; from utils.integration_etp import; from utils.integration_tr import,datetime; json; os; utils
+utils/test_pages_integrity_vNext.py,2,import os; from pathlib import,os; pathlib
+utils/ui_components.py,1,import streamlit,streamlit
+utils/ui_style.py,3,import streamlit; from datetime import; import streamlit,datetime; streamlit
+utils/validator_engine_vNext.py,4,import os; import json; from datetime import; from pathlib import,datetime; json; os; pathlib
+validator_engine_vNext.py,8,from __future__ import; import os; import re; import glob; import math; import json; import pathlib; from typing import,__future__; glob; json; math; os; pathlib; re; typing
