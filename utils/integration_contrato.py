@@ -21,10 +21,15 @@ import fitz  # PyMuPDF
 from utils.ai_client import AIClient
 
 # -----------------------------
-# ⚙️ Cliente OpenAI institucional
+# ⚙️ Cliente OpenAI institucional (lazy loading)
 # -----------------------------
-ai = AIClient()
-client = ai.client  # compatibilidade
+def _get_openai_client():
+    """Retorna instância do AIClient ou None se indisponível."""
+    try:
+        return AIClient()
+    except Exception as e:
+        print(f"[SynapseNext][CONTRATO] IA indisponível (lazy loading): {e}")
+        return None
 
 # -----------------------------
 # 📂 Export paths
@@ -157,16 +162,22 @@ Texto do insumo:
 \"\"\"{texto[:8000]}\"\"\"
 """
 
-    try:
-        resp = ai.chat([
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ])
-        conteudo = resp["content"].strip()
-        match = re.search(r"\{.*\}", conteudo, re.DOTALL)
-        campos = json.loads(match.group(0)) if match else {"objeto": texto[:1000]}
-    except Exception as e:
-        campos = {"erro": f"Falha ao processar IA de CONTRATO: {e}"}
+    # Lazy loading do cliente IA
+    ai = _get_openai_client()
+    if ai is None:
+        print("[SynapseNext][CONTRATO] IA indisponível – executando em modo degradado")
+        campos = {"objeto": texto[:1000] if texto else ""}
+    else:
+        try:
+            resp = ai.chat([
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ])
+            conteudo = resp["content"].strip()
+            match = re.search(r"\{.*\}", conteudo, re.DOTALL)
+            campos = json.loads(match.group(0)) if match else {"objeto": texto[:1000]}
+        except Exception as e:
+            campos = {"erro": f"Falha ao processar IA de CONTRATO: {e}"}
 
     defaults = {
         "objeto": "",

@@ -1,0 +1,19 @@
+==== TESTE FUNCIONAL BACKEND ====
+=== TESTE 1: Detecção de tipo de arquivo ===
+PDF: pdf
+DOCX: docx
+TXT: txt
+
+=== TESTE 2: Extração de texto TXT ===
+Texto extraído (89 caracteres):
+Documento de teste para o modulo INSUMOS
+Linha 2 com mais conteudo
+Linha 3 para validacao
+
+=== TESTE 3: Processamento completo (simulado) ===
+NOTA: processar_insumo() usa st.warning/st.error, então testamos apenas funções auxiliares
+✓ detectar_tipo() funcional
+✓ extrair_texto_de_upload() funcional
+
+=== RESULTADO FINAL ===
+Backend do módulo INSUMOS operacional para testes unitários

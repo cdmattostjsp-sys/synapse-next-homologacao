@@ -5,21 +5,28 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 # ==========================================================
-# pages/07_📃 Contrato.py – SynapseNext / SAAB TJSP
+# pages/08_📜 Contrato.py – SynapseNext / SAAB TJSP
 # ==========================================================
 # Módulo final da jornada de contratação pública.
 # Gera a minuta do contrato a partir de insumos cumulativos
 # (DFD, ETP, TR, Edital) e processamento IA institucional.
+# Refatorado para usar backend com lazy loading.
 # ==========================================================
 
-import os, json
+import os
 from io import BytesIO
 from datetime import datetime
 import streamlit as st
 from docx import Document
-from openai import OpenAI
 from pathlib import Path
+
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from utils.integration_contrato import (
+    processar_insumo_contrato,
+    export_contrato_to_json,
+    load_contrato_from_json,
+    integrar_com_contexto,
+)
 
 # ==========================================================
 # ⚙️ Configuração básica
@@ -27,22 +34,12 @@ from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 st.set_page_config(page_title="📃 Contrato", layout="wide", page_icon="📃")
 aplicar_estilo_global()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
-client = OpenAI(api_key=OPENAI_API_KEY)
-
 # ==========================================================
-# 📚 Leitura de modelos institucionais
+# 📥 Carregamento de dados persistidos (JSON)
 # ==========================================================
-def ler_modelos_contrato() -> str:
-    base = Path(__file__).resolve().parents[1] / "knowledge" / "contrato_models"
-    textos = []
-    if base.exists():
-        for arq in base.glob("*.txt"):
-            try:
-                textos.append(arq.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-    return "\n\n".join(textos)
+dados_contrato_anterior = load_contrato_from_json()
+if dados_contrato_anterior and "campos_ai" in dados_contrato_anterior:
+    st.session_state["contrato_campos_ai"] = dados_contrato_anterior["campos_ai"]
 
 # ==========================================================
 # 🏛️ Cabeçalho institucional
@@ -65,6 +62,43 @@ if defaults:
     st.success("📎 Dados recebidos automaticamente dos módulos anteriores (DFD, ETP, TR, Edital).")
 else:
     st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo INSUMOS.")
+
+# ==========================================================
+# 📤 Upload de insumo (opcional)
+# ==========================================================
+st.subheader("📤 Upload de Insumo (opcional)")
+arquivo_upload = st.file_uploader(
+    "Envie um arquivo de referência (PDF, DOCX, TXT) para processar com o backend:",
+    type=["pdf", "docx", "txt"],
+    help="O backend irá processar este arquivo e preencher automaticamente os campos abaixo."
+)
+
+if arquivo_upload is not None:
+    if st.button("🔄 Processar Insumo com Backend"):
+        with st.spinner("Processando insumo com backend integrado (lazy loading)..."):
+            try:
+                resultado_backend = processar_insumo_contrato(arquivo_upload)
+                
+                if resultado_backend["status"] == "processado":
+                    # Salvar JSON
+                    export_contrato_to_json(resultado_backend)
+                    
+                    # Atualizar session_state
+                    st.session_state["contrato_campos_ai"] = resultado_backend["campos_ai"]
+                    st.session_state["contrato_contexto"] = integrar_com_contexto(st.session_state)
+                    
+                    st.success("✅ Insumo processado com sucesso! Os campos abaixo foram preenchidos automaticamente.")
+                    st.info(f"📄 Arquivo processado: {resultado_backend.get('nome_arquivo', 'N/A')}")
+                    
+                    # Recarregar página para mostrar dados atualizados
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Processamento concluído, mas status inesperado. Verifique os logs.")
+                    
+            except Exception as e:
+                st.error(f"❌ Erro ao processar insumo: {e}")
+
+st.divider()
 
 # ==========================================================
 # 🧾 Formulário – Campos contratuais
@@ -93,76 +127,106 @@ st.divider()
 observacoes_finais = st.text_area("Observações Finais", value=defaults.get("observacoes_finais", ""), height=70)
 
 # ==========================================================
-# ⚙️ Geração com IA Institucional
+# 💾 Salvar manualmente campos editados
 # ==========================================================
-st.subheader("⚙️ Geração da Minuta Contratual com IA Institucional")
-
-if st.button("🤖 Gerar minuta completa do Contrato com IA institucional"):
-    with st.spinner("Gerando minuta contratual com base nos artefatos e modelos institucionais..."):
-        modelos = ler_modelos_contrato()
-        campos = {
-            "objeto": objeto,
-            "partes": partes,
-            "vigencia": vigencia,
-            "valor_global": valor_global,
-            "reajuste": reajuste,
-            "garantias": garantias,
-            "prazos_pagamento": prazos_pagamento,
-            "obrigacoes_contratada": obrigacoes_contratada,
-            "obrigacoes_contratante": obrigacoes_contratante,
-            "fiscalizacao": fiscalizacao,
-            "penalidades": penalidades,
-            "rescisao": rescisao,
-            "foro": foro,
-            "observacoes_finais": observacoes_finais
-        }
-
-        user_prompt = f"""
-Com base nos campos abaixo e nos modelos institucionais da SAAB/TJSP,
-elabore a minuta completa de um CONTRATO ADMINISTRATIVO conforme a Lei nº 14.133/2021.
-O texto deve seguir o padrão redacional do TJSP.
-
-Campos:
-{json.dumps(campos, ensure_ascii=False, indent=2)}
-
-Modelos de referência:
-\"\"\"{modelos}\"\"\"
-"""
-
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Você é um redator institucional do TJSP responsável por elaborar contratos administrativos conforme o padrão SAAB/TJSP e a Lei 14.133/2021."},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.3
-            )
-            artefato_contrato = response.choices[0].message.content.strip()
-            st.session_state["artefato_contrato_gerado"] = artefato_contrato
-            st.success("✅ Minuta contratual gerada com sucesso! Você pode visualizar e exportar o documento abaixo.")
-            st.text_area("📄 Pré-visualização da minuta gerada:", artefato_contrato, height=400)
-
-        except Exception as e:
-            st.error(f"Erro ao gerar minuta contratual com IA: {e}")
+st.divider()
+if st.button("💾 Salvar campos editados manualmente"):
+    campos_manuais = {
+        "objeto": objeto,
+        "partes": partes,
+        "vigencia": vigencia,
+        "valor_global": valor_global,
+        "reajuste": reajuste,
+        "garantias": garantias,
+        "prazos_pagamento": prazos_pagamento,
+        "obrigacoes_contratada": obrigacoes_contratada,
+        "obrigacoes_contratante": obrigacoes_contratante,
+        "fiscalizacao": fiscalizacao,
+        "penalidades": penalidades,
+        "rescisao": rescisao,
+        "foro": foro,
+        "observacoes_finais": observacoes_finais
+    }
+    
+    resultado_manual = {
+        "artefato": "",
+        "nome_arquivo": "edicao_manual",
+        "status": "editado_manualmente",
+        "campos_ai": campos_manuais
+    }
+    
+    export_contrato_to_json(resultado_manual)
+    st.session_state["contrato_campos_ai"] = campos_manuais
+    st.session_state["contrato_contexto"] = integrar_com_contexto(st.session_state)
+    st.success("✅ Campos salvos com sucesso!")
 
 # ==========================================================
-# 💾 Exportação DOCX
+# 📄 Geração DOCX final
 # ==========================================================
-if "artefato_contrato_gerado" in st.session_state:
-    doc = Document()
-    doc.add_heading("MINUTA DO CONTRATO ADMINISTRATIVO", level=1)
-    doc.add_paragraph(st.session_state["artefato_contrato_gerado"])
+st.divider()
+st.subheader("📄 Exportação da Minuta Contratual")
 
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
+if st.button("📤 Gerar DOCX da Minuta Contratual"):
+    with st.spinner("Gerando documento DOCX..."):
+        doc = Document()
+        doc.add_heading("MINUTA DO CONTRATO ADMINISTRATIVO", level=1)
+        doc.add_heading("TJSP - Tribunal de Justiça de São Paulo", level=2)
+        doc.add_paragraph("")
+        
+        doc.add_heading("1. OBJETO DO CONTRATO", level=2)
+        doc.add_paragraph(objeto or "Não especificado")
+        
+        doc.add_heading("2. PARTES CONTRATANTES", level=2)
+        doc.add_paragraph(partes or "Não especificado")
+        
+        doc.add_heading("3. VIGÊNCIA", level=2)
+        doc.add_paragraph(vigencia or "Não especificado")
+        
+        doc.add_heading("4. VALOR GLOBAL", level=2)
+        doc.add_paragraph(valor_global or "Não especificado")
+        
+        doc.add_heading("5. REAJUSTE", level=2)
+        doc.add_paragraph(reajuste or "Não especificado")
+        
+        doc.add_heading("6. GARANTIAS", level=2)
+        doc.add_paragraph(garantias or "Não especificado")
+        
+        doc.add_heading("7. PRAZOS E FORMA DE PAGAMENTO", level=2)
+        doc.add_paragraph(prazos_pagamento or "Não especificado")
+        
+        doc.add_heading("8. OBRIGAÇÕES DA CONTRATADA", level=2)
+        doc.add_paragraph(obrigacoes_contratada or "Não especificado")
+        
+        doc.add_heading("9. OBRIGAÇÕES DA CONTRATANTE", level=2)
+        doc.add_paragraph(obrigacoes_contratante or "Não especificado")
+        
+        doc.add_heading("10. FISCALIZAÇÃO E ACOMPANHAMENTO", level=2)
+        doc.add_paragraph(fiscalizacao or "Não especificado")
+        
+        doc.add_heading("11. PENALIDADES", level=2)
+        doc.add_paragraph(penalidades or "Não especificado")
+        
+        doc.add_heading("12. RESCISÃO CONTRATUAL", level=2)
+        doc.add_paragraph(rescisao or "Não especificado")
+        
+        doc.add_heading("13. FORO COMPETENTE", level=2)
+        doc.add_paragraph(foro or "Não especificado")
+        
+        if observacoes_finais:
+            doc.add_heading("14. OBSERVAÇÕES FINAIS", level=2)
+            doc.add_paragraph(observacoes_finais)
+        
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        st.download_button(
+            label="📥 Baixar Minuta em DOCX",
+            data=buffer,
+            file_name=f"Contrato_TJSP_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        st.success("✅ Documento DOCX gerado com sucesso!")
 
-    st.download_button(
-        label="📤 Exportar contrato em DOCX",
-        data=buffer,
-        file_name=f"Contrato_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+st.caption("📎 Este módulo utiliza o backend refatorado (utils/integration_contrato.py) com lazy loading e modo degradado.")
 
-st.caption("📎 O texto acima é gerado pela IA institucional com base nos modelos oficiais do TJSP e nos artefatos acumulados da jornada de contratação.")

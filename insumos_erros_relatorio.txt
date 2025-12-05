@@ -1,0 +1,19 @@
+==== ANALISE AUTOMATICA DE ERROS ====
+
+[CONTAGEM DE ERRORS]
+0
+
+[CONTAGEM DE EXCEPTIONS]
+0
+
+[CONTAGEM DE TRACEBACKS]
+0
+
+[CONTAGEM DE WARNINGS]
+1
+
+[DETALHES - ERRORS ENCONTRADOS]
+Nenhum error encontrado
+
+[DETALHES - WARNINGS ENCONTRADOS]
+Warning: the config option 'server.enableCORS=false' is not compatible with 'server.enableXsrfProtection=true'.
