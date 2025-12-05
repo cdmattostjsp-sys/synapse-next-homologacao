@@ -335,3 +335,27 @@ def validate_document(raw_text: str, doc_type: str, client) -> Dict[str, Any]:
             "used_context_files": used_files
         }
     }
+
+
+# ---------------------------------------------------------------------------
+# (6) Compatibilidade retroativa
+# ---------------------------------------------------------------------------
+
+def validar_semantica_ia(raw_text: str, doc_type: str, client):
+    """
+    Compatibilidade retroativa com pipelines antigos que chamavam
+    `validar_semantica_ia()` em vez de `validate_document()`.
+
+    Esta função é um wrapper fino que delega tudo para o engine oficial
+    validate_document(), garantindo compatibilidade total com etapas
+    legadas do SynapseNext (como relatorio_consolidado_pipeline_vNext).
+
+    Parâmetros:
+        raw_text (str): Texto extraído do documento.
+        doc_type (str): Tipo do documento (DFD, ETP, TR, Edital, etc.).
+        client: Cliente OpenAI configurado no pipeline.
+
+    Retorna:
+        Dict[str, Any]: Mesmo retorno estruturado do validate_document().
+    """
+    return validate_document(raw_text, doc_type, client)
