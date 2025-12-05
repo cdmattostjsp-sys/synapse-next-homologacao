@@ -17,8 +17,6 @@ import sys, os
 # ==========================================================
 # 🔧 Configuração de ambiente e estilo institucional
 # ==========================================================
-# Ajuste de path – garante acesso ao módulo utils mesmo em subpasta /pages
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
 
 # Configuração da página Streamlit

@@ -1,8 +1,3 @@
-import sys, os
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-import sys, os
 # ==========================================================
 # 🧩 Validador de Editais – SynapseNext vNext
 # Secretaria de Administração e Abastecimento (SAAB/TJSP)

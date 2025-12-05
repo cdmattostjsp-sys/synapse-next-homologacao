@@ -25,7 +25,7 @@ import pandas as pd
 # Dependências internas
 try:
     from utils.analytics_engine_vNext import analisar_coerencia_global
-    from utils.validator_engine_vNext import validar_semantica_ia
+    from knowledge.validators.validator_engine_vNext import validar_semantica_ia
     from utils.comparador_pipeline import comparar_documentos
     from utils.export_snapshot import carregar_snapshot
 except ImportError:

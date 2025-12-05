@@ -15,7 +15,6 @@ import sys, os
 # ==========================================================
 # 🔧 Configuração de ambiente e estilo institucional
 # ==========================================================
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
 from utils.alertas_pipeline import gerar_alertas, export_alerts_json
 

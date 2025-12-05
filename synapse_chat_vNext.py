@@ -35,7 +35,7 @@ from docx.shared import Pt
 from openai import OpenAI
 
 # engine
-from validator_engine_vNext import validate_document
+from knowledge.validators.validator_engine_vNext import validate_document
 
 # ----------------------------------------------------------------------------
 # Config & helpers

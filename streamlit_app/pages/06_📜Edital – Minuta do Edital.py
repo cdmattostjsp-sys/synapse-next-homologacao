@@ -12,9 +12,6 @@ from docx import Document
 # ==========================================================
 # 🔍 Imports e configuração de ambiente
 # ==========================================================
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
 
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 from utils.integration_edital import (

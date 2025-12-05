@@ -20,9 +20,6 @@ import pandas as pd
 # ==========================================================
 # 🔧 Configuração de caminhos e imports
 # ==========================================================
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
 
 try:
     from utils.relatorio_consolidado_pipeline import coletar_dados_relatorio, gerar_relatorio_docx
