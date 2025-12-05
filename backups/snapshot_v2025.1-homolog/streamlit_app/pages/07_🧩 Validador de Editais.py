@@ -1,0 +1,161 @@
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# ==========================================================
+# 🧩 Validador de Editais – SynapseNext vNext
+# Secretaria de Administração e Abastecimento (SAAB/TJSP)
+# ==========================================================
+# Função: validar a minuta do edital (manual ou gerada via IA)
+# A partir de 2025.10, o módulo está integrado ao agente Edital.IA
+# ==========================================================
+
+import streamlit as st
+import json
+import os
+from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+
+# ----------------------------------------------------------
+# ⚙️ Configuração de Página
+# ----------------------------------------------------------
+st.set_page_config(page_title="🧩 Validador de Editais", layout="wide", page_icon="🧩")
+aplicar_estilo_global()
+
+exibir_cabecalho_padrao(
+    "🧩 Validador de Editais",
+    "Análise semântica e conformidade institucional – SynapseNext vNext"
+)
+st.divider()
+
+# ==========================================================
+# 🧠 Carregamento de artefato Edital.IA (sessão ativa)
+# ==========================================================
+texto = ""
+if st.session_state.get("last_edital"):
+    edital_ativo = st.session_state["last_edital"]
+    st.success("📎 Minuta de Edital detectada – carregada automaticamente para validação.")
+    texto = "\n".join(f"{k}: {v}" for k, v in edital_ativo.items())
+else:
+    st.info("Nenhum Edital ativo encontrado. Cole o conteúdo manualmente para validar.")
+
+# ==========================================================
+# 📋 Entrada de Dados (manual se necessário)
+# ==========================================================
+if not texto:
+    st.subheader("🖊️ Insira o conteúdo do edital para validação:")
+    texto = st.text_area(
+        "Cole o conteúdo (ou parte) do edital abaixo:",
+        height=220,
+        placeholder="Exemplo: O presente edital tem por objeto a contratação de serviços de manutenção...",
+        label_visibility="collapsed",
+    )
+
+tipo = st.selectbox(
+    "Selecione o tipo de contratação:",
+    ["Serviços", "Materiais", "Obras", "TI & Software", "Consultorias"],
+    index=0 if not st.session_state.get("last_edital") else 1,
+)
+
+executar = st.button("🔍 Executar validação semântica")
+
+# ==========================================================
+# 🧮 Validação Simbólica e Semântica
+# ==========================================================
+def validar_conteudo_edital(texto: str, tipo: str):
+    """
+    Validação institucional simbólica.
+    Em ambientes integrados, carrega validadores oficiais do TJSP.
+    """
+    resultado = {"itens": [], "observacoes": [], "status": "OK"}
+
+    if not texto.strip():
+        resultado["status"] = "Vazio"
+        resultado["observacoes"].append("Nenhum conteúdo foi informado para validação.")
+        return resultado
+
+    texto_lower = texto.lower()
+    palavras_chave = {
+        "Serviços": ["prestação", "execução", "contratada", "objeto"],
+        "Materiais": ["fornecimento", "quantidade", "entrega", "itens"],
+        "Obras": ["execução", "obra", "engenharia", "projeto"],
+        "TI & Software": ["sistema", "licença", "tecnologia", "software"],
+        "Consultorias": ["consultoria", "especializada", "estudos", "pareceres"],
+    }
+
+    obrigatorios = ["prazo", "pagamento", "penalidade", "objeto", "critérios"]
+    faltantes = []
+
+    for termo in obrigatorios:
+        if termo not in texto_lower:
+            faltantes.append(termo)
+
+    chaves_tipo = palavras_chave.get(tipo, [])
+    tipo_encontrado = any(p in texto_lower for p in chaves_tipo)
+
+    if not tipo_encontrado:
+        resultado["observacoes"].append(f"O texto não contém termos típicos de '{tipo}'.")
+
+    if faltantes:
+        resultado["status"] = "Incompleto"
+        resultado["itens"].append({
+            "categoria": "Campos obrigatórios ausentes",
+            "detalhes": faltantes
+        })
+        resultado["observacoes"].append(
+            "Foram detectadas lacunas em campos essenciais: " + ", ".join(faltantes)
+        )
+
+    if resultado["status"] == "OK":
+        resultado["observacoes"].append("O edital contém os principais elementos esperados para o tipo selecionado.")
+        resultado["itens"].append({"categoria": "Validação geral", "detalhes": ["Conformidade básica verificada."]})
+
+    return resultado
+
+# ==========================================================
+# 🧾 Execução
+# ==========================================================
+if executar:
+    st.info("Executando validação do edital...")
+
+    resultado = validar_conteudo_edital(texto, tipo)
+
+    st.subheader("📊 Resultado da Validação")
+    st.write(f"**Status:** {resultado['status']}")
+
+    if resultado["itens"]:
+        for item in resultado["itens"]:
+            st.markdown(f"**{item['categoria']}**")
+            st.markdown("- " + "\n- ".join(item["detalhes"]))
+
+    if resultado["observacoes"]:
+        st.divider()
+        st.subheader("📋 Observações")
+        for obs in resultado["observacoes"]:
+            st.markdown(f"- {obs}")
+
+    # ------------------------------------------------------
+    # 📄 Exportação de Relatório em PDF
+    # ------------------------------------------------------
+    if st.button("💾 Exportar relatório em PDF"):
+        os.makedirs("exports/relatorios", exist_ok=True)
+        arquivo_pdf = f"exports/relatorios/validacao_edital_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
+        c = canvas.Canvas(arquivo_pdf, pagesize=A4)
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, 800, "Relatório de Validação – Edital de Licitação")
+        c.setFont("Helvetica", 10)
+        c.drawString(50, 780, f"Tipo de contratação: {tipo}")
+        c.drawString(50, 765, f"Status: {resultado['status']}")
+        y = 740
+        for obs in resultado["observacoes"]:
+            c.drawString(50, y, f"- {obs}")
+            y -= 15
+        c.save()
+        st.success(f"✅ Relatório exportado para {arquivo_pdf}")
+
+st.caption("💡 O validador detecta a estrutura textual essencial e aponta lacunas no Edital, conforme o tipo selecionado.")

@@ -1,0 +1,42 @@
+artefato: ETP
+versao: "2025-10-01"
+itens:
+  - id: referencia_normativa
+    descricao: "Citar expressamente a Lei 14.133/2021, o Decreto Estadual 67.381/2022 e o Provimento CSM 2724/2023."
+    obrigatorio: true
+
+  - id: justificativa
+    descricao: "Justificar a contratação, alinhada ao PCA/PEI, às necessidades institucionais e aos serviços críticos."
+    obrigatorio: true
+
+  - id: alternativas
+    descricao: "Apresentar estudo de alternativas possíveis (manutenção, locação, aquisição), com análise comparativa."
+    obrigatorio: true
+
+  - id: especificacoes
+    descricao: "Incluir especificações técnicas ou requisitos mínimos dos bens/serviços pretendidos."
+    obrigatorio: true
+
+  - id: estimativa_custos
+    descricao: "Apresentar estimativa de custos, detalhando metodologia, fontes utilizadas, número de fornecedores e datas."
+    obrigatorio: true
+
+  - id: sustentabilidade
+    descricao: "Incluir critérios de sustentabilidade e eficiência energética (Procel A / Energy Star)."
+    obrigatorio: false
+
+  - id: riscos_matriz
+    descricao: "Apresentar matriz de riscos (probabilidade x impacto), com responsáveis e mitigação."
+    obrigatorio: true
+
+  - id: beneficios
+    descricao: "Elencar benefícios esperados: eficiência operacional, redução de falhas, apoio à inovação."
+    obrigatorio: true
+
+  - id: avaliacao
+    descricao: "Definir critérios de medição e avaliação (prazo, qualidade técnica, satisfação do usuário)."
+    obrigatorio: true
+
+  - id: conclusao
+    descricao: "Conclusão e recomendação, indicando a alternativa escolhida e sua adequação técnica/econômica."
+    obrigatorio: true

@@ -1,0 +1,34 @@
+artefato: CONTRATO
+versao: "2025-10-02"
+itens:
+  - id: base_legal
+    descricao: "Citar Lei 14.133/2021, Decreto Estadual 67.381/2022, Provimento CSM 2724/2023 e Resolução CNJ 651/2025."
+    obrigatorio: true
+
+  - id: objeto
+    descricao: "Descrever o objeto da contratação e a finalidade pretendida."
+    obrigatorio: true
+
+  - id: conta_vinculada
+    descricao: "Prever conta vinculada em banco público para retenção de encargos (férias, 13º, FGTS, multa)."
+    obrigatorio: true
+
+  - id: obrigacoes
+    descricao: "Definir obrigações da contratada e da Administração, incluindo comprovação de encargos."
+    obrigatorio: true
+
+  - id: fiscalizacao
+    descricao: "Estabelecer mecanismos de fiscalização contratual e responsabilidades do gestor/fiscal."
+    obrigatorio: true
+
+  - id: penalidades
+    descricao: "Prever penalidades por descumprimento contratual (multas, rescisão)."
+    obrigatorio: true
+
+  - id: transparencia
+    descricao: "Prever mecanismos de transparência e prestação de contas."
+    obrigatorio: false
+
+  - id: vigencia_reajuste
+    descricao: "Indicar vigência, reajuste e condições de prorrogação/repactuação."
+    obrigatorio: false

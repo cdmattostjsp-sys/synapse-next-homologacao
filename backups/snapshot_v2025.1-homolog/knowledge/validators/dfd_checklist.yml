@@ -1,0 +1,28 @@
+itens:
+  - id: DFD1
+    descricao: Identificação da unidade demandante
+    obrigatorio: true
+  - id: DFD2
+    descricao: Descrição do objeto da contratação
+    obrigatorio: true
+  - id: DFD3
+    descricao: Justificativa da necessidade
+    obrigatorio: true
+  - id: DFD4
+    descricao: Alinhamento com o planejamento estratégico e normativos
+    obrigatorio: true
+  - id: DFD5
+    descricao: Estimativa preliminar de custos
+    obrigatorio: true
+  - id: DFD6
+    descricao: Alternativas possíveis para atendimento da demanda
+    obrigatorio: false
+  - id: DFD7
+    descricao: Riscos identificados e medidas de mitigação
+    obrigatorio: true
+  - id: DFD8
+    descricao: Indicação da legislação e regulamentação aplicável
+    obrigatorio: true
+  - id: DFD9
+    descricao: Aprovação da autoridade competente
+    obrigatorio: true

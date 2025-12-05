@@ -1,0 +1,28 @@
+# ==========================================================
+# ⚡ MODELO DE CONTRATO ADMINISTRATIVO – FORNECIMENTO DE ENERGIA ELÉTRICA
+# Secretaria de Administração e Abastecimento – SAAB / TJSP
+# Base legal: Lei nº 14.133/2021 + Inexigibilidade (art. 74, I)
+# ==========================================================
+
+CONTRATO ADMINISTRATIVO Nº ___/2025 – FORNECIMENTO DE ENERGIA ELÉTRICA
+
+### CLÁUSULA PRIMEIRA – DO OBJETO
+Fornecimento de energia elétrica, em regime de continuidade, para as unidades do TJSP, conforme parâmetros de consumo e tensão definidos no CUSD/CCER.
+
+### CLÁUSULA SEGUNDA – DA VIGÊNCIA
+O presente contrato vigorará pelo prazo de 12 (doze) meses, prorrogável conforme a legislação vigente.
+
+### CLÁUSULA TERCEIRA – DO VALOR E FATURAMENTO
+O valor será variável conforme o consumo medido, com base nas tarifas homologadas pela ANEEL.
+
+### CLÁUSULA QUARTA – DAS OBRIGAÇÕES
+A CONTRATADA obriga-se a manter a regularidade do fornecimento e realizar manutenções preventivas e corretivas.
+
+### CLÁUSULA QUINTA – DA FISCALIZAÇÃO
+A fiscalização caberá à Divisão de Infraestrutura e Manutenção da SAAB.
+
+### CLÁUSULA SEXTA – DAS PENALIDADES
+Em caso de interrupção injustificada do serviço, incidirão as penalidades previstas no art. 156 da Lei nº 14.133/2021.
+
+### CLÁUSULA SÉTIMA – DO FORO
+Foro da Comarca de São Paulo/SP.
