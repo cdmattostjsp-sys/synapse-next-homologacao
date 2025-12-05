@@ -11,6 +11,12 @@ import os
 import json
 from openai import OpenAI
 
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+
 
 class AIClient:
     """
@@ -18,11 +24,25 @@ class AIClient:
     Evita qualquer parâmetro legado, incluindo 'proxies',
     que é a causa do erro:
        Client.__init__() got an unexpected keyword argument 'proxies'
+    
+    Busca OPENAI_API_KEY em múltiplas fontes:
+    1. Variável de ambiente (os.getenv)
+    2. Streamlit secrets (st.secrets), se disponível
     """
 
     def __init__(self, model: str = None):
 
+        # Tentar carregar da variável de ambiente primeiro
         api_key = os.getenv("OPENAI_API_KEY")
+
+        # Se não encontrada, tentar carregar dos secrets do Streamlit
+        if not api_key and STREAMLIT_AVAILABLE:
+            try:
+                api_key = st.secrets.get("OPENAI_API_KEY")
+            except Exception:
+                api_key = None
+
+        # Se ainda não encontrada, lançar erro
         if not api_key:
             raise ValueError("❌ OPENAI_API_KEY não encontrada.")
 

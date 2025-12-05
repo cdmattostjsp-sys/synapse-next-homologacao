@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,8 +16,6 @@ if str(ROOT) not in sys.path:
 #   - utils/ai_client.py vNext
 # Fluxo: INSUMOS → DFD (formulário) → IA → DOCX
 # ======================================================================
-
-from __future__ import annotations
 
 import json
 import io
