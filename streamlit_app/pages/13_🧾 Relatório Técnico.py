@@ -24,9 +24,13 @@ import streamlit as st
 import pandas as pd
 
 # ==========================================================
+# ⚙️ Configuração da Página (DEVE SER O PRIMEIRO COMANDO ST)
+# ==========================================================
+st.set_page_config(page_title="🧾 Relatório Técnico Consolidado – SynapseNext", layout="wide", page_icon="🧾")
+
+# ==========================================================
 # 🔧 Configuração de caminhos e imports
 # ==========================================================
-
 try:
     from utils.relatorio_consolidado_pipeline import coletar_dados_relatorio, gerar_relatorio_docx
     from utils.alertas_pipeline import gerar_alertas
@@ -35,10 +39,6 @@ except Exception as e:
     st.error(f"❌ Falha ao importar módulos institucionais: {e}")
     st.stop()
 
-# ==========================================================
-# ⚙️ Configuração da Página
-# ==========================================================
-st.set_page_config(page_title="🧾 Relatório Técnico Consolidado – SynapseNext", layout="wide", page_icon="🧾")
 aplicar_estilo_global()
 exibir_cabecalho_padrao(
     "Relatório Técnico Consolidado",
