@@ -390,4 +390,4 @@ if executar:
 
 # Rodapé institucional
 st.markdown("---")
-st.caption("SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")
+st.caption("Projeto SAAB-Tech • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)")

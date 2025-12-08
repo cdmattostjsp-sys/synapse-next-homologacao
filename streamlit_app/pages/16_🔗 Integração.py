@@ -112,7 +112,7 @@ st.divider()
 st.subheader("3️⃣ Orientações Institucionais")
 
 st.markdown("""
-Cada integração serve a um propósito específico dentro do ecossistema **SynapseNext – SAAB 5.0**:
+Cada integração serve a um propósito específico dentro do ecossistema **Projeto SAAB-Tech**:
 
 | Integração | Finalidade | Observações |
 |-------------|-------------|-------------|

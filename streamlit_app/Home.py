@@ -1,7 +1,7 @@
 # Atualização forçada para recarregar módulos - vNext
 # -*- coding: utf-8 -*-
 # ==============================================================
-# SynapseNext – SAAB 5.0
+# Projeto SAAB-Tech
 # Página Inicial (Home v5 – Interoperabilidade Institucional)
 # ==============================================================
 # Versão institucional vNext+ – Novembro/2025
@@ -29,7 +29,7 @@ from datetime import datetime
 # Configuração da página
 # --------------------------------------------------------------
 st.set_page_config(
-    page_title="SynapseNext – SAAB 5.0 | Interoperabilidade Institucional",
+    page_title="Projeto SAAB-Tech | Interoperabilidade Institucional",
     layout="wide",
     page_icon="🧭"
 )
@@ -127,11 +127,9 @@ section.main > div { padding-top: 10px !important; }
 # --------------------------------------------------------------
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
 
-if LOGO_BASE64:
-    st.markdown(f"<div class='header-logo'><img src='data:image/png;base64,{LOGO_BASE64}' alt='TJSP'></div>", unsafe_allow_html=True)
 st.markdown("""
 <div class="header-title">
-    <h1>SynapseNext – SAAB 5.0</h1>
+    <h1>Projeto SAAB-Tech</h1>
     <p>Secretaria de Administração e Abastecimento • Tribunal de Justiça de São Paulo</p>
 </div>
 """, unsafe_allow_html=True)
@@ -142,7 +140,7 @@ st.markdown('</div><div class="divider"></div>', unsafe_allow_html=True)
 # --------------------------------------------------------------
 st.markdown("""
 ### 🧭 Bem-vindo ao SynapseNext
-O **SynapseNext – SAAB 5.0** é o ecossistema institucional de automação inteligente que apoia a **Fase Interna da Licitação**, conforme a **Lei nº 14.133/2021** e a **Instrução Normativa nº 12/2025**.
+O **Projeto SAAB-Tech** é o ecossistema institucional de automação inteligente que apoia a **Fase Interna da Licitação**, conforme a **Lei nº 14.133/2021** e a **Instrução Normativa nº 12/2025**.
 
 Aqui você encontra todos os módulos que compõem a jornada digital do processo de contratação pública:
 - **Insumos, DFD, ETP, TR e Edital:** geração assistida por IA, análise normativa e validação técnica.  
@@ -184,7 +182,7 @@ incluindo vídeos e orientações sobre as boas práticas de interoperabilidade 
 # --------------------------------------------------------------
 st.markdown(f"""
 <div class="footer">
-TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0<br>
+TJSP • Secretaria de Administração e Abastecimento • Projeto SAAB-Tech<br>
 • Build gerado em {datetime.now():%d/%m/%Y %H:%M}
 </div>
 """, unsafe_allow_html=True)

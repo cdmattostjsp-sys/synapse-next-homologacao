@@ -164,7 +164,7 @@ def rodape_institucional():
     data_atual = datetime.now().strftime("%d/%m/%Y %H:%M")
     st.markdown(f"""
     <div class="footer">
-        TJSP • Secretaria de Administração e Abastecimento • SynapseNext – SAAB 5.0<br>
+        TJSP • Secretaria de Administração e Abastecimento • Projeto SAAB-Tech<br>
         Versão institucional vNext • Atualizado em {data_atual}<br>
         Desenvolvido em ambiente Python / Streamlit
     </div>

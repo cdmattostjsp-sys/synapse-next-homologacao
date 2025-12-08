@@ -1,5 +1,5 @@
 # ==============================================================
-# Documento Institucional: Sobre o SynapseNext – SAAB 5.0
+# Documento Institucional: Sobre o Projeto SAAB-Tech
 # ==============================================================
 # Finalidade:
 # Documentar a visão, arquitetura e componentes do ecossistema
@@ -8,7 +8,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Sobre o SynapseNext – SAAB 5.0",
+    page_title="Sobre o Projeto SAAB-Tech",
     layout="wide",
     page_icon="ℹ️"
 )
@@ -17,7 +17,7 @@ st.set_page_config(
 # Cabeçalho
 # --------------------------------------------------------------
 st.markdown("""
-## ℹ️ Sobre o SynapseNext – SAAB 5.0
+## ℹ️ Sobre o Projeto SAAB-Tech
 O **SynapseNext** é o ecossistema digital da **Secretaria de Administração e Abastecimento (SAAB)** do Tribunal de Justiça de São Paulo, 
 desenvolvido para apoiar, automatizar e auditar a **fase interna da licitação**, em conformidade com a **Lei nº 14.133/2021**, 
 as **Resoluções do CNJ nº 651 e 652/2024**, e a **Instrução Normativa nº 12/2025** do TJSP.
@@ -96,7 +96,7 @@ st.markdown("""
 # --------------------------------------------------------------
 st.markdown("""
 <div style="text-align:center; color:#666; font-size:0.9rem; margin-top:20px;">
-TJSP • Secretaria de Administração e Abastecimento • Projeto SynapseNext – SAAB 5.0<br>
+TJSP • Secretaria de Administração e Abastecimento • Projeto SAAB-Tech<br>
 Versão institucional vNext (POC) • Desenvolvido em ambiente Python / Streamlit
 </div>
 """, unsafe_allow_html=True)

@@ -1,7 +1,7 @@
 import streamlit as st
 
 # ==========================================================
-# 🎨 Estilo global e cabeçalho padrão do SynapseNext – SAAB 5.0
+# 🎨 Estilo global e cabeçalho padrão do Projeto SAAB-Tech
 # ==========================================================
 
 def aplicar_estilo_global():

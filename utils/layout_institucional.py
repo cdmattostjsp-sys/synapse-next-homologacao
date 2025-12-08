@@ -87,7 +87,7 @@ def exibir_rodape_institucional():
     st.markdown("""
     <hr style="margin-top:2rem; margin-bottom:1rem;">
     <div style="text-align:center; font-size:0.85rem; color:#666;">
-        <b>SynapseNext – SAAB 5.0</b> • Tribunal de Justiça de São Paulo<br>
+        <b>Projeto SAAB-Tech</b> • Tribunal de Justiça de São Paulo<br>
         Secretaria de Administração e Abastecimento (SAAB) – Divisão de Inovação e Governança Digital<br>
         <span style="font-size:0.75rem;">Versão institucional – Outubro/2025</span>
     </div>

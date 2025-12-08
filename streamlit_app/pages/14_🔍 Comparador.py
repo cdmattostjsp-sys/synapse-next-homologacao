@@ -189,6 +189,6 @@ else:
 # ==========================================================
 st.markdown("---")
 st.caption(
-    f"SynapseNext – SAAB 5.0 • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
+    f"Projeto SAAB-Tech • Tribunal de Justiça de São Paulo • Secretaria de Administração e Abastecimento (SAAB)  \n"
     f"Relatório de Comparação Gerado em {datetime.now():%d/%m/%Y %H:%M}"
 )
