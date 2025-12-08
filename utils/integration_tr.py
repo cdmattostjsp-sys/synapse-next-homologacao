@@ -12,6 +12,7 @@ import os
 import re
 from typing import Dict, Any, Optional
 from pathlib import Path
+from datetime import datetime
 
 # ==========================================================
 # 📂 Diretórios e caminhos de exportação
@@ -198,3 +199,51 @@ Retorne apenas um JSON com os seguintes campos:
         "status": "processado",
         "campos_ai": campos_ai
     }
+
+
+# ==========================================================
+# 🤖 Geração de TR com IA (integração com TRAgent)
+# ==========================================================
+def gerar_tr_com_ia() -> dict:
+    """
+    Carrega dados do último TR salvo e processa com TRAgent.
+    Mescla resultados da IA com dados existentes (prioridade IA).
+    
+    Returns:
+        dict com estrutura TR completa (9 seções)
+    """
+    from agents.tr_agent import processar_tr_com_ia
+    
+    # Carregar dados completos do TR
+    dados_completos = load_tr_from_json()
+    if not dados_completos:
+        return {"erro": "Nenhum TR carregado. Faça upload no módulo INSUMOS primeiro."}
+    
+    # Obter texto bruto do insumo
+    conteudo_textual = dados_completos.get("texto_completo", "")
+    if not conteudo_textual:
+        return {"erro": "TR carregado não possui texto extraído."}
+    
+    # Processar com TRAgent
+    resultado_ia = processar_tr_com_ia(conteudo_textual)
+    
+    if "erro" in resultado_ia:
+        return resultado_ia
+    
+    # Mesclar: IA sobrescreve campos existentes
+    tr_final = dados_completos.get("TR", {})
+    tr_ia = resultado_ia.get("TR", {})
+    
+    for secao, valor in tr_ia.items():
+        if valor and valor.strip():  # IA preencheu esta seção
+            tr_final[secao] = valor
+    
+    # Atualizar timestamp
+    dados_completos["TR"] = tr_final
+    dados_completos["processado_ia"] = True
+    dados_completos["timestamp_ia"] = datetime.now().isoformat()
+    
+    # Salvar resultado mesclado
+    export_tr_to_json(dados_completos)
+    
+    return dados_completos

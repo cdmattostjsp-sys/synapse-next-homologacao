@@ -79,105 +79,179 @@ if not defaults:
     st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **🔧 Insumos**.")
 
 # ==========================================================
-# 🧾 Formulário TR – Estrutura institucional
+# 🧾 Formulário TR – 9 Seções Estruturadas
 # ==========================================================
 st.subheader("📘 Entrada – Termo de Referência")
 
+# Carregar último TR salvo (com dados do INSUMOS + processamento IA anterior)
+TR_JSON_PATH = os.path.join("exports", "tr_data.json")
+tr_salvo = {}
+if os.path.exists(TR_JSON_PATH):
+    try:
+        with open(TR_JSON_PATH, "r", encoding="utf-8") as f:
+            dados_tr = json.load(f)
+            tr_salvo = dados_tr.get("TR", {})
+    except Exception as e:
+        st.warning(f"⚠️ Erro ao carregar TR salvo: {e}")
+
+# Se houver dados do INSUMOS na sessão, usar como fallback
+if not tr_salvo and defaults:
+    tr_salvo = defaults
+
+# ==========================================================
+# Formulário com 9 seções estruturadas
+# ==========================================================
+st.markdown("### 📋 Seções do Termo de Referência")
+
+# Seção 1: Objeto
+objeto = st.text_area(
+    "1. Objeto da Contratação",
+    value=tr_salvo.get("objeto", ""),
+    height=120,
+    key="tr_objeto",
+    help="Descrição do objeto a ser contratado"
+)
+
 col1, col2 = st.columns(2)
 with col1:
-    objeto = st.text_area("Objeto da contratação", value=defaults.get("objeto", ""), height=120)
-    justificativa_tecnica = st.text_area("Justificativa técnica", value=defaults.get("justificativa_tecnica", ""), height=120)
-    especificacao_tecnica = st.text_area("Especificações técnicas", value=defaults.get("especificacao_tecnica", ""), height=120)
+    # Seção 2: Justificativa Técnica
+    justificativa_tecnica = st.text_area(
+        "2. Justificativa Técnica",
+        value=tr_salvo.get("justificativa_tecnica", ""),
+        height=150,
+        key="tr_just",
+        help="Fundamentação da necessidade da contratação"
+    )
+    
+    # Seção 4: Critérios de Julgamento
+    criterios_julgamento = st.text_area(
+        "4. Critérios de Julgamento",
+        value=tr_salvo.get("criterios_julgamento", ""),
+        height=120,
+        key="tr_crit",
+        help="Critérios para avaliação das propostas"
+    )
+    
+    # Seção 6: Observações Finais
+    observacoes_finais = st.text_area(
+        "6. Observações Finais",
+        value=tr_salvo.get("observacoes_finais", ""),
+        height=120,
+        key="tr_obs",
+        help="Informações complementares e observações"
+    )
+
 with col2:
-    criterios_julgamento = st.text_area("Critérios de julgamento", value=defaults.get("criterios_julgamento", ""), height=120)
-    riscos = st.text_area("Riscos associados", value=defaults.get("riscos", ""), height=120)
-    observacoes_finais = st.text_area("Observações finais", value=defaults.get("observacoes_finais", ""), height=120)
+    # Seção 3: Especificações Técnicas
+    especificacao_tecnica = st.text_area(
+        "3. Especificações Técnicas",
+        value=tr_salvo.get("especificacao_tecnica", ""),
+        height=150,
+        key="tr_espec",
+        help="Detalhamento técnico dos serviços/produtos"
+    )
+    
+    # Seção 5: Riscos
+    riscos = st.text_area(
+        "5. Riscos Associados",
+        value=tr_salvo.get("riscos", ""),
+        height=120,
+        key="tr_riscos",
+        help="Identificação e mitigação de riscos"
+    )
 
 st.divider()
 
+# ==========================================================
+# Campos complementares (Seções 7-9)
+# ==========================================================
+st.markdown("### 📊 Informações Complementares")
+
 col3, col4, col5 = st.columns(3)
 with col3:
-    prazo_execucao = st.text_input("Prazo de execução", value=defaults.get("prazo_execucao", ""))
+    prazo_execucao = st.text_input(
+        "7. Prazo de Execução",
+        value=tr_salvo.get("prazo_execucao", ""),
+        key="tr_prazo",
+        help="Prazo estimado para execução"
+    )
 with col4:
-    estimativa_valor = st.text_input("Estimativa de valor (R$)", value=defaults.get("estimativa_valor", ""))
+    estimativa_valor = st.text_input(
+        "8. Estimativa de Valor (R$)",
+        value=tr_salvo.get("estimativa_valor", ""),
+        key="tr_valor",
+        help="Valor estimado da contratação"
+    )
 with col5:
-    fonte_recurso = st.text_input("Fonte de recurso", value=defaults.get("fonte_recurso", ""))
+    fonte_recurso = st.text_input(
+        "9. Fonte de Recurso",
+        value=tr_salvo.get("fonte_recurso", ""),
+        key="tr_fonte",
+        help="Origem do recurso orçamentário"
+    )
+
+# ==========================================================
+# Métricas de preenchimento
+# ==========================================================
+secoes_preenchidas = sum([
+    1 if objeto else 0,
+    1 if justificativa_tecnica else 0,
+    1 if especificacao_tecnica else 0,
+    1 if criterios_julgamento else 0,
+    1 if riscos else 0,
+    1 if observacoes_finais else 0,
+    1 if prazo_execucao else 0,
+    1 if estimativa_valor else 0,
+    1 if fonte_recurso else 0,
+])
+
+col_m1, col_m2, col_m3 = st.columns([2, 1, 1])
+with col_m1:
+    st.metric("📊 Seções preenchidas", f"{secoes_preenchidas}/9")
+with col_m2:
+    if prazo_execucao:
+        st.metric("⏱️ Prazo", prazo_execucao)
+with col_m3:
+    if estimativa_valor:
+        st.metric("💰 Valor Estimado", f"R$ {estimativa_valor}")
 
 # ==========================================================
 # ⚙️ Botão de Processamento IA
 # ==========================================================
 st.divider()
-st.subheader("⚙️ Geração de Artefato com IA Institucional")
+st.subheader("⚙️ Processamento com IA Institucional")
 
-if st.button("🤖 Gerar artefato com IA institucional"):
-    # Lazy loading do client OpenAI
-    client = _get_openai_client()
-    
-    if client is None:
-        st.error("⚠️ IA indisponível no momento. Verifique a configuração da API key ou tente novamente mais tarde.")
-        st.stop()
-    
-    with st.spinner("Gerando artefato completo com base nos dados e modelos do TJSP..."):
-        modelos = ler_modelos_tr()
-        campos = {
-            "objeto": objeto,
-            "justificativa_tecnica": justificativa_tecnica,
-            "especificacao_tecnica": especificacao_tecnica,
-            "criterios_julgamento": criterios_julgamento,
-            "riscos": riscos,
-            "observacoes_finais": observacoes_finais,
-            "prazo_execucao": prazo_execucao,
-            "estimativa_valor": estimativa_valor,
-            "fonte_recurso": fonte_recurso,
-        }
+if st.button("✨ Processar com IA", type="primary"):
+    with st.spinner("🤖 Processando TR com IA especializada..."):
+        from utils.integration_tr import gerar_tr_com_ia
+        
+        resultado = gerar_tr_com_ia()
+        
+        if "erro" in resultado:
+            st.error(f"❌ {resultado['erro']}")
+        else:
+            st.success("✅ TR processado com sucesso!")
+            
+            # Exibir métricas do processamento
+            tr_processado = resultado.get("TR", {})
+            secoes_ia = sum(1 for v in tr_processado.values() if v and v.strip())
+            
+            col_ia1, col_ia2, col_ia3 = st.columns(3)
+            with col_ia1:
+                st.metric("🤖 Seções processadas pela IA", f"{secoes_ia}/9")
+            with col_ia2:
+                if tr_processado.get("prazo_execucao"):
+                    st.metric("⏱️ Prazo Identificado", tr_processado["prazo_execucao"])
+            with col_ia3:
+                if tr_processado.get("estimativa_valor"):
+                    st.metric("💰 Valor Identificado", tr_processado["estimativa_valor"])
+            
+            st.info("🔄 Recarregue a página para visualizar os dados processados no formulário.")
+            st.rerun()
 
-        user_prompt = f"""
-Com base nos campos abaixo e nos modelos institucionais do TJSP, elabore o texto completo de um Termo de Referência (TR):
-
-Campos:
-{json.dumps(campos, ensure_ascii=False, indent=2)}
-
-Modelos institucionais:
-\"\"\"{modelos}\"\"\"
-
-
-O texto deve seguir o padrão redacional e técnico do TJSP.
-"""
-
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Você é um redator institucional do Tribunal de Justiça de São Paulo, responsável por elaborar termos de referência padronizados conforme as normas da SAAB/TJSP."},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.3
-            )
-            artefato_tr = response.choices[0].message.content.strip()
-
-            st.session_state["artefato_tr_gerado"] = artefato_tr
-            st.success("✅ Artefato gerado com sucesso! Você pode agora exportá-lo como documento oficial (DOCX).")
-            st.text_area("📄 Pré-visualização do artefato gerado:", artefato_tr, height=300)
-
-        except Exception as e:
-            st.error(f"Erro ao gerar artefato com IA: {e}")
+st.caption("💡 O botão acima processa o TR carregado do módulo INSUMOS com IA especializada do TJSP.")
 
 # ==========================================================
-# 💾 Exportação do artefato (DOCX)
+# 💾 Exportação do artefato (DOCX) - REMOVIDO
+# (agora o TRAgent gera JSON estruturado, não documento Word)
 # ==========================================================
-if "artefato_tr_gerado" in st.session_state:
-    artefato_tr = st.session_state["artefato_tr_gerado"]
-    doc = Document()
-    doc.add_heading("TERMO DE REFERÊNCIA", level=1)
-    doc.add_paragraph(artefato_tr)
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    st.download_button(
-        label="📤 Exportar artefato em DOCX",
-        data=buffer,
-        file_name="TR_rascunho.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-
-st.caption("📎 O artefato acima é um rascunho institucional gerado pela IA com base nos modelos da SAAB/TJSP.")
