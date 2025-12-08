@@ -48,55 +48,58 @@ exibir_cabecalho_padrao(
 st.divider()
 
 # ==========================================================
-# 🔍 Detecção e carregamento de insumos automáticos (com fallback persistente)
+# 🔍 Carregamento inteligente: INSUMOS → TRAgent → Formulário
 # ==========================================================
-defaults = {}
-EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
-# Sessão ativa
-if "tr_campos_ai" in st.session_state:
-    defaults = st.session_state.get("tr_campos_ai", {})
-    st.success("📎 Dados recebidos automaticamente do módulo INSUMOS (via sessão ativa).")
-
-# Fallback: último insumo persistido
-elif os.path.exists(EXPORTS_JSON_DIR):
-    try:
-        arquivos = sorted([f for f in os.listdir(EXPORTS_JSON_DIR) if f.endswith(".json")], reverse=True)
-        if arquivos:
-            caminho = os.path.join(EXPORTS_JSON_DIR, arquivos[0])
-            with open(caminho, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            campos = dados.get("campos_ai", {})
-            if isinstance(campos, dict):
-                defaults = campos
-                artefato = dados.get("artefato", "—")
-                st.info(f"📎 Último insumo {artefato} carregado automaticamente ({arquivos[0]}).")
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao recuperar insumo persistido: {e}")
-
-# Nenhum insumo detectado
-if not defaults:
-    st.info("Nenhum insumo ativo detectado. Você pode preencher manualmente ou aguardar integração via módulo **🔧 Insumos**.")
-
-# ==========================================================
-# 🧾 Formulário TR – 9 Seções Estruturadas
-# ==========================================================
-st.subheader("📘 Entrada – Termo de Referência")
-
-# Carregar último TR salvo (com dados do INSUMOS + processamento IA anterior)
+# Paths dos arquivos
+INSUMO_TR_PATH = os.path.join("exports", "insumos", "json", "TR_ultimo.json")
 TR_JSON_PATH = os.path.join("exports", "tr_data.json")
+
 tr_salvo = {}
+insumo_detectado = False
+
+# 1️⃣ Verificar se existe TR processado
 if os.path.exists(TR_JSON_PATH):
     try:
         with open(TR_JSON_PATH, "r", encoding="utf-8") as f:
             dados_tr = json.load(f)
             tr_salvo = dados_tr.get("TR", {})
+            if tr_salvo and any(v for v in tr_salvo.values() if v):
+                st.success("📎 TR processado carregado (exports/tr_data.json)")
     except Exception as e:
-        st.warning(f"⚠️ Erro ao carregar TR salvo: {e}")
+        st.warning(f"⚠️ Erro ao carregar TR: {e}")
 
-# Se houver dados do INSUMOS na sessão, usar como fallback
-if not tr_salvo and defaults:
-    tr_salvo = defaults
+# 2️⃣ Se não houver TR processado, verificar INSUMO bruto
+if not tr_salvo or not any(v for v in tr_salvo.values() if v):
+    if os.path.exists(INSUMO_TR_PATH):
+        insumo_detectado = True
+        st.info("📄 Insumo TR detectado. Use o botão **'Processar com IA'** para extrair as 9 seções automaticamente.")
+        
+        # Carregar texto bruto do insumo (para preview)
+        try:
+            with open(INSUMO_TR_PATH, "r", encoding="utf-8") as f:
+                insumo_data = json.load(f)
+                texto_bruto = insumo_data.get("conteudo_textual", "")
+                
+                if texto_bruto and len(texto_bruto) > 100:
+                    with st.expander("👁️ Preview do insumo carregado", expanded=False):
+                        st.text_area(
+                            "Texto extraído do PDF/DOCX:",
+                            texto_bruto[:1000] + "..." if len(texto_bruto) > 1000 else texto_bruto,
+                            height=200,
+                            disabled=True
+                        )
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao ler insumo: {e}")
+
+# 3️⃣ Nenhum dado disponível
+if not tr_salvo and not insumo_detectado:
+    st.info("ℹ️ Nenhum TR ou insumo detectado. Faça upload no módulo **🔧 Insumos** ou preencha manualmente.")
+
+# ==========================================================
+# 🧾 Formulário TR – 9 Seções Estruturadas
+# ==========================================================
+st.subheader("📘 Entrada – Termo de Referência")
 
 # ==========================================================
 # Formulário com 9 seções estruturadas

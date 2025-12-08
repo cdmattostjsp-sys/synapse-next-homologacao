@@ -206,23 +206,30 @@ Retorne apenas um JSON com os seguintes campos:
 # ==========================================================
 def gerar_tr_com_ia() -> dict:
     """
-    Carrega dados do último TR salvo e processa com TRAgent.
-    Mescla resultados da IA com dados existentes (prioridade IA).
+    Carrega insumo bruto do INSUMOS e processa com TRAgent.
+    Salva resultado estruturado em exports/tr_data.json
     
     Returns:
         dict com estrutura TR completa (9 seções)
     """
     from agents.tr_agent import processar_tr_com_ia
     
-    # Carregar dados completos do TR
-    dados_completos = load_tr_from_json()
-    if not dados_completos:
-        return {"erro": "Nenhum TR carregado. Faça upload no módulo INSUMOS primeiro."}
+    # Carregar insumo bruto do módulo INSUMOS
+    INSUMO_TR_PATH = os.path.join("exports", "insumos", "json", "TR_ultimo.json")
     
-    # Obter texto bruto do insumo
-    conteudo_textual = dados_completos.get("texto_completo", "")
-    if not conteudo_textual:
-        return {"erro": "TR carregado não possui texto extraído."}
+    if not os.path.exists(INSUMO_TR_PATH):
+        return {"erro": "Nenhum insumo TR encontrado. Faça upload no módulo INSUMOS primeiro."}
+    
+    try:
+        with open(INSUMO_TR_PATH, "r", encoding="utf-8") as f:
+            insumo_data = json.load(f)
+    except Exception as e:
+        return {"erro": f"Erro ao ler insumo: {e}"}
+    
+    # Obter texto bruto
+    conteudo_textual = insumo_data.get("conteudo_textual", "")
+    if not conteudo_textual or len(conteudo_textual) < 50:
+        return {"erro": "Insumo carregado não possui texto suficiente para processamento."}
     
     # Processar com TRAgent
     resultado_ia = processar_tr_com_ia(conteudo_textual)
@@ -230,20 +237,19 @@ def gerar_tr_com_ia() -> dict:
     if "erro" in resultado_ia:
         return resultado_ia
     
-    # Mesclar: IA sobrescreve campos existentes
-    tr_final = dados_completos.get("TR", {})
-    tr_ia = resultado_ia.get("TR", {})
+    # Estrutura final com metadados
+    dados_completos = {
+        "artefato": "TR",
+        "timestamp": datetime.now().isoformat(),
+        "arquivo_original": insumo_data.get("arquivo_original", ""),
+        "data_processamento": insumo_data.get("data_processamento", ""),
+        "texto_completo": conteudo_textual,
+        "processado_ia": True,
+        "timestamp_ia": datetime.now().isoformat(),
+        "TR": resultado_ia.get("TR", {})
+    }
     
-    for secao, valor in tr_ia.items():
-        if valor and valor.strip():  # IA preencheu esta seção
-            tr_final[secao] = valor
-    
-    # Atualizar timestamp
-    dados_completos["TR"] = tr_final
-    dados_completos["processado_ia"] = True
-    dados_completos["timestamp_ia"] = datetime.now().isoformat()
-    
-    # Salvar resultado mesclado
+    # Salvar resultado estruturado
     export_tr_to_json(dados_completos)
     
     return dados_completos
