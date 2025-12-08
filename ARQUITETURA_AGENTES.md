@@ -112,6 +112,40 @@ Cada agente:
 
 ---
 
+### 3️⃣ **TRAgent** (`agents/tr_agent.py`)
+
+**Responsável por**: Termos de Referência
+
+**Estrutura**:
+```python
+{
+  "artefato": "TR",
+  "timestamp": str,
+  "TR": {
+    "objeto": str,                      # Seção 1
+    "justificativa_tecnica": str,       # Seção 2
+    "especificacao_tecnica": str,       # Seção 3
+    "criterios_julgamento": str,        # Seção 4
+    "riscos": str,                      # Seção 5
+    "observacoes_finais": str,          # Seção 6
+    "prazo_execucao": str,              # Seção 7
+    "estimativa_valor": str,            # Seção 8
+    "fonte_recurso": str                # Seção 9
+  }
+}
+```
+
+**9 seções padronizadas** conforme padrão TJSP
+
+**Prompt otimizado**:
+- Instruções específicas para identificar seções 1-9
+- Extração sintética para prazo, valor e fonte (seções 7-9)
+- Mantém estrutura JSON simples e clara
+
+**Teste local**: `test_tr_agent.py` (9/9 seções extraídas ✅)
+
+---
+
 ## 🔄 Fluxo de Processamento
 
 ### Pipeline Completo
@@ -151,6 +185,7 @@ Cada agente:
 agents/
 ├── document_agent.py       # DFDAgent (11 seções governança)
 ├── etp_agent.py           # ETPAgent (27 seções Lei 14.133)
+├── tr_agent.py            # TRAgent (9 seções padrão TJSP)
 ├── github_bridge.py       # Integrações GitHub
 ├── guide_agent.py         # Guias e documentação
 └── stage_detector.py      # Detecção de fase do processo
@@ -159,9 +194,9 @@ agents/
 ### Integrações
 ```
 utils/
-├── integration_dfd.py     # Backend DFD
-├── integration_etp.py     # Backend ETP
-├── integration_tr.py      # Backend TR
+├── integration_dfd.py     # Backend DFD + gerar_dfd_com_ia()
+├── integration_etp.py     # Backend ETP + gerar_etp_com_ia()
+├── integration_tr.py      # Backend TR + gerar_tr_com_ia()
 └── ai_client.py          # Cliente OpenAI centralizado
 ```
 
@@ -262,9 +297,9 @@ def processar_{tipo}_com_ia(conteudo_textual: str = "") -> dict:
 
 | Agente | Status | Seções | Testes | Deploy |
 |--------|--------|--------|--------|--------|
-| DFDAgent | ✅ Produção | 11 | ✅ Passou | ✅ |
-| ETPAgent | ✅ Produção | 27 | ✅ Passou | ✅ |
-| TRAgent | 🟡 Planejado | ~15 | ⏳ | ⏳ |
+| DFDAgent | ✅ Produção | 11 | ✅ test_dfd_cli.py | ✅ |
+| ETPAgent | ✅ Produção | 27 | ✅ test_etp_agent.py | ✅ |
+| TRAgent | ✅ Produção | 9 | ✅ test_tr_agent.py | ✅ |
 | ContratoAgent | 🟡 Planejado | ~20 | ⏳ | ⏳ |
 | EditalAgent | 🟡 Planejado | ~12 | ⏳ | ⏳ |
 
