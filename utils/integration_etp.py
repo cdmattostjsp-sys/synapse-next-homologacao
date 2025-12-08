@@ -161,6 +161,88 @@ def salvar_etp_em_json(campos_etp: dict, origem: str = "formulario") -> str:
 
 
 # ==========================================================
+# 🧠 IA → Gerar ETP estruturado (preserva dados existentes)
+# ==========================================================
+def gerar_etp_com_ia() -> dict:
+    """
+    Enriquece o ETP existente com processamento IA.
+    PRESERVA os dados brutos já extraídos do insumo.
+    """
+    
+    base = os.path.join("exports", "insumos", "json")
+    ultimo = os.path.join(base, "ETP_ultimo.json")
+
+    if not os.path.exists(ultimo):
+        st.warning("Nenhum insumo encontrado.")
+        return {}
+
+    try:
+        with open(ultimo, "r", encoding="utf-8") as f:
+            dados_completos = json.load(f)
+        
+        # Preservar dados existentes
+        dados_existentes = dados_completos.get("campos_ai", {})
+        texto = (dados_completos.get("conteudo_textual") or "").strip()
+        
+    except Exception:
+        st.error("Erro ao ler insumo.")
+        return {}
+
+    if len(texto) < 20:
+        st.error("Texto insuficiente para IA.")
+        return {}
+
+    try:
+        from agents.etp_agent import processar_etp_com_ia
+        resultado_ia = processar_etp_com_ia(texto)
+
+        # Verificar se houve erro
+        if "erro" in resultado_ia:
+            st.error(f"Erro na IA: {resultado_ia['erro']}")
+            # Retornar dados existentes mesmo com erro
+            return dados_existentes if dados_existentes else {}
+
+        # Extrair resultado da IA
+        bruto = resultado_ia.get("resultado_ia", {})
+        
+        if "ETP" in bruto and isinstance(bruto["ETP"], dict):
+            bruto = bruto["ETP"]
+
+        # MESCLAR dados existentes com resultado da IA
+        # Dados da IA têm prioridade (mais estruturados)
+        dados_finais = {}
+        
+        # Primeiro: dados existentes como base
+        if isinstance(dados_existentes, dict):
+            dados_finais.update(dados_existentes)
+        
+        # Segundo: sobrescrever com dados da IA (mais estruturados)
+        if isinstance(bruto, dict):
+            # Campos administrativos
+            for campo in ["unidade_demandante", "responsavel", "prazo_estimado", "valor_estimado"]:
+                if campo in bruto and bruto[campo] and bruto[campo] not in ["", "Não especificado", "0,00"]:
+                    dados_finais[campo] = bruto[campo]
+            
+            # Seções estruturadas
+            if "secoes" in bruto and isinstance(bruto["secoes"], dict):
+                if "secoes" not in dados_finais:
+                    dados_finais["secoes"] = {}
+                dados_finais["secoes"].update(bruto["secoes"])
+            
+            # Lacunas
+            if "lacunas" in bruto:
+                dados_finais["lacunas"] = bruto["lacunas"]
+
+        st.session_state["etp_campos_ai"] = dados_finais
+        return dados_finais
+
+    except Exception as e:
+        st.error(f"Erro IA: {e}")
+        # Retornar dados existentes em caso de erro
+        return dados_existentes if dados_existentes else {}
+
+
+# ==========================================================
 # 🧩 Função utilitária – status legível
 # ==========================================================
 def status_etp():

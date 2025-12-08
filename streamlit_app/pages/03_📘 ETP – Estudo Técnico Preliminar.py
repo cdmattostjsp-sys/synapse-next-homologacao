@@ -18,8 +18,7 @@ import streamlit as st
 # ==========================================================
 # 📦 Imports institucionais
 # ==========================================================
-from utils.agents_bridge import AgentsBridge
-from utils.integration_etp import obter_etp_da_sessao, status_etp, salvar_etp_em_json
+from utils.integration_etp import obter_etp_da_sessao, status_etp, salvar_etp_em_json, gerar_etp_com_ia
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 
 # ==========================================================
@@ -83,28 +82,50 @@ with st.form("form_etp"):
     with col2:
         gerar_manual = st.form_submit_button("💾 Gerar rascunho manual")
 
-st.caption("💡 O botão '⚙️ Gerar rascunho com IA institucional' usa o agente ETP.IA para gerar automaticamente o texto técnico.")
+st.caption("💡 O botão '⚙️ Gerar rascunho com IA institucional' usa o agente ETP especializado para estruturar as 27 seções do ETP.")
 
 # ==========================================================
 # 🤖 Geração IA Institucional
 # ==========================================================
 if gerar_ia:
-    st.info("Executando agente ETP institucional...")
-    metadata = {
-        "requisitos": requisitos,
-        "custos": custos,
-        "riscos": riscos,
-        "responsavel_tecnico": responsavel
-    }
+    st.info("🧠 Executando agente ETP especializado (27 seções Lei 14.133/2021)...")
     try:
-        bridge = AgentsBridge("ETP")
-        resultado = bridge.generate(metadata)
-        st.success("✅ Rascunho gerado com sucesso pelo agente ETP.IA!")
-        st.json(resultado)
-        st.session_state["last_etp"] = resultado.get("secoes", {})
-        salvar_etp_em_json(st.session_state["last_etp"], origem="ia_etp")
+        resultado = gerar_etp_com_ia()
+        
+        if resultado:
+            st.success("✅ ETP estruturado com sucesso!")
+            
+            # Exibir dados administrativos extraídos
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Unidade", resultado.get("unidade_demandante", "N/A")[:30] + "...")
+            with col2:
+                st.metric("Responsável", resultado.get("responsavel", "N/A")[:30] + "...")
+            with col3:
+                st.metric("Prazo", resultado.get("prazo_estimado", "N/A"))
+            with col4:
+                st.metric("Valor", f"R$ {resultado.get('valor_estimado', '0,00')}")
+            
+            # Contar seções preenchidas
+            secoes = resultado.get("secoes", {})
+            secoes_preenchidas = sum(1 for v in secoes.values() if v and v.strip() and v != "Não especificado")
+            st.info(f"📊 Seções preenchidas: {secoes_preenchidas}/27")
+            
+            # Mostrar lacunas se houver
+            lacunas = resultado.get("lacunas", [])
+            if lacunas:
+                st.warning(f"⚠️ Campos não encontrados: {', '.join(lacunas)}")
+            
+            # Salvar resultado
+            salvar_etp_em_json(resultado, origem="ia_etp_agent")
+            st.rerun()
+        else:
+            st.warning("⚠️ Nenhum dado foi gerado. Verifique se há um insumo carregado.")
+            
     except Exception as e:
-        st.error(f"Erro ao gerar rascunho com IA: {e}")
+        st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
 # ==========================================================
 # ✍️ Geração Manual
