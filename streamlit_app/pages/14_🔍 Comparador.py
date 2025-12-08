@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 # -*- coding: utf-8 -*-
 """
 🔍 SynapseNext – Comparador.IA
@@ -11,13 +5,25 @@ Secretaria de Administração e Abastecimento – SAAB 5.0
 ==============================================================
 """
 
-import sys, os
+import sys
+import os
 from pathlib import Path
 from datetime import datetime
+
+# Configuração de caminhos ANTES de importar streamlit
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
+
+# Import do Streamlit
 import streamlit as st
 
 # ==========================================================
-# ⚙️ Configuração da página (DEVE SER A PRIMEIRA CHAMADA)
+# ⚙️ Configuração da página (DEVE SER A PRIMEIRA CHAMADA ST)
 # ==========================================================
 st.set_page_config(
     page_title="SynapseNext – Comparador.IA",
@@ -26,12 +32,8 @@ st.set_page_config(
 )
 
 # ==========================================================
-# 🔧 Setup e imports institucionais
+# 🔧 Imports institucionais
 # ==========================================================
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
 erro_import = None
 try:
     from utils.comparador_pipeline import carregar_snapshots, analisar_coerencia, gerar_relatorio
