@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 # -*- coding: utf-8 -*-
 """
 🗂️ Gerar Registro de Versão – SynapseNext (vNext+)
@@ -17,13 +11,28 @@ Versão: SAAB 5.0 (vNext+)
 ==============================================================
 """
 
-import sys, os, json, shutil, zipfile
+import sys
+import os
+import json
+import shutil
+import zipfile
 from pathlib import Path
 from datetime import datetime
+
+# Configuração de caminhos ANTES de importar streamlit
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if BASE_PATH not in sys.path:
+    sys.path.append(BASE_PATH)
+
+# Import do Streamlit
 import streamlit as st
 
 # ==========================================================
-# ⚙️ Configuração inicial
+# ⚙️ Configuração inicial (PRIMEIRO COMANDO ST)
 # ==========================================================
 st.set_page_config(
     page_title="🗂️ Gerar Registro de Versão – SynapseNext",
@@ -31,10 +40,9 @@ st.set_page_config(
     page_icon="🗂️"
 )
 
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if BASE_PATH not in sys.path:
-    sys.path.append(BASE_PATH)
-
+# ==========================================================
+# 🔧 Imports institucionais
+# ==========================================================
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except Exception:
