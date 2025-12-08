@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 # -*- coding: utf-8 -*-
 """
 🔗 Integração Institucional – SynapseNext (SAAB 5.0)
@@ -17,12 +11,21 @@ Versão: vNext+ (SAAB 5.0)
 ==============================================================
 """
 
-import os, sys
+import sys
+import os
+from pathlib import Path
 from datetime import datetime
+
+# Configuração de caminhos ANTES de importar streamlit
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# Import do Streamlit
 import streamlit as st
 
 # ==========================================================
-# ⚙️ Configuração inicial
+# ⚙️ Configuração inicial (PRIMEIRO COMANDO ST)
 # ==========================================================
 st.set_page_config(
     page_title="🔗 Integração Institucional – SynapseNext",
@@ -30,6 +33,9 @@ st.set_page_config(
     page_icon="🔗"
 )
 
+# ==========================================================
+# 🔧 Imports institucionais
+# ==========================================================
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 except Exception:
