@@ -1,7 +1,7 @@
 # ==========================================================
-# utils/ai_client.py — VERSÃO ESTÁVEL 2025-D10
+# utils/ai_client.py — VERSÃO CORRIGIDA 2025-D08
 # Compatível com Streamlit Cloud + OpenAI SDK >= 1.50
-# Usa APENAS o cliente novo: OpenAI().responses.create
+# Usa chat.completions.create (API oficial atual)
 # ==========================================================
 
 from dotenv import load_dotenv
@@ -31,6 +31,7 @@ class AIClient:
     """
 
     def __init__(self, model: str = None):
+        print("[AIClient] Inicializando versão 2025-D08 (chat.completions.create)")
 
         # Tentar carregar da variável de ambiente primeiro
         api_key = os.getenv("OPENAI_API_KEY")
@@ -46,10 +47,12 @@ class AIClient:
         if not api_key:
             raise ValueError("❌ OPENAI_API_KEY não encontrada.")
 
-        # Cliente OFICIAL no formato novo — sem proxies, sem kwargs legados
+        # Cliente OFICIAL - apenas com api_key, SEM argumentos extras
         self.client = OpenAI(api_key=api_key)
+        print("[AIClient] OpenAI client inicializado com sucesso")
 
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        print(f"[AIClient] Modelo configurado: {self.model}")
 
 
     # ------------------------------------------------------
