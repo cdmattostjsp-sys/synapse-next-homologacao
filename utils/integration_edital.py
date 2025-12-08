@@ -390,3 +390,72 @@ def processar_insumo_edital(arquivo, contexto_previo: dict | None = None, artefa
 def processar_edital_dinamico(arquivo, contexto_previo: dict | None = None, artefato: str = "EDITAL") -> dict:
     """Alias histórico usado por algumas páginas."""
     return processar_insumo_edital(arquivo, contexto_previo=contexto_previo, artefato=artefato)
+
+
+# ==========================================================
+# 🤖 Geração de Edital com IA (integração com EditalAgent)
+# ==========================================================
+def gerar_edital_com_ia(contexto_previo: dict = None) -> dict:
+    """
+    Carrega insumo bruto do INSUMOS e processa com EditalAgent.
+    Salva resultado estruturado em exports/edital_data.json
+    
+    Args:
+        contexto_previo: dict com dados de DFD/ETP/TR (opcional)
+    
+    Returns:
+        dict com estrutura Edital completa (12 campos)
+    """
+    from agents.edital_agent import processar_edital_com_ia
+    
+    # Carregar insumo bruto do módulo INSUMOS
+    INSUMO_EDITAL_PATH = EXPORTS_DIR / "insumos" / "json" / "EDITAL_ultimo.json"
+    
+    if not INSUMO_EDITAL_PATH.exists():
+        return {"erro": "Nenhum insumo EDITAL encontrado. Faça upload no módulo INSUMOS primeiro."}
+    
+    try:
+        with open(INSUMO_EDITAL_PATH, "r", encoding="utf-8") as f:
+            insumo_data = json.load(f)
+    except Exception as e:
+        return {"erro": f"Erro ao ler insumo: {e}"}
+    
+    # Obter texto bruto
+    conteudo_textual = insumo_data.get("conteudo_textual", "")
+    if not conteudo_textual or len(conteudo_textual) < 50:
+        return {"erro": "Insumo carregado não possui texto suficiente para processamento."}
+    
+    # Processar com EditalAgent (com contexto DFD/ETP/TR se disponível)
+    resultado_ia = processar_edital_com_ia(conteudo_textual, contexto_previo)
+    
+    if "erro" in resultado_ia:
+        return resultado_ia
+    
+    # Estrutura final com metadados
+    edital_processado = resultado_ia.get("EDITAL", {})
+    
+    dados_completos = {
+        "artefato": "EDITAL",
+        "timestamp": datetime.now().isoformat(),
+        "arquivo_original": insumo_data.get("arquivo_original", ""),
+        "data_processamento": insumo_data.get("data_processamento", ""),
+        "texto_completo": conteudo_textual,
+        "processado_ia": True,
+        "timestamp_ia": datetime.now().isoformat(),
+        "EDITAL": edital_processado,
+        "contexto_usado": list((contexto_previo or {}).keys())
+    }
+    
+    # Salvar resultado estruturado
+    EDITAL_JSON_PATH = EXPORTS_DIR / "edital_data.json"
+    EDITAL_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(EDITAL_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(dados_completos, f, ensure_ascii=False, indent=2)
+    
+    # Gerar também o DOCX
+    rascunho = gerar_rascunho_edital(edital_processado)
+    docx_path = gerar_edital_docx(edital_processado, texto_completo=rascunho)
+    dados_completos["docx_path"] = docx_path
+    
+    return dados_completos
