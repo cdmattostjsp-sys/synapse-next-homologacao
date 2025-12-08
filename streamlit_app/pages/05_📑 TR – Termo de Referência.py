@@ -16,16 +16,27 @@ from io import BytesIO
 from docx import Document
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 from utils.integration_tr import export_tr_to_json, ler_modelos_tr
-from openai import OpenAI
+
+# ==========================================================
+# 🔄 Lazy Loading da OpenAI Client
+# ==========================================================
+def _get_openai_client():
+    """Carrega OpenAI client sob demanda (lazy loading)."""
+    try:
+        from openai import OpenAI
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
+        if not api_key:
+            return None
+        return OpenAI(api_key=api_key)
+    except Exception as e:
+        st.error(f"⚠️ Erro ao carregar OpenAI client: {e}")
+        return None
 
 # ==========================================================
 # ⚙️ Configuração
 # ==========================================================
 st.set_page_config(page_title="📑 Termo de Referência", layout="wide", page_icon="📑")
 aplicar_estilo_global()
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("openai_api_key")
-client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ==========================================================
 # 🏛️ Cabeçalho institucional
@@ -99,6 +110,13 @@ st.divider()
 st.subheader("⚙️ Geração de Artefato com IA Institucional")
 
 if st.button("🤖 Gerar artefato com IA institucional"):
+    # Lazy loading do client OpenAI
+    client = _get_openai_client()
+    
+    if client is None:
+        st.error("⚠️ IA indisponível no momento. Verifique a configuração da API key ou tente novamente mais tarde.")
+        st.stop()
+    
     with st.spinner("Gerando artefato completo com base nos dados e modelos do TJSP..."):
         modelos = ler_modelos_tr()
         campos = {
