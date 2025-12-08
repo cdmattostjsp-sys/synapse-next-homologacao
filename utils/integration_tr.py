@@ -4,14 +4,14 @@ utils/integration_tr.py – Exportação/Importação do TR
 Responsável por:
 - Gravar o arquivo exports/tr_data.json a partir dos metadados do TR.
 - Ler o arquivo exports/tr_data.json para pré-preencher o módulo Contrato.
+- Implementa lazy loading da AIClient para evitar instanciação no import.
 """
 
 import json
 import os
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pathlib import Path
-from utils.ai_client import AIClient
 
 # ==========================================================
 # 📂 Diretórios e caminhos de exportação
@@ -19,7 +19,20 @@ from utils.ai_client import AIClient
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "exports")
 TR_JSON_PATH = os.path.join(EXPORTS_DIR, "tr_data.json")
 
-client = AIClient()
+# ==========================================================
+# 🔄 Lazy Loading da AIClient (padrão institucional)
+# ==========================================================
+def _get_openai_client() -> Optional[Any]:
+    """
+    Carrega AIClient sob demanda (lazy loading).
+    Retorna None se a IA estiver indisponível.
+    """
+    try:
+        from utils.ai_client import AIClient
+        return AIClient()
+    except Exception as e:
+        print(f"[Projeto SAAB-Tech][TR] IA indisponível (lazy loading): {e}")
+        return None
 
 # ==========================================================
 # 📤 Utilitários de exportação
@@ -64,6 +77,8 @@ def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
     """
     Extrai o texto do arquivo enviado (PDF, DOCX ou TXT),
     realiza análise semântica e retorna campos padronizados do TR.
+    
+    Implementa lazy loading: se IA indisponível, entra em modo degradado.
     """
     from io import BytesIO
     import fitz, docx2txt
@@ -91,7 +106,31 @@ def processar_insumo_tr(arquivo, artefato: str = "TR") -> dict:
     texto_limpo = re.sub(r"\s+", " ", texto_extraido).strip()
     modelos = ler_modelos_tr()
 
-    # 2️⃣ Prompt institucional
+    # 2️⃣ Lazy loading da IA institucional
+    ai = _get_openai_client()
+    
+    if ai is None:
+        # Modo degradado: retorna estrutura básica com texto extraído
+        print(f"[Projeto SAAB-Tech][TR] Modo degradado ativado para: {arquivo.name}")
+        campos_ai = {
+            "objeto": texto_limpo[:800] if len(texto_limpo) > 800 else texto_limpo,
+            "justificativa_tecnica": "Preencher após análise do insumo.",
+            "especificacao_tecnica": "Preencher após análise do insumo.",
+            "criterios_julgamento": "Preencher após análise do insumo.",
+            "riscos": "Sem riscos adicionais identificados.",
+            "observacoes_finais": "IA indisponível no momento do processamento.",
+            "prazo_execucao": "—",
+            "estimativa_valor": "—",
+            "fonte_recurso": "—"
+        }
+        return {
+            "artefato": artefato,
+            "nome_arquivo": arquivo.name,
+            "status": "processado_modo_degradado",
+            "campos_ai": campos_ai
+        }
+
+    # 3️⃣ Prompt institucional
     system_prompt = (
         "Você é um agente institucional do Tribunal de Justiça de São Paulo, especializado em Termos de Referência (TR). "
         "Analise o texto do insumo e extraia os campos padronizados conforme os modelos institucionais do TJSP."
@@ -115,9 +154,9 @@ Retorne apenas um JSON com os seguintes campos:
 - fonte_recurso
 """
 
-    # 3️⃣ Chamada à IA institucional
+    # 4️⃣ Chamada à IA institucional
     try:
-        response = client.chat([
+        response = ai.chat([
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ])
@@ -125,7 +164,8 @@ Retorne apenas um JSON com os seguintes campos:
         match = re.search(r"\{.*\}", conteudo, re.DOTALL)
         campos = json.loads(match.group(0)) if match else {"objeto": texto_limpo[:800]}
     except Exception as e:
-        campos = {"erro": f"Falha ao processar IA: {e}"}
+        print(f"[Projeto SAAB-Tech][TR] Erro na chamada IA: {e}")
+        campos = {"objeto": texto_limpo[:800]}
 
     # ==========================================================
     # 🔄 Normalização de campos para compatibilidade com a página TR
@@ -147,10 +187,10 @@ Retorne apenas um JSON com os seguintes campos:
         if not v:
             campos_ai[k] = "—"
 
-    print(f"[IA:TR] Arquivo: {arquivo.name} – Campos normalizados: {list(campos_ai.keys())}")
+    print(f"[Projeto SAAB-Tech][TR] Arquivo: {arquivo.name} – Campos normalizados: {list(campos_ai.keys())}")
 
     # ==========================================================
-    # 📦 Retorno final compatível com o SynapseNext
+    # 📦 Retorno final compatível com o Projeto SAAB-Tech
     # ==========================================================
     return {
         "artefato": artefato,
