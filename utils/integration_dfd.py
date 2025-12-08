@@ -135,10 +135,14 @@ def salvar_dfd_em_json(campos: dict, origem: str = "dfd_moderno_streamlit") -> s
 
 
 # ======================================================================
-# 🧠 IA → Gerar rascunho moderno (mantém JSON integral)
+# 🧠 IA → Gerar rascunho moderno (preserva dados existentes)
 # ======================================================================
 def gerar_rascunho_dfd_com_ia() -> dict:
-
+    """
+    Enriquece o DFD existente com processamento IA.
+    PRESERVA os dados brutos já extraídos do insumo.
+    """
+    
     base = os.path.join("exports", "insumos", "json")
     ultimo = os.path.join(base, "DFD_ultimo.json")
 
@@ -148,8 +152,12 @@ def gerar_rascunho_dfd_com_ia() -> dict:
 
     try:
         with open(ultimo, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-        texto = (dados.get("conteudo_textual") or "").strip()
+            dados_completos = json.load(f)
+        
+        # Preservar dados existentes
+        dados_existentes = dados_completos.get("campos_ai", {})
+        texto = (dados_completos.get("conteudo_textual") or "").strip()
+        
     except Exception:
         st.error("Erro ao ler insumo.")
         return {}
@@ -160,20 +168,41 @@ def gerar_rascunho_dfd_com_ia() -> dict:
 
     try:
         from agents.document_agent import processar_dfd_com_ia
-        bruto = processar_dfd_com_ia(texto)
+        resultado_ia = processar_dfd_com_ia(texto)
 
-        if "resultado_ia" in bruto and isinstance(bruto["resultado_ia"], dict):
-            bruto = bruto["resultado_ia"]
+        # Verificar se houve erro
+        if "erro" in resultado_ia:
+            st.error(f"Erro na IA: {resultado_ia['erro']}")
+            # Retornar dados existentes mesmo com erro
+            return dados_existentes if dados_existentes else {}
 
+        # Extrair resultado da IA
+        bruto = resultado_ia.get("resultado_ia", {})
+        
         if "DFD" in bruto and isinstance(bruto["DFD"], dict):
             bruto = bruto["DFD"]
 
-        st.session_state["dfd_campos_ai"] = bruto
-        return bruto
+        # MESCLAR dados existentes com resultado da IA
+        # Dados existentes têm prioridade se já preenchidos
+        dados_finais = {}
+        
+        # Primeiro: dados da IA
+        if isinstance(bruto, dict):
+            dados_finais.update(bruto)
+        
+        # Segundo: preservar dados existentes não vazios
+        if isinstance(dados_existentes, dict):
+            for chave, valor in dados_existentes.items():
+                if valor and valor not in ["", "—", "0,00", [], {}]:
+                    dados_finais[chave] = valor
+
+        st.session_state["dfd_campos_ai"] = dados_finais
+        return dados_finais
 
     except Exception as e:
         st.error(f"Erro IA: {e}")
-        return {}
+        # Retornar dados existentes em caso de erro
+        return dados_existentes if dados_existentes else {}
 
 
 # ======================================================================
