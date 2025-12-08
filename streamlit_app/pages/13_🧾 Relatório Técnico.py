@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 # -*- coding: utf-8 -*-
 """
 🧾 Relatório Técnico Consolidado – SynapseNext vNext+
@@ -17,9 +11,17 @@ Versão: vNext+ (SAAB 5.0)
 ==============================================================
 """
 
-import sys, os
+import sys
+import os
 from pathlib import Path
 from datetime import datetime
+
+# Configuração de caminhos ANTES de qualquer import de streamlit
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# Import do Streamlit
 import streamlit as st
 import pandas as pd
 
@@ -29,7 +31,7 @@ import pandas as pd
 st.set_page_config(page_title="🧾 Relatório Técnico Consolidado – SynapseNext", layout="wide", page_icon="🧾")
 
 # ==========================================================
-# 🔧 Configuração de caminhos e imports
+# 🔧 Imports de módulos institucionais
 # ==========================================================
 try:
     from utils.relatorio_consolidado_pipeline import coletar_dados_relatorio, gerar_relatorio_docx
