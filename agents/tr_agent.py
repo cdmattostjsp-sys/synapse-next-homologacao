@@ -60,11 +60,18 @@ class TRAgent:
             artefato="TR",
         )
 
-        # Resposta esperada: JSON com as 9 seções
-        try:
-            dados = json.loads(resposta)
-        except json.JSONDecodeError:
-            print("[TRAgent] ERRO: resposta não é JSON válido")
+        # AIClient.ask() já retorna dict estruturado
+        if isinstance(resposta, dict):
+            dados = resposta
+        elif isinstance(resposta, str):
+            # Fallback: tentar parsear JSON string
+            try:
+                dados = json.loads(resposta)
+            except json.JSONDecodeError:
+                print("[TRAgent] ERRO: resposta não é JSON válido")
+                dados = {}
+        else:
+            print(f"[TRAgent] ERRO: tipo de resposta inesperado: {type(resposta)}")
             dados = {}
 
         # Estrutura final do TR
