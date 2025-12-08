@@ -86,18 +86,18 @@ class AIClient:
         ]
 
         # ------------------------------------------------------
-        # Chamada NOVA (responses.create)
+        # Chamada oficial OpenAI (chat.completions.create)
         # ------------------------------------------------------
         try:
-            response = self.client.responses.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 response_format={"type": "json_object"},
                 temperature=0.0,
-                max_output_tokens=6000,
+                max_tokens=6000,
             )
 
-            texto = response.output_text
+            texto = response.choices[0].message.content
             if not isinstance(texto, str):
                 texto = str(texto)
 
@@ -118,3 +118,26 @@ class AIClient:
             return json.loads(texto_limpo)
         except Exception:
             return {"resposta_texto": texto}
+
+
+    # ------------------------------------------------------
+    # Método chat() para compatibilidade com integration_tr
+    # ------------------------------------------------------
+    def chat(self, messages: list) -> dict:
+        """
+        Método compatível com integration_tr.py
+        Retorna dict com chave 'content'
+        """
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=4000,
+            )
+            
+            content = response.choices[0].message.content
+            return {"content": content}
+            
+        except Exception as e:
+            return {"content": "", "erro": str(e)}
