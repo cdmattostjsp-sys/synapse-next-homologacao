@@ -35,3 +35,4 @@ python-dotenv==1.0.1
 
 # ---- IA ----
 openai==1.52.2
+httpx==0.27.2  # compatível com openai 1.52.2 (0.28+ remove parâmetro proxies)
