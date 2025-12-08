@@ -146,6 +146,45 @@ Cada agente:
 
 ---
 
+### 4️⃣ **EditalAgent** (`agents/edital_agent.py`)
+
+**Responsável por**: Editais de Licitação
+
+**Estrutura**:
+```python
+{
+  "artefato": "EDITAL",
+  "timestamp": str,
+  "EDITAL": {
+    "objeto": str,                      # Campo 1
+    "tipo_licitacao": str,             # Campo 2
+    "criterio_julgamento": str,        # Campo 3
+    "condicoes_participacao": str,     # Campo 4
+    "exigencias_habilitacao": str,     # Campo 5
+    "obrigacoes_contratada": str,      # Campo 6
+    "prazo_execucao": str,             # Campo 7
+    "fontes_recursos": str,            # Campo 8
+    "gestor_fiscal": str,              # Campo 9
+    "observacoes_gerais": str,         # Campo 10
+    "numero_edital": str,              # Campo 11
+    "data_publicacao": str             # Campo 12
+  },
+  "contexto_usado": list
+}
+```
+
+**12 campos padronizados** conforme Lei 14.133/2021
+
+**Prompt otimizado**:
+- Instruções específicas para identificar campos 1-12
+- Integração automática com contexto DFD/ETP/TR
+- Enriquecimento inteligente de campos vazios usando dados de outros módulos
+- Geração automática de número e data se não presentes no documento
+
+**Teste local**: `test_edital_agent.py` (12/12 campos extraídos ✅)
+
+---
+
 ## 🔄 Fluxo de Processamento
 
 ### Pipeline Completo
@@ -186,6 +225,7 @@ agents/
 ├── document_agent.py       # DFDAgent (11 seções governança)
 ├── etp_agent.py           # ETPAgent (27 seções Lei 14.133)
 ├── tr_agent.py            # TRAgent (9 seções padrão TJSP)
+├── edital_agent.py        # EditalAgent (12 campos licitação)
 ├── github_bridge.py       # Integrações GitHub
 ├── guide_agent.py         # Guias e documentação
 └── stage_detector.py      # Detecção de fase do processo
@@ -197,6 +237,7 @@ utils/
 ├── integration_dfd.py     # Backend DFD + gerar_dfd_com_ia()
 ├── integration_etp.py     # Backend ETP + gerar_etp_com_ia()
 ├── integration_tr.py      # Backend TR + gerar_tr_com_ia()
+├── integration_edital.py  # Backend Edital + gerar_edital_com_ia()
 └── ai_client.py          # Cliente OpenAI centralizado
 ```
 
@@ -295,13 +336,13 @@ def processar_{tipo}_com_ia(conteudo_textual: str = "") -> dict:
 
 ## 📊 Status Atual (Dezembro 2025)
 
-| Agente | Status | Seções | Testes | Deploy |
-|--------|--------|--------|--------|--------|
-| DFDAgent | ✅ Produção | 11 | ✅ test_dfd_cli.py | ✅ |
-| ETPAgent | ✅ Produção | 27 | ✅ test_etp_agent.py | ✅ |
-| TRAgent | ✅ Produção | 9 | ✅ test_tr_agent.py | ✅ |
-| ContratoAgent | 🟡 Planejado | ~20 | ⏳ | ⏳ |
-| EditalAgent | 🟡 Planejado | ~12 | ⏳ | ⏳ |
+| Agente | Status | Campos/Seções | Testes | Deploy |
+|--------|--------|---------------|--------|--------|
+| DFDAgent | ✅ Produção | 11 seções | ✅ test_dfd_cli.py | ✅ |
+| ETPAgent | ✅ Produção | 27 seções | ✅ test_etp_agent.py | ✅ |
+| TRAgent | ✅ Produção | 9 seções | ✅ test_tr_agent.py | ✅ |
+| EditalAgent | ✅ Produção | 12 campos | ✅ test_edital_agent.py | ✅ |
+| ContratoAgent | 🟡 Planejado | ~20 seções | ⏳ | ⏳ |
 
 ---
 
