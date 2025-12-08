@@ -26,7 +26,18 @@ from pathlib import Path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
 from utils.alertas_pipeline import gerar_alertas
-from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
+
+# ==========================================================
+# 🔄 Lazy Loading de módulos pesados
+# ==========================================================
+def _get_relatorio_executivo():
+    """Carrega módulo de relatório sob demanda (lazy loading)."""
+    try:
+        from utils.relatorio_executivo_pdf import gerar_relatorio_executivo
+        return gerar_relatorio_executivo
+    except ImportError as e:
+        st.warning(f"⚠️ Módulo de relatório PDF indisponível: {e}")
+        return None
 
 # ==========================================================
 # ⚙️ Configuração da página
@@ -187,8 +198,14 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.subheader("📘 Relatório Executivo (Exportação PDF)")
 
 if st.button("📤 Gerar Relatório Executivo em PDF", use_container_width=True):
+    gerar_relatorio_fn = _get_relatorio_executivo()
+    
+    if gerar_relatorio_fn is None:
+        st.error("⚠️ Funcionalidade de exportação PDF indisponível. Verifique as dependências.")
+        st.stop()
+    
     try:
-        caminho_pdf = gerar_relatorio_executivo({}, {"alertas": alertas}, {})
+        caminho_pdf = gerar_relatorio_fn({}, {"alertas": alertas}, {})
         with open(caminho_pdf, "rb") as f:
             st.download_button(
                 label="📥 Baixar Relatório Executivo",

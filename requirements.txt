@@ -27,6 +27,7 @@ PyYAML==6.0.1
 
 # ---- Visualização / Gráficos ----
 plotly==5.23.0
+matplotlib==3.9.2
 
 # ---- Segurança / Utilidades ----
 validators==0.28.0
