@@ -251,6 +251,21 @@ def processar_etp_com_ia(conteudo_textual: str = "") -> dict:
                 "conteudo_recebido": conteudo_textual[:500],
             }
 
+        # ✅ NOVO: Registrar evento de auditoria
+        try:
+            from utils.audit_logger import registrar_evento_auditoria
+            word_count = len(conteudo_textual.split())
+            char_count = len(conteudo_textual)
+            registrar_evento_auditoria(
+                artefato="ETP",
+                word_count=word_count,
+                char_count=char_count,
+                etapa="processamento",
+                conteudo_textual=conteudo_textual
+            )
+        except Exception as e:
+            print(f"[processar_etp_com_ia] ⚠️ Falha ao registrar auditoria: {e}")
+
         print("[processar_etp_com_ia] Processamento concluído com sucesso")
         return {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

@@ -495,6 +495,23 @@ def processar_contrato_com_ia(conteudo_textual: str, contexto_previo: dict = Non
     try:
         agent = ContratoAgent()
         resultado = agent.generate(conteudo_textual, contexto_previo)
+        
+        # ✅ NOVO: Registrar evento de auditoria
+        if conteudo_textual:
+            try:
+                from utils.audit_logger import registrar_evento_auditoria
+                word_count = len(conteudo_textual.split())
+                char_count = len(conteudo_textual)
+                registrar_evento_auditoria(
+                    artefato="CONTRATO",
+                    word_count=word_count,
+                    char_count=char_count,
+                    etapa="processamento",
+                    conteudo_textual=conteudo_textual
+                )
+            except Exception as e:
+                print(f"[processar_contrato_com_ia] ⚠️ Falha ao registrar auditoria: {e}")
+        
         return resultado
     except Exception as e:
         print(f"[processar_contrato_com_ia] EXCEÇÃO: {e}")

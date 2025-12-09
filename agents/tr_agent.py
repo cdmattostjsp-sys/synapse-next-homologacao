@@ -175,6 +175,22 @@ def processar_tr_com_ia(conteudo_textual: str) -> dict:
     try:
         agent = TRAgent()
         resultado = agent.generate(conteudo_textual)
+        
+        # ✅ NOVO: Registrar evento de auditoria
+        try:
+            from utils.audit_logger import registrar_evento_auditoria
+            word_count = len(conteudo_textual.split())
+            char_count = len(conteudo_textual)
+            registrar_evento_auditoria(
+                artefato="TR",
+                word_count=word_count,
+                char_count=char_count,
+                etapa="processamento",
+                conteudo_textual=conteudo_textual
+            )
+        except Exception as e:
+            print(f"[processar_tr_com_ia] ⚠️ Falha ao registrar auditoria: {e}")
+        
         return resultado
     except Exception as e:
         print(f"[processar_tr_com_ia] EXCEÇÃO: {e}")
