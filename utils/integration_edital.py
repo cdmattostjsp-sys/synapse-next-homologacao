@@ -487,10 +487,84 @@ def gerar_rascunho_edital(campos: Dict[str, str], modelos_referencia: str = "") 
         "",
     ])
     
-    return "\n".join(linhas)
+    # Adicionar orientações institucionais se fornecidas
     if modelos_referencia:
-        linhas += ["", "ANEXO – ORIENTAÇÕES INSTITUCIONAIS (KB)", (modelos_referencia[:1200] + " …")]
+        linhas.extend(["", "ANEXO – ORIENTAÇÕES INSTITUCIONAIS (KB)", (modelos_referencia[:1200] + " …")])
+    
     return "\n".join(linhas)
+
+
+def _gerar_edital_docx_simples(campos: Dict[str, str], texto_completo: Optional[str] = None, session_state: dict = None) -> Optional[str]:
+    """
+    Versão simplificada sem formatação avançada (fallback).
+    Usada quando docx.shared/docx.enum não estão disponíveis.
+    """
+    if Document is None:
+        return None
+    
+    doc = Document()
+    
+    # Cabeçalho simples
+    doc.add_heading('TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO', level=1)
+    doc.add_heading('DIRETORIA EXECUTIVA DE GESTÃO DE SUPRIMENTOS', level=2)
+    doc.add_paragraph()
+    
+    doc.add_heading(f"EDITAL DE LICITAÇÃO Nº {campos.get('numero_edital', 'XXXXX/YYYY')}", level=1)
+    
+    doc.add_paragraph(f"Data de Publicação: {campos.get('data_publicacao', '__/__/____')}")
+    doc.add_paragraph(f"Unidade Solicitante: {campos.get('unidade_solicitante', 'A definir')}")
+    doc.add_paragraph(f"Responsável: {campos.get('responsavel', 'A definir')}")
+    doc.add_paragraph()
+    
+    def bloco(titulo: str, corpo: str):
+        doc.add_heading(titulo, level=2)
+        doc.add_paragraph(corpo if corpo else "(Informação não disponível)")
+    
+    bloco("1. DO OBJETO", campos.get("objeto", ""))
+    bloco("2. DA MODALIDADE E CRITÉRIO", f"Modalidade: {campos.get('tipo_licitacao', '')}. Critério: {campos.get('criterio_julgamento', '')}")
+    bloco("3. DAS CONDIÇÕES DE PARTICIPAÇÃO", campos.get("condicoes_participacao", ""))
+    bloco("4. DA HABILITAÇÃO", campos.get("exigencias_habilitacao", ""))
+    bloco("5. DAS OBRIGAÇÕES DA CONTRATADA", campos.get("obrigacoes_contratada", ""))
+    bloco("6. DO PRAZO DE EXECUÇÃO", campos.get("prazo_execucao", ""))
+    bloco("7. DOS RECURSOS", campos.get("fontes_recursos", ""))
+    bloco("8. DA GESTÃO E FISCALIZAÇÃO", campos.get("gestor_fiscal", ""))
+    bloco("9. DAS DISPOSIÇÕES FINAIS", campos.get("observacoes_gerais", ""))
+    
+    if texto_completo:
+        doc.add_page_break()
+        doc.add_heading("ANEXO – RASCUNHO INTEGRAL", level=1)
+        for linha in texto_completo.split("\n"):
+            if linha.strip() and not linha.startswith("=") and not linha.startswith("-"):
+                doc.add_paragraph(linha)
+    
+    # Salvar buffer e disco (mesma lógica da versão completa)
+    nome_arquivo = f"Edital_{campos.get('numero_edital','TJSP-PE').replace('/', '-')}.docx"
+    exports_path = Path(EXPORTS_DIR)
+    exports_path.mkdir(parents=True, exist_ok=True)
+    caminho = str(exports_path / nome_arquivo)
+    
+    buffer = io.BytesIO()
+    try:
+        doc.save(buffer)
+        buffer.seek(0)
+        print(f"[_gerar_edital_docx_simples] Buffer criado: {len(buffer.getvalue())} bytes")
+    except Exception as e:
+        print(f"[_gerar_edital_docx_simples] ERRO ao criar buffer: {e}")
+        return None
+    
+    if session_state is not None:
+        try:
+            session_state["edital_docx_buffer"] = buffer
+            session_state["edital_docx_nome"] = nome_arquivo
+            print(f"[_gerar_edital_docx_simples] ✅ Buffer salvo")
+        except Exception as e:
+            print(f"[_gerar_edital_docx_simples] ERRO session_state: {e}")
+    
+    try:
+        doc.save(caminho)
+        return caminho
+    except Exception:
+        return None
 
 
 def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = None, session_state: dict = None) -> Optional[str]:
@@ -508,8 +582,13 @@ def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = No
     if Document is None:
         return None  # evita falha se python-docx não estiver instalado
 
-    from docx.shared import Pt, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    try:
+        from docx.shared import Pt, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+    except ImportError:
+        # Fallback: gerar documento simples sem formatação avançada
+        print("[gerar_edital_docx] ⚠️ Módulos de formatação não disponíveis, usando versão simples")
+        return _gerar_edital_docx_simples(campos, texto_completo, session_state)
     
     doc = Document()
     
@@ -835,12 +914,5 @@ def gerar_edital_com_ia(contexto_previo: dict = None) -> dict:
         print(f"[gerar_edital_com_ia] ❌ Buffer NÃO encontrado no session_state")
         if session_state_param is not None:
             print(f"[gerar_edital_com_ia]    session_state keys: {list(session_state_param.keys())}")
-        print(f"[gerar_edital_com_ia] ✅ Buffer confirmado no session_state: {buffer_size} bytes")
-    else:
-        dados_completos["docx_buffer_disponivel"] = False
-        print(f"[gerar_edital_com_ia] ❌ Buffer NÃO encontrado no session_state")
-        print(f"[gerar_edital_com_ia]    st is None: {st is None}")
-        if st is not None:
-            print(f"[gerar_edital_com_ia]    session_state keys: {list(st.session_state.keys())}")
     
     return dados_completos
