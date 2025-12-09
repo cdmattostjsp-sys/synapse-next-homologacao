@@ -91,6 +91,16 @@ metricas = st.session_state.metricas_cache
 resumo = metricas.get("resumo", {})
 evolucao = metricas.get("evolucao_temporal", {})
 
+# Verificar se há dados de auditoria reais ou sintéticos
+tem_eventos = resumo.get("total_eventos", 0) > 0
+if tem_eventos:
+    # Verificar se são dados sintéticos (word_count muito baixo indica isso)
+    word_count_medio = resumo.get("word_count_medio", 0)
+    if word_count_medio < 100:
+        st.info("ℹ️ **Modo Sintético**: O sistema de auditoria não foi encontrado. Exibindo métricas baseadas nos documentos processados. Para dados mais detalhados, execute os documentos com o sistema de auditoria ativado.")
+else:
+    st.warning("⚠️ Nenhum dado disponível para análise. Processe documentos através dos módulos DFD, ETP, TR, EDITAL ou CONTRATO.")
+
 # ==========================================================
 # 📌 Cards de resumo REAIS
 # ==========================================================

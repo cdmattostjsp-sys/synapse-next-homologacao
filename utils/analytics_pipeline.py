@@ -72,9 +72,15 @@ def coletar_metricas_auditoria() -> Dict[str, Any]:
     # Listar todos os arquivos de auditoria
     if not AUDITORIA_DIR.exists():
         print(f"[analytics_pipeline] ⚠️  Diretório de auditoria não existe: {AUDITORIA_DIR}")
-        return {"eventos_por_artefato": {}, "eventos_temporais": [], "total_eventos": 0}
+        print(f"[analytics_pipeline] 📊 Gerando métricas sintéticas baseadas em documentos existentes...")
+        return gerar_metricas_sinteticas_de_documentos()
     
     arquivos_audit = sorted(AUDITORIA_DIR.glob("audit_*.jsonl"))
+    
+    if not arquivos_audit:
+        print(f"[analytics_pipeline] ⚠️  Nenhum arquivo de auditoria encontrado")
+        print(f"[analytics_pipeline] 📊 Gerando métricas sintéticas baseadas em documentos existentes...")
+        return gerar_metricas_sinteticas_de_documentos()
     
     for arquivo in arquivos_audit:
         try:
@@ -119,6 +125,71 @@ def coletar_metricas_auditoria() -> Dict[str, Any]:
     }
     
     print(f"[analytics_pipeline] ✅ {len(eventos_temporais)} eventos coletados de auditoria")
+    return resultado
+
+
+# ======================================================
+# 📊 Função: Gerar Métricas Sintéticas de Documentos
+# ======================================================
+def gerar_metricas_sinteticas_de_documentos() -> Dict[str, Any]:
+    """
+    Gera métricas sintéticas baseadas nos documentos existentes em exports/
+    quando não há dados de auditoria disponíveis.
+    
+    Returns:
+        Dict com estrutura similar a coletar_metricas_auditoria()
+    """
+    eventos_por_artefato = defaultdict(list)
+    eventos_temporais = []
+    
+    # Verificar documentos existentes
+    for modulo in MODULOS:
+        arquivo = EXPORTS_DIR / f"{modulo.lower()}_data.json"
+        if arquivo.exists():
+            try:
+                with open(arquivo, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+                
+                # Contar palavras e caracteres no JSON
+                texto_completo = json.dumps(dados, ensure_ascii=False)
+                word_count = len(texto_completo.split())
+                char_count = len(texto_completo)
+                
+                # Timestamp do arquivo
+                timestamp_arquivo = datetime.fromtimestamp(arquivo.stat().st_mtime)
+                timestamp_str = timestamp_arquivo.isoformat()
+                
+                # Criar evento sintético
+                evento = {
+                    "timestamp": timestamp_str,
+                    "word_count": word_count,
+                    "char_count": char_count,
+                    "etapa": "processamento",
+                    "sha256": "sintético",
+                }
+                
+                eventos_por_artefato[modulo].append(evento)
+                eventos_temporais.append({
+                    "timestamp": timestamp_str,
+                    "artefato": modulo,
+                    "word_count": word_count,
+                    "char_count": char_count,
+                })
+                
+                print(f"[analytics_pipeline] 📄 {modulo}: {word_count} palavras (sintético)")
+            except Exception as e:
+                print(f"[analytics_pipeline] Erro ao processar {arquivo.name}: {e}")
+    
+    # Ordenar eventos temporais
+    eventos_temporais.sort(key=lambda x: x.get("timestamp", ""))
+    
+    resultado = {
+        "eventos_por_artefato": dict(eventos_por_artefato),
+        "eventos_temporais": eventos_temporais,
+        "total_eventos": len(eventos_temporais),
+    }
+    
+    print(f"[analytics_pipeline] ✅ {len(eventos_temporais)} eventos sintéticos gerados")
     return resultado
 
 
