@@ -87,6 +87,17 @@ def aplicar_estilo_institucional():
         transition: background-color 0.2s ease-in-out;
     }
 
+    /* Botões tipo primary: azul escuro para melhor contraste */
+    .stButton > button[kind="primary"] {
+        background-color: #1f77b4 !important;  /* Azul escuro */
+        color: white !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background-color: #145a8a !important;
+        color: white !important;
+    }
+
     .stButton > button:hover {
         background-color: #8b0000 !important;
         color: #fff !important;
