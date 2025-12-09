@@ -268,77 +268,387 @@ def normalizar_campos_edital(campos: Dict[str, Any], contexto: dict) -> Dict[str
 # 🧱 Geração de rascunho e DOCX
 # ==========================================================
 def gerar_rascunho_edital(campos: Dict[str, str], modelos_referencia: str = "") -> str:
+    """
+    Gera rascunho textual do Edital de forma estruturada e profissional.
+    Agora com formatação enriquecida e seções detalhadas.
+    """
+    
+    # Cabeçalho oficial
     linhas = [
-        f"EDITAL Nº {campos.get('numero_edital','')}",
-        f"Data de Publicação: {campos.get('data_publicacao','')}",
+        "=" * 80,
+        "TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO",
+        "DIRETORIA EXECUTIVA DE GESTÃO DE SUPRIMENTOS",
+        "=" * 80,
         "",
-        f"Unidade Solicitante: {campos.get('unidade_solicitante','')}",
-        f"Responsável: {campos.get('responsavel','')}",
+        f"EDITAL DE LICITAÇÃO Nº {campos.get('numero_edital', 'XXXXX/YYYY')}",
+        f"PROCESSO ADMINISTRATIVO: {campos.get('numero_edital', 'XXXXX/YYYY')}",
         "",
-        "1. DO OBJETO",
-        campos.get("objeto",""),
+        f"Data de Publicação: {campos.get('data_publicacao', '__/__/____')}",
+        f"Unidade Solicitante: {campos.get('unidade_solicitante', 'A definir')}",
+        f"Responsável: {campos.get('responsavel', 'A definir')}",
         "",
-        "2. DO TIPO E CRITÉRIO DE JULGAMENTO",
-        f"Tipo de licitação: {campos.get('tipo_licitacao','')}",
-        f"Critério de julgamento: {campos.get('criterio_julgamento','')}",
+        "=" * 80,
         "",
-        "3. DAS CONDIÇÕES DE PARTICIPAÇÃO",
-        campos.get("condicoes_participacao",""),
+        "O TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO, por meio da Diretoria Executiva",
+        "de Gestão de Suprimentos, torna público que realizará licitação na modalidade",
+        "e critério abaixo especificados, regida pela Lei Federal nº 14.133/2021 e",
+        "demais normas pertinentes.",
         "",
-        "4. DAS EXIGÊNCIAS DE HABILITAÇÃO",
-        campos.get("exigencias_habilitacao",""),
+        "=" * 80,
         "",
-        "5. DAS OBRIGAÇÕES DA CONTRATADA",
-        campos.get("obrigacoes_contratada",""),
-        "",
-        "6. DO PRAZO DE EXECUÇÃO",
-        campos.get("prazo_execucao",""),
-        "",
-        "7. DAS FONTES DE RECURSOS",
-        campos.get("fontes_recursos",""),
-        "",
-        "8. DO GESTOR/FISCAL DO CONTRATO",
-        campos.get("gestor_fiscal",""),
-        "",
-        "9. DAS DISPOSIÇÕES FINAIS",
-        campos.get("observacoes_gerais",""),
     ]
+    
+    # 1. OBJETO
+    linhas.extend([
+        "1. DO OBJETO",
+        "-" * 80,
+        "",
+        campos.get("objeto", "(Descrição do objeto não informada)"),
+        "",
+        "1.1. A contratação será regida pela Lei Federal nº 14.133/2021 e demais",
+        "     normas complementares.",
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 2. TIPO E CRITÉRIO
+    linhas.extend([
+        "2. DA MODALIDADE E CRITÉRIO DE JULGAMENTO",
+        "-" * 80,
+        "",
+        f"2.1. Modalidade: {campos.get('tipo_licitacao', 'Pregão Eletrônico')}",
+        "",
+        f"2.2. Critério de Julgamento: {campos.get('criterio_julgamento', 'Menor Preço')}",
+        "",
+        "2.3. Modo de Disputa: Aberto e fechado, conforme art. 17, §2º da Lei 14.133/2021.",
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 3. CONDIÇÕES DE PARTICIPAÇÃO
+    condicoes = campos.get("condicoes_participacao", "")
+    linhas.extend([
+        "3. DAS CONDIÇÕES DE PARTICIPAÇÃO",
+        "-" * 80,
+        "",
+        condicoes if condicoes else (
+            "3.1. Poderão participar desta licitação as empresas:\n"
+            "     a) Regularmente estabelecidas no País;\n"
+            "     b) Que atendam às condições de habilitação previstas neste Edital;\n"
+            "     c) Credenciadas no portal de compras governamental (quando aplicável);\n"
+            "     d) Que não estejam suspensas ou impedidas de licitar com a Administração Pública.\n"
+            "\n"
+            "3.2. Não poderão participar:\n"
+            "     a) Empresas em processo de falência, recuperação judicial ou dissolução;\n"
+            "     b) Empresas declaradas inidôneas pela Administração Pública;\n"
+            "     c) Empresas com vínculo de parentesco/subordinação com agentes públicos do TJSP."
+        ),
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 4. HABILITAÇÃO (CRÍTICO - deve ser detalhado)
+    habilitacao = campos.get("exigencias_habilitacao", "")
+    linhas.extend([
+        "4. DA HABILITAÇÃO",
+        "-" * 80,
+        "",
+        "Os licitantes deverão apresentar os seguintes documentos:",
+        "",
+        habilitacao if habilitacao else (
+            "4.1. HABILITAÇÃO JURÍDICA:\n"
+            "     a) Registro comercial (Junta Comercial) para empresas individuais;\n"
+            "     b) Ato constitutivo, estatuto ou contrato social em vigor;\n"
+            "     c) Decreto de autorização (empresas estrangeiras);\n"
+            "     d) Cartão CNPJ atualizado.\n"
+            "\n"
+            "4.2. REGULARIDADE FISCAL E TRABALHISTA:\n"
+            "     a) Certidão Negativa de Débitos Federais (Receita Federal/PGFN);\n"
+            "     b) Certidão Negativa Estadual;\n"
+            "     c) Certidão Negativa Municipal (sede do licitante);\n"
+            "     d) Certidão Negativa de Débitos Trabalhistas (TST);\n"
+            "     e) Certidão de Regularidade FGTS;\n"
+            "     f) Certidão Negativa de Débitos INSS.\n"
+            "\n"
+            "4.3. QUALIFICAÇÃO TÉCNICA:\n"
+            "     a) Atestado(s) de capacidade técnica emitido(s) por pessoa jurídica de\n"
+            "        direito público ou privado, comprovando execução de serviços compatíveis;\n"
+            "     b) Registro ou inscrição na entidade profissional competente (quando aplicável);\n"
+            "     c) Certidão de Acervo Técnico (CAT) dos responsáveis técnicos.\n"
+            "\n"
+            "4.4. QUALIFICAÇÃO ECONÔMICO-FINANCEIRA:\n"
+            "     a) Balanço patrimonial do último exercício social;\n"
+            "     b) Certidão negativa de falência ou recuperação judicial (90 dias validade);\n"
+            "     c) Patrimônio líquido mínimo de 10% do valor estimado da contratação."
+        ),
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 5. OBRIGAÇÕES DA CONTRATADA (CRÍTICO)
+    obrigacoes = campos.get("obrigacoes_contratada", "")
+    linhas.extend([
+        "5. DAS OBRIGAÇÕES DA CONTRATADA",
+        "-" * 80,
+        "",
+        obrigacoes if obrigacoes else (
+            "5.1. Executar os serviços em conformidade com as especificações técnicas;\n"
+            "\n"
+            "5.2. Responsabilizar-se por todos os encargos trabalhistas, previdenciários,\n"
+            "     fiscais e comerciais resultantes da execução do contrato;\n"
+            "\n"
+            "5.3. Manter durante toda a execução do contrato as condições de habilitação;\n"
+            "\n"
+            "5.4. Fornecer mão de obra qualificada e devidamente treinada;\n"
+            "\n"
+            "5.5. Apresentar relatórios mensais de atividades executadas;\n"
+            "\n"
+            "5.6. Reparar ou corrigir, às suas expensas, vícios, defeitos ou incorreções;\n"
+            "\n"
+            "5.7. Manter sigilo sobre informações obtidas durante a execução dos serviços."
+        ),
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 6. PRAZO
+    linhas.extend([
+        "6. DO PRAZO DE EXECUÇÃO",
+        "-" * 80,
+        "",
+        f"6.1. Prazo de vigência: {campos.get('prazo_execucao', 'A definir')}",
+        "",
+        "6.2. O prazo poderá ser prorrogado mediante termo aditivo, desde que atendidos",
+        "     os requisitos do art. 107 da Lei 14.133/2021.",
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 7. RECURSOS
+    linhas.extend([
+        "7. DOS RECURSOS ORÇAMENTÁRIOS",
+        "-" * 80,
+        "",
+        f"7.1. Fonte de Recursos: {campos.get('fontes_recursos', 'A definir')}",
+        "",
+        "7.2. As despesas decorrentes da presente contratação correrão à conta dos",
+        "     recursos consignados no orçamento do TJSP.",
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 8. GESTOR/FISCAL
+    linhas.extend([
+        "8. DA GESTÃO E FISCALIZAÇÃO DO CONTRATO",
+        "-" * 80,
+        "",
+        f"8.1. Gestor do Contrato: {campos.get('gestor_fiscal', 'A definir')}",
+        "",
+        "8.2. A fiscalização do contrato será exercida nos termos do art. 117 da",
+        "     Lei 14.133/2021, cabendo ao fiscal acompanhar e atestar a execução dos serviços.",
+        "",
+        "=" * 80,
+        "",
+    ])
+    
+    # 9. DISPOSIÇÕES FINAIS
+    obs = campos.get("observacoes_gerais", "")
+    linhas.extend([
+        "9. DAS DISPOSIÇÕES FINAIS",
+        "-" * 80,
+        "",
+        obs if obs else (
+            "9.1. Eventuais dúvidas deverão ser encaminhadas por escrito à Comissão de Licitação.\n"
+            "\n"
+            "9.2. O Edital completo encontra-se disponível no Portal de Compras do TJSP.\n"
+            "\n"
+            "9.3. A Administração poderá revogar a licitação por razões de interesse público\n"
+            "     ou anulá-la por ilegalidade, assegurado o contraditório e ampla defesa.\n"
+            "\n"
+            "9.4. Os casos omissos serão decididos pela Comissão de Licitação, com base\n"
+            "     na Lei 14.133/2021 e demais normas aplicáveis."
+        ),
+        "",
+        "=" * 80,
+        "",
+        f"São Paulo, {campos.get('data_publicacao', '__/__/____')}",
+        "",
+        "",
+        "_" * 60,
+        "Presidente da Comissão de Licitação",
+        "Tribunal de Justiça do Estado de São Paulo",
+        "",
+    ])
+    
+    return "\n".join(linhas)
     if modelos_referencia:
         linhas += ["", "ANEXO – ORIENTAÇÕES INSTITUCIONAIS (KB)", (modelos_referencia[:1200] + " …")]
     return "\n".join(linhas)
 
 
-def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = None) -> Optional[str]:
+def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = None, session_state: dict = None) -> Optional[str]:
+    """
+    Gera documento DOCX do edital com formatação profissional.
+    
+    Args:
+        campos: dicionário com os 12 campos do edital
+        texto_completo: rascunho textual completo (opcional)
+        session_state: dict do streamlit session_state para salvar buffer
+    
+    Returns:
+        caminho do arquivo se salvo em disco, None se apenas em buffer
+    """
     if Document is None:
         return None  # evita falha se python-docx não estiver instalado
 
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    
     doc = Document()
-    doc.add_heading(f"EDITAL Nº {campos.get('numero_edital','')}", level=1)
-    doc.add_paragraph(f"Data de Publicação: {campos.get('data_publicacao','')}")
-    doc.add_paragraph(f"Unidade Solicitante: {campos.get('unidade_solicitante','')}")
-    doc.add_paragraph(f"Responsável: {campos.get('responsavel','')}")
-    doc.add_paragraph("")
+    
+    # Cabeçalho institucional
+    header = doc.add_heading('TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO', level=1)
+    header.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    subheader = doc.add_paragraph('DIRETORIA EXECUTIVA DE GESTÃO DE SUPRIMENTOS')
+    subheader.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    subheader.runs[0].bold = True
+    
+    doc.add_paragraph()  # espaço
+    
+    # Título do Edital
+    titulo = doc.add_heading(f"EDITAL DE LICITAÇÃO Nº {campos.get('numero_edital', 'XXXXX/YYYY')}", level=1)
+    titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Metadados
+    meta = doc.add_paragraph()
+    meta.add_run(f"Data de Publicação: ").bold = True
+    meta.add_run(campos.get('data_publicacao', '__/__/____'))
+    
+    meta = doc.add_paragraph()
+    meta.add_run(f"Unidade Solicitante: ").bold = True
+    meta.add_run(campos.get('unidade_solicitante', 'A definir'))
+    
+    meta = doc.add_paragraph()
+    meta.add_run(f"Responsável: ").bold = True
+    meta.add_run(campos.get('responsavel', 'A definir'))
+    
+    doc.add_paragraph()  # espaço
+    
+    # Preâmbulo
+    preambulo = doc.add_paragraph(
+        "O TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO, por meio da Diretoria Executiva "
+        "de Gestão de Suprimentos, torna público que realizará licitação na modalidade "
+        "e critério abaixo especificados, regida pela Lei Federal nº 14.133/2021 e "
+        "demais normas pertinentes."
+    )
+    preambulo.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    
+    doc.add_paragraph()  # espaço
 
-    def bloco(titulo: str, corpo: str):
-        doc.add_heading(titulo, level=2)
-        doc.add_paragraph(corpo if corpo else "—")
+    def bloco_estruturado(titulo: str, conteudo: str):
+        """Adiciona seção com formatação profissional."""
+        h = doc.add_heading(titulo, level=2)
+        h.runs[0].font.color.rgb = RGBColor(0, 51, 102)  # Azul institucional
+        
+        if conteudo and conteudo.strip():
+            # Se tiver quebras de linha, preservar formatação
+            paragrafos = conteudo.split('\n\n')
+            for p_text in paragrafos:
+                if p_text.strip():
+                    p = doc.add_paragraph(p_text.strip())
+                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        else:
+            p = doc.add_paragraph("(Informação não disponível)")
+            p.runs[0].italic = True
+        
+        doc.add_paragraph()  # espaço entre seções
+    
+    # Seções do Edital
+    bloco_estruturado(
+        "1. DO OBJETO",
+        campos.get("objeto", "")
+    )
+    
+    bloco_estruturado(
+        "2. DA MODALIDADE E CRITÉRIO DE JULGAMENTO",
+        f"Modalidade: {campos.get('tipo_licitacao', 'Pregão Eletrônico')}\n\n"
+        f"Critério de Julgamento: {campos.get('criterio_julgamento', 'Menor Preço')}\n\n"
+        f"Modo de Disputa: Aberto e fechado, conforme art. 17, §2º da Lei 14.133/2021."
+    )
+    
+    bloco_estruturado(
+        "3. DAS CONDIÇÕES DE PARTICIPAÇÃO",
+        campos.get("condicoes_participacao", "")
+    )
+    
+    bloco_estruturado(
+        "4. DA HABILITAÇÃO",
+        campos.get("exigencias_habilitacao", "")
+    )
+    
+    bloco_estruturado(
+        "5. DAS OBRIGAÇÕES DA CONTRATADA",
+        campos.get("obrigacoes_contratada", "")
+    )
+    
+    bloco_estruturado(
+        "6. DO PRAZO DE EXECUÇÃO",
+        campos.get("prazo_execucao", "")
+    )
+    
+    bloco_estruturado(
+        "7. DOS RECURSOS ORÇAMENTÁRIOS",
+        campos.get("fontes_recursos", "")
+    )
+    
+    bloco_estruturado(
+        "8. DA GESTÃO E FISCALIZAÇÃO DO CONTRATO",
+        campos.get("gestor_fiscal", "")
+    )
+    
+    bloco_estruturado(
+        "9. DAS DISPOSIÇÕES FINAIS",
+        campos.get("observacoes_gerais", "")
+    )
 
-    bloco("1. DO OBJETO", campos.get("objeto",""))
-    bloco("2. DO TIPO E CRITÉRIO DE JULGAMENTO",
-          f"Tipo: {campos.get('tipo_licitacao','')}. Critério: {campos.get('criterio_julgamento','')}.")
-    bloco("3. DAS CONDIÇÕES DE PARTICIPAÇÃO", campos.get("condicoes_participacao",""))
-    bloco("4. DAS EXIGÊNCIAS DE HABILITAÇÃO", campos.get("exigencias_habilitacao",""))
-    bloco("5. DAS OBRIGAÇÕES DA CONTRATADA", campos.get("obrigacoes_contratada",""))
-    bloco("6. DO PRAZO DE EXECUÇÃO", campos.get("prazo_execucao",""))
-    bloco("7. DAS FONTES DE RECURSOS", campos.get("fontes_recursos",""))
-    bloco("8. DO GESTOR/FISCAL DO CONTRATO", campos.get("gestor_fiscal",""))
-    bloco("9. DAS DISPOSIÇÕES FINAIS", campos.get("observacoes_gerais",""))
-
+    # Anexo com rascunho completo (se fornecido)
     if texto_completo:
         doc.add_page_break()
-        doc.add_heading("ANEXO – RASCUNHO INTEGRAL", level=2)
-        for par in texto_completo.split("\n\n"):
-            doc.add_paragraph(par)
+        anexo_titulo = doc.add_heading("ANEXO – RASCUNHO INTEGRAL", level=1)
+        anexo_titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Adicionar texto completo preservando formatação
+        for linha in texto_completo.split("\n"):
+            if linha.strip():
+                if linha.startswith("=") or linha.startswith("-"):
+                    continue  # pular separadores decorativos
+                p = doc.add_paragraph(linha)
+                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    
+    # Rodapé
+    doc.add_paragraph()
+    rodape = doc.add_paragraph(f"São Paulo, {campos.get('data_publicacao', '__/__/____')}")
+    rodape.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    
+    doc.add_paragraph()
+    doc.add_paragraph()
+    
+    assinatura = doc.add_paragraph("_" * 60)
+    assinatura.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    cargo = doc.add_paragraph("Presidente da Comissão de Licitação")
+    cargo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    instituicao = doc.add_paragraph("Tribunal de Justiça do Estado de São Paulo")
+    instituicao.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # Garantir que o diretório existe antes de salvar
     nome_arquivo = f"Edital_{campos.get('numero_edital','TJSP-PE').replace('/', '-')}.docx"
@@ -357,16 +667,22 @@ def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = No
         print(f"[integration_edital] Buffer DOCX criado: {len(buffer.getvalue())} bytes")
     except Exception as e:
         print(f"[integration_edital] ERRO CRÍTICO ao criar buffer: {e}")
+        import traceback
+        traceback.print_exc()
         return None
     
     # Salvar o buffer no session_state SEMPRE (prioridade)
-    if st is not None and hasattr(st, 'session_state'):
+    if session_state is not None:
         try:
-            st.session_state["edital_docx_buffer"] = buffer
-            st.session_state["edital_docx_nome"] = nome_arquivo
-            print(f"[integration_edital] Buffer salvo no session_state: {nome_arquivo}")
+            session_state["edital_docx_buffer"] = buffer
+            session_state["edital_docx_nome"] = nome_arquivo
+            print(f"[integration_edital] ✅ Buffer salvo no session_state: {nome_arquivo}")
         except Exception as e:
             print(f"[integration_edital] ERRO ao salvar no session_state: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"[integration_edital] ⚠️ session_state é None, não foi possível salvar buffer")
     
     # Tentar salvar no disco (opcional, só funciona em Codespaces)
     try:
@@ -487,20 +803,38 @@ def gerar_edital_com_ia(contexto_previo: dict = None) -> dict:
     with open(EDITAL_JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(dados_completos, f, ensure_ascii=False, indent=2)
     
-    # Gerar também o DOCX
+    # Gerar também o DOCX (passando session_state explicitamente)
     print(f"[gerar_edital_com_ia] Iniciando geração do DOCX...")
+    print(f"[gerar_edital_com_ia] st is None: {st is None}")
+    
+    # Obter session_state se disponível
+    session_state_param = None
+    if st is not None:
+        try:
+            session_state_param = st.session_state
+            print(f"[gerar_edital_com_ia] session_state obtido, keys antes: {list(session_state_param.keys())}")
+        except Exception as e:
+            print(f"[gerar_edital_com_ia] Erro ao obter session_state: {e}")
+    
     rascunho = gerar_rascunho_edital(edital_processado)
     print(f"[gerar_edital_com_ia] Rascunho gerado: {len(rascunho)} chars")
     
-    docx_path = gerar_edital_docx(edital_processado, texto_completo=rascunho)
+    docx_path = gerar_edital_docx(edital_processado, texto_completo=rascunho, session_state=session_state_param)
     print(f"[gerar_edital_com_ia] gerar_edital_docx() retornou: {docx_path}")
     
     dados_completos["docx_path"] = docx_path
     
     # CRITICAL: Verificar se buffer foi criado no session_state
-    if st is not None and "edital_docx_buffer" in st.session_state:
+    if session_state_param is not None and "edital_docx_buffer" in session_state_param:
         dados_completos["docx_buffer_disponivel"] = True
-        buffer_size = len(st.session_state["edital_docx_buffer"].getvalue())
+        buffer_size = len(session_state_param["edital_docx_buffer"].getvalue())
+        print(f"[gerar_edital_com_ia] ✅ Buffer confirmado no session_state: {buffer_size} bytes")
+        print(f"[gerar_edital_com_ia] session_state keys depois: {list(session_state_param.keys())}")
+    else:
+        dados_completos["docx_buffer_disponivel"] = False
+        print(f"[gerar_edital_com_ia] ❌ Buffer NÃO encontrado no session_state")
+        if session_state_param is not None:
+            print(f"[gerar_edital_com_ia]    session_state keys: {list(session_state_param.keys())}")
         print(f"[gerar_edital_com_ia] ✅ Buffer confirmado no session_state: {buffer_size} bytes")
     else:
         dados_completos["docx_buffer_disponivel"] = False

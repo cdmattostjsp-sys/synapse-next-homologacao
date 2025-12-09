@@ -94,64 +94,112 @@ class EditalAgent:
     # Prompt otimizado para Edital (12 campos)
     # ==========================================================
     def _montar_prompt(self, contexto: dict = None) -> str:
-        contexto_texto = ""
-        if contexto:
-            contexto_texto = f"""
-
-**CONTEXTO DISPONÍVEL (DFD/ETP/TR):**
-{json.dumps(contexto, ensure_ascii=False, indent=2)}
-
-Use este contexto para enriquecer os campos do edital quando relevante.
-"""
-
+        # Preparar contexto enriquecido
+        contexto_detalhado = self._preparar_contexto_enriquecido(contexto)
+        
         return f"""
-Você é um especialista em Editais de Licitação do setor público (Lei 14.133/2021).
+Você é um especialista em Editais de Licitação do setor público brasileiro (Lei 14.133/2021).
 
-**TAREFA**: Extraia os 12 campos padronizados do Edital abaixo e retorne em JSON.
-{contexto_texto}
+**TAREFA**: ELABORE um Edital completo e robusto usando o documento fornecido E o contexto dos documentos anteriores (DFD/ETP/TR).
 
-**CAMPOS DO EDITAL:**
-1. objeto (descrição do que será licitado)
-2. tipo_licitacao (pregão eletrônico, concorrência, etc.)
-3. criterio_julgamento (menor preço, melhor técnica, etc.)
-4. condicoes_participacao (requisitos para participar)
-5. exigencias_habilitacao (documentação necessária)
-6. obrigacoes_contratada (deveres da empresa vencedora)
-7. prazo_execucao (tempo de vigência do contrato)
-8. fontes_recursos (origem orçamentária)
-9. gestor_fiscal (responsável pelo acompanhamento)
-10. observacoes_gerais (informações complementares)
-11. numero_edital (identificação única)
-12. data_publicacao (data de divulgação)
+{contexto_detalhado}
+
+**CAMPOS DO EDITAL (12 campos obrigatórios):**
+
+1. **objeto**: Descrição detalhada do objeto da licitação. Use informações do TR e DFD para enriquecer.
+2. **tipo_licitacao**: Modalidade (Pregão Eletrônico, Concorrência, etc.)
+3. **criterio_julgamento**: Critério (Menor Preço, Melhor Técnica e Preço, etc.)
+4. **condicoes_participacao**: Requisitos para participar. Exemplo: credenciamento SICAF, regularidade fiscal, enquadramento ME/EPP, etc.
+5. **exigencias_habilitacao**: Documentação obrigatória (habilitação jurídica, fiscal, trabalhista, técnica, econômico-financeira). SEJA ESPECÍFICO usando o TR como base.
+6. **obrigacoes_contratada**: Responsabilidades da empresa. Use especificações técnicas do TR e obrigações do Contrato (se disponível).
+7. **prazo_execucao**: Vigência do contrato (meses/dias). Extraia do TR ou DFD.
+8. **fontes_recursos**: Origem orçamentária (rubrica, programa, natureza de despesa).
+9. **gestor_fiscal**: Nome e cargo do responsável pelo acompanhamento do contrato.
+10. **observacoes_gerais**: Informações complementares (horário de atendimento, garantia contratual, reajustes, etc.)
+11. **numero_edital**: Identificação do edital (ex: 90207/2025)
+12. **data_publicacao**: Data de divulgação (formato DD/MM/YYYY)
 
 **FORMATO DE SAÍDA (JSON):**
 ```json
 {{
-  "objeto": "texto extraído",
-  "tipo_licitacao": "texto extraído",
-  "criterio_julgamento": "texto extraído",
-  "condicoes_participacao": "texto extraído",
-  "exigencias_habilitacao": "texto extraído",
-  "obrigacoes_contratada": "texto extraído",
-  "prazo_execucao": "texto extraído",
-  "fontes_recursos": "texto extraído",
-  "gestor_fiscal": "texto extraído",
-  "observacoes_gerais": "texto extraído",
-  "numero_edital": "texto extraído",
-  "data_publicacao": "texto extraído"
+  "objeto": "Texto completo e detalhado do objeto",
+  "tipo_licitacao": "Modalidade",
+  "criterio_julgamento": "Critério",
+  "condicoes_participacao": "Lista detalhada de condições",
+  "exigencias_habilitacao": "Lista completa de documentos e requisitos técnicos",
+  "obrigacoes_contratada": "Lista detalhada de obrigações e responsabilidades",
+  "prazo_execucao": "Vigência do contrato",
+  "fontes_recursos": "Origem orçamentária",
+  "gestor_fiscal": "Nome e cargo",
+  "observacoes_gerais": "Informações complementares",
+  "numero_edital": "Número de identificação",
+  "data_publicacao": "DD/MM/YYYY"
 }}
 ```
 
-**REGRAS:**
-- Extraia APENAS o que existe no documento
-- NÃO invente informações
-- Se um campo não existir, deixe vazio ""
-- Use contexto DFD/ETP/TR quando disponível para complementar
-- Campos como número_edital e data_publicacao podem ser inferidos do cabeçalho
-- Campos 1-6 devem ser detalhados, campos 7-12 mais sintéticos
+**INSTRUÇÕES CRÍTICAS:**
+1. **SINTETIZE**: Combine informações do documento atual COM o contexto DFD/ETP/TR
+2. **DETALHE**: Campos 4, 5 e 6 devem ser extremamente detalhados (use bullet points quando apropriado)
+3. **ENRIQUEÇA**: Se o Edital não tiver detalhes, busque no TR/ETP/DFD
+4. **ESTRUTURE**: Use formatação clara (listas numeradas/bullets) para legibilidade
+5. **COMPLETO**: Nenhum campo pode ficar vazio - use contexto para preencher
+6. **LEGAL**: Mencione artigos da Lei 14.133/2021 quando relevante
 
-Retorne APENAS o JSON, sem comentários.
+**EXEMPLO DE BOM OUTPUT (campo "exigencias_habilitacao"):**
+"Habilitação Jurídica: ato constitutivo, CNPJ, prova de representação legal. Qualificação Técnica: atestado de capacidade técnica comprovando execução de serviços similares (manutenção elétrica em MT/BT), registro no CREA. Qualificação Econômico-Financeira: balanço patrimonial, certidões negativas INSS/FGTS/Fazenda. Regularidade Fiscal: CND Federal, Estadual, Municipal, CNDT-TST."
+
+Retorne APENAS o JSON, sem comentários ou markdown.
 """
+    
+    def _preparar_contexto_enriquecido(self, contexto: dict = None) -> str:
+        """Prepara resumo estruturado do contexto DFD/ETP/TR."""
+        if not contexto:
+            return "**ATENÇÃO**: Nenhum contexto DFD/ETP/TR disponível. Baseie-se apenas no documento fornecido."
+        
+        dfd = contexto.get("dfd_campos_ai", {})
+        etp = contexto.get("etp_campos_ai", {})
+        tr = contexto.get("tr_campos_ai", {})
+        
+        resumo = ["**CONTEXTO DISPONÍVEL DOS DOCUMENTOS ANTERIORES:**", ""]
+        
+        # DFD
+        if dfd:
+            resumo.append("📋 **DFD (Documento de Formalização da Demanda):**")
+            if dfd.get("objeto"):
+                resumo.append(f"  - Objeto: {dfd['objeto'][:200]}")
+            if dfd.get("justificativa"):
+                resumo.append(f"  - Justificativa: {dfd['justificativa'][:200]}")
+            if dfd.get("valor_estimado"):
+                resumo.append(f"  - Valor estimado: {dfd['valor_estimado']}")
+            resumo.append("")
+        
+        # ETP
+        if etp:
+            resumo.append("📐 **ETP (Estudo Técnico Preliminar):**")
+            if etp.get("objeto"):
+                resumo.append(f"  - Objeto: {etp['objeto'][:200]}")
+            if etp.get("prazo_estimado"):
+                resumo.append(f"  - Prazo: {etp['prazo_estimado']}")
+            if etp.get("resultados_pretendidos"):
+                resumo.append(f"  - Resultados: {etp['resultados_pretendidos'][:200]}")
+            resumo.append("")
+        
+        # TR
+        if tr:
+            resumo.append("📄 **TR (Termo de Referência):**")
+            if tr.get("objeto"):
+                resumo.append(f"  - Objeto: {tr['objeto'][:200]}")
+            if tr.get("especificacao_tecnica"):
+                resumo.append(f"  - Especificação técnica: {tr['especificacao_tecnica'][:300]}")
+            if tr.get("prazo_execucao"):
+                resumo.append(f"  - Prazo: {tr['prazo_execucao']}")
+            if tr.get("fonte_recurso"):
+                resumo.append(f"  - Fonte de recursos: {tr['fonte_recurso']}")
+            resumo.append("")
+        
+        resumo.append("**USE ESSAS INFORMAÇÕES PARA ENRIQUECER O EDITAL.**")
+        
+        return "\n".join(resumo)
 
     # ==========================================================
     # Extração de campos do JSON
@@ -159,7 +207,7 @@ Retorne APENAS o JSON, sem comentários.
     def _extrair_campos(self, dados: dict, contexto: dict = None) -> dict:
         """
         Extrai os 12 campos do JSON retornado pela IA.
-        Enriquece com contexto DFD/ETP/TR quando disponível.
+        Aplica enriquecimento AGRESSIVO com contexto DFD/ETP/TR.
         """
         resultado = {}
         
@@ -168,42 +216,93 @@ Retorne APENAS o JSON, sem comentários.
         etp = (contexto or {}).get("etp_campos_ai", {}) if contexto else {}
         tr = (contexto or {}).get("tr_campos_ai", {}) if contexto else {}
         
-        # Helper: pegar primeiro valor não vazio
-        def first_nonempty(*vals):
+        # Helper: concatenar valores relevantes
+        def merge_values(*vals):
+            """Concatena valores não vazios com separador."""
+            result = []
             for v in vals:
-                if isinstance(v, str) and v.strip():
-                    return v.strip()
-            return ""
+                if isinstance(v, str) and v.strip() and v.strip() not in result:
+                    result.append(v.strip())
+            return " | ".join(result) if result else ""
         
         for campo in CAMPOS_EDITAL:
-            # Tentar extrair do documento primeiro
-            valor = dados.get(campo, "")
+            # Sempre pegar valor da IA primeiro
+            valor_ia = dados.get(campo, "")
             
-            # Se vazio, tentar enriquecer com contexto
-            if not valor or not valor.strip():
-                if campo == "objeto":
-                    valor = first_nonempty(tr.get("objeto"), etp.get("objeto"), dfd.get("objeto"))
-                elif campo == "prazo_execucao":
-                    valor = first_nonempty(tr.get("prazo_execucao"), etp.get("prazo_estimado"))
-                elif campo == "fontes_recursos":
-                    valor = first_nonempty(tr.get("fonte_recurso"))
-                elif campo == "gestor_fiscal":
-                    valor = first_nonempty(dfd.get("responsavel"), etp.get("responsavel"))
-                elif campo == "obrigacoes_contratada":
-                    valor = first_nonempty(tr.get("especificacao_tecnica"))
+            # Enriquecimento condicional POR CAMPO
+            if campo == "objeto":
+                # Objeto: combinar TR + ETP + DFD
+                valor = merge_values(
+                    valor_ia,
+                    tr.get("objeto"),
+                    etp.get("objeto"),
+                    dfd.get("objeto")
+                ) or valor_ia
+                
+            elif campo == "exigencias_habilitacao":
+                # Habilitação: usar TR (especificações técnicas) + contexto
+                valor = valor_ia or merge_values(
+                    tr.get("especificacao_tecnica"),
+                    tr.get("qualificacao_tecnica"),
+                    etp.get("requisitos_solucao")
+                )
+                
+            elif campo == "obrigacoes_contratada":
+                # Obrigações: TR (especificações) é essencial
+                valor = valor_ia or merge_values(
+                    tr.get("especificacao_tecnica"),
+                    tr.get("obrigacoes"),
+                    etp.get("descricao_solucao")
+                )
+                
+            elif campo == "prazo_execucao":
+                # Prazo: TR > ETP > DFD
+                valor = valor_ia or merge_values(
+                    tr.get("prazo_execucao"),
+                    etp.get("prazo_estimado"),
+                    dfd.get("prazo")
+                )
+                
+            elif campo == "fontes_recursos":
+                # Recursos: TR > DFD
+                valor = valor_ia or merge_values(
+                    tr.get("fonte_recurso"),
+                    dfd.get("dotacao_orcamentaria"),
+                    dfd.get("valor_estimado")
+                )
+                
+            elif campo == "gestor_fiscal":
+                # Gestor: DFD > ETP > TR
+                valor = valor_ia or merge_values(
+                    dfd.get("responsavel"),
+                    etp.get("responsavel"),
+                    tr.get("fiscal")
+                )
+                
+            elif campo == "condicoes_participacao":
+                # Condições: se IA não preencheu, usar padrão TJSP
+                valor = valor_ia or "Poderão participar interessados previamente credenciados no Sistema de Cadastramento Unificado de Fornecedores - SICAF e no portal de compras governamental, com situação regular."
+                
+            else:
+                # Demais campos: usar valor da IA diretamente
+                valor = valor_ia
             
             # Limpar e validar
             if isinstance(valor, str):
                 resultado[campo] = valor.strip()
             else:
-                resultado[campo] = ""
+                resultado[campo] = str(valor).strip() if valor else ""
         
         # Gerar número e data automáticos se não existirem
-        if not resultado.get("numero_edital"):
-            hoje = datetime.now()
-            resultado["numero_edital"] = f"TJSP-PE-{hoje.year}-{hoje.strftime('%m%d')}"
+        if not resultado.get("numero_edital") or resultado["numero_edital"] == "":
+            # Tentar extrair do TR/DFD
+            numero = (tr.get("numero") or etp.get("numero") or dfd.get("numero") or "").strip()
+            if not numero:
+                hoje = datetime.now()
+                numero = f"TJSP-PE-{hoje.year}-{hoje.strftime('%m%d')}"
+            resultado["numero_edital"] = numero
         
-        if not resultado.get("data_publicacao"):
+        if not resultado.get("data_publicacao") or resultado["data_publicacao"] == "":
             resultado["data_publicacao"] = datetime.now().strftime("%d/%m/%Y")
         
         return resultado
