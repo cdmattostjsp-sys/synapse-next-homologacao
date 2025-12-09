@@ -256,10 +256,12 @@ if st.button("✨ Processar com IA", type="primary"):
                 if edital_processado.get("tipo_licitacao"):
                     st.metric("📝 Modalidade", edital_processado["tipo_licitacao"])
             
-            # Marcar que o processamento foi concluído nesta sessão
+            # CRITICAL: Salvar dados do edital para integração com Validador
+            st.session_state["edital_campos_ai"] = edital_processado
             st.session_state["edital_processado_agora"] = True
             
             st.info("⬇️ Role para baixo para visualizar os botões de download do documento.")
+            st.success("✅ Edital disponível para validação no módulo **🧩 Validador de Editais**")
 
 st.caption("💡 O botão acima processa o Edital carregado do módulo INSUMOS + contexto DFD/ETP/TR com IA especializada do TJSP.")
 
