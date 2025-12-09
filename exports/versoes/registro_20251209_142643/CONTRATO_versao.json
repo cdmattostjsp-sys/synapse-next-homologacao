@@ -1,0 +1,20 @@
+{
+  "artefato": "CONTRATO",
+  "nome_arquivo": "/tmp/contrato_teste_synapsenext.txt",
+  "status": "processado",
+  "campos_ai": {
+    "objeto": "MINUTA DE CONTRATO ADMINISTRATIVO Contrato de prestação de serviços de tecnologia da informação no valor estimado de R$ 250.000,00 (duzentos e cinquenta mil reais), com vigência de 24 (vinte e quatro) meses a partir da assinatura. OBJETO: Prestação de serviços de suporte técnico, manutenção preventiva e corretiva, atualização de sistemas corporativos e serviços de infraestrutura de TI. PARTES: CONTRATANTE: Tribunal de Justiça do Estado de São Paulo (TJSP) CONTRATADA: Empresa de Tecnologia XYZ Ltda. GARANTIA: 5% do valor total do contrato. PAGAMENTO: Mensal, mediante apresentação de nota fiscal e atesto do fiscal do contrato. PENALIDADES: Conforme Lei 14.133/2021. FORO: Comarca de São Paulo/SP.",
+    "partes": "",
+    "vigencia": "",
+    "valor_global": "",
+    "reajuste": "Conforme índice oficial aplicável e cláusulas da Lei 14.133/2021.",
+    "garantias": "",
+    "prazos_pagamento": "Conforme cronograma e liquidação de despesa.",
+    "obrigacoes_contratada": "",
+    "obrigacoes_contratante": "",
+    "fiscalizacao": "Fiscal do contrato a ser designado pela unidade competente.",
+    "penalidades": "",
+    "rescisao": "",
+    "foro": "Comarca de São Paulo/SP."
+  }
+}

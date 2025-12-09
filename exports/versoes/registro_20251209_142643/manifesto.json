@@ -1,0 +1,35 @@
+{
+  "versao_sistema": "v2025.1-homolog",
+  "data_criacao": "2025-12-09T14:26:43.018030",
+  "timestamp": "20251209_142643",
+  "total_artefatos": 4,
+  "artefatos": [
+    {
+      "nome": "DFD",
+      "arquivo": "dfd_data.json",
+      "tamanho_bytes": 63,
+      "modificado_em": "2025-12-08T14:07:25.548657"
+    },
+    {
+      "nome": "ETP",
+      "arquivo": "etp_data.json",
+      "tamanho_bytes": 75,
+      "modificado_em": "2025-12-08T14:07:25.549657"
+    },
+    {
+      "nome": "TR",
+      "arquivo": "tr_data.json",
+      "tamanho_bytes": 73,
+      "modificado_em": "2025-12-08T14:07:25.552657"
+    },
+    {
+      "nome": "CONTRATO",
+      "arquivo": "contrato_data.json",
+      "tamanho_bytes": 1351,
+      "modificado_em": "2025-12-08T14:07:25.548657"
+    }
+  ],
+  "instituicao": "TJSP - Tribunal de Justiça de São Paulo",
+  "secretaria": "SAAB - Secretaria de Administração e Abastecimento",
+  "tipo_registro": "snapshot_institucional"
+}
