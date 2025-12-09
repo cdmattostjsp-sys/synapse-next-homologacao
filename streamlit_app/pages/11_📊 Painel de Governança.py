@@ -68,12 +68,12 @@ col1, col2 = st.sidebar.columns(2)
 with col1:
     severidade_opts = sorted(df["severidade"].dropna().unique())
 with col2:
-    area_opts = sorted(df["area"].dropna().unique())
+    categoria_opts = sorted(df["categoria"].dropna().unique())
 
 severidade = st.sidebar.multiselect("Filtrar por Severidade", severidade_opts, default=severidade_opts)
-area = st.sidebar.multiselect("Filtrar por Área", area_opts, default=area_opts)
+categoria = st.sidebar.multiselect("Filtrar por Categoria", categoria_opts, default=categoria_opts)
 
-df_filtrado = df[(df["severidade"].isin(severidade)) & (df["area"].isin(area))]
+df_filtrado = df[(df["severidade"].isin(severidade)) & (df["categoria"].isin(categoria))]
 
 # ==========================================================
 # 📈 Indicadores principais
@@ -135,8 +135,9 @@ try:
 except Exception:
     df_exibicao = df_filtrado.copy()
 
-colunas_base = ["titulo", "area", "status", "mensagem", "recomendacao", "timestamp"]
-colunas_existentes = [c for c in colunas_base if c in df_exibicao.columns]
+# Selecionar apenas colunas existentes na estrutura de alertas
+colunas_exibicao = ["modulo", "categoria", "tipo", "campo", "mensagem", "recomendacao", "timestamp"]
+colunas_existentes = [c for c in colunas_exibicao if c in df_exibicao.columns]
 
 with st.expander("🧠 Exibir Detalhamento dos Alertas", expanded=True):
     st.dataframe(df_exibicao[colunas_existentes], use_container_width=True, hide_index=True)
