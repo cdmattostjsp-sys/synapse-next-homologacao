@@ -480,4 +480,11 @@ def gerar_edital_com_ia(contexto_previo: dict = None) -> dict:
     docx_path = gerar_edital_docx(edital_processado, texto_completo=rascunho)
     dados_completos["docx_path"] = docx_path
     
+    # CRITICAL: Se docx_path é None, significa que o buffer está no session_state
+    # Precisamos garantir que o buffer seja acessível
+    if docx_path is None and st is not None:
+        # Buffer foi salvo no session_state por gerar_edital_docx()
+        # Marcar no resultado que o buffer está disponível
+        dados_completos["docx_buffer_disponivel"] = True
+    
     return dados_completos

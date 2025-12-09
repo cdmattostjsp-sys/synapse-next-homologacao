@@ -282,13 +282,31 @@ docx_disponivel = False
 docx_bytes = None
 docx_nome = "Edital_Minuta.docx"
 
-# 1. Tentar carregar DOCX do buffer (Streamlit Cloud)
+# DEBUG: Mostrar estado do session_state (remover depois)
+with st.expander("🔍 Debug - Estado da Sessão", expanded=False):
+    st.write("**Buffer disponível:**", "edital_docx_buffer" in st.session_state)
+    st.write("**Nome disponível:**", "edital_docx_nome" in st.session_state)
+    if os.path.exists(EDITAL_JSON_PATH):
+        try:
+            with open(EDITAL_JSON_PATH, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            st.write("**docx_path no JSON:**", dados.get("docx_path"))
+            st.write("**docx_buffer_disponivel no JSON:**", dados.get("docx_buffer_disponivel"))
+        except Exception as e:
+            st.write("**Erro ao ler JSON:**", str(e))
+
+# 1. Tentar carregar DOCX do buffer (Streamlit Cloud) - PRIORIDADE
 if "edital_docx_buffer" in st.session_state:
-    buffer = st.session_state.get("edital_docx_buffer")
-    docx_nome = st.session_state.get("edital_docx_nome", docx_nome)
-    if buffer:
-        docx_bytes = buffer.getvalue()
-        docx_disponivel = True
+    try:
+        buffer = st.session_state.get("edital_docx_buffer")
+        docx_nome = st.session_state.get("edital_docx_nome", docx_nome)
+        if buffer and hasattr(buffer, 'getvalue'):
+            docx_bytes = buffer.getvalue()
+            if docx_bytes and len(docx_bytes) > 0:
+                docx_disponivel = True
+                st.info(f"✅ Buffer carregado: {len(docx_bytes)} bytes")
+    except Exception as e:
+        st.warning(f"⚠️ Erro ao carregar buffer: {e}")
 
 # 2. Fallback: tentar carregar do arquivo (Codespaces)
 if not docx_disponivel and os.path.exists(EDITAL_JSON_PATH):
