@@ -340,10 +340,32 @@ def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = No
         for par in texto_completo.split("\n\n"):
             doc.add_paragraph(par)
 
-    nome_arquivo = f"Edital_{campos.get('numero_edital','TJSP-PE')}.docx"
-    caminho = str(EXPORTS_DIR / nome_arquivo)
-    doc.save(caminho)
-    return caminho
+    # Garantir que o diretório existe antes de salvar
+    nome_arquivo = f"Edital_{campos.get('numero_edital','TJSP-PE').replace('/', '-')}.docx"
+    
+    # Usar diretório exports que já está garantido
+    exports_path = Path(EXPORTS_DIR)
+    exports_path.mkdir(parents=True, exist_ok=True)
+    
+    caminho = str(exports_path / nome_arquivo)
+    
+    try:
+        doc.save(caminho)
+        return caminho
+    except Exception as e:
+        # Fallback: salvar em BytesIO e retornar None (download direto)
+        print(f"[integration_edital] Erro ao salvar DOCX: {e}")
+        # Em ambiente cloud, retornar o documento em memória
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        # Salvar o buffer no session_state para download posterior
+        if st is not None:
+            st.session_state["edital_docx_buffer"] = buffer
+            st.session_state["edital_docx_nome"] = nome_arquivo
+        
+        return None
 
 
 # ==========================================================

@@ -268,7 +268,20 @@ st.divider()
 st.subheader("📥 Exportação de Documentos")
 
 # Verificar se existe edital processado com DOCX gerado
-if os.path.exists(EDITAL_JSON_PATH):
+docx_disponivel = False
+docx_bytes = None
+docx_nome = "Edital_Minuta.docx"
+
+# 1. Tentar carregar DOCX do buffer (Streamlit Cloud)
+if "edital_docx_buffer" in st.session_state:
+    buffer = st.session_state.get("edital_docx_buffer")
+    docx_nome = st.session_state.get("edital_docx_nome", docx_nome)
+    if buffer:
+        docx_bytes = buffer.getvalue()
+        docx_disponivel = True
+
+# 2. Fallback: tentar carregar do arquivo (Codespaces)
+if not docx_disponivel and os.path.exists(EDITAL_JSON_PATH):
     try:
         with open(EDITAL_JSON_PATH, "r", encoding="utf-8") as f:
             dados_edital = json.load(f)
@@ -276,21 +289,31 @@ if os.path.exists(EDITAL_JSON_PATH):
         docx_path = dados_edital.get("docx_path")
         
         if docx_path and os.path.exists(docx_path):
-            # Botão de download do DOCX
             with open(docx_path, "rb") as f:
                 docx_bytes = f.read()
-                
-            st.download_button(
-                label="📤 Baixar Edital Oficial (DOCX)",
-                data=docx_bytes,
-                file_name=f"Edital_Minuta_{datetime.now().strftime('%Y%m%d')}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                type="primary"
-            )
+            docx_disponivel = True
+            docx_nome = os.path.basename(docx_path)
+    except Exception as e:
+        pass
+
+# Exibir botões de download se DOCX disponível
+if docx_disponivel and docx_bytes:
+    st.download_button(
+        label="📤 Baixar Edital Oficial (DOCX)",
+        data=docx_bytes,
+        file_name=docx_nome,
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        type="primary"
+    )
+    
+    st.success(f"✅ Documento disponível para download ({docx_nome})")
+    
+    # Botão de download do JSON (se existir)
+    if os.path.exists(EDITAL_JSON_PATH):
+        try:
+            with open(EDITAL_JSON_PATH, "r", encoding="utf-8") as f:
+                dados_edital = json.load(f)
             
-            st.success(f"✅ Documento disponível para download ({os.path.basename(docx_path)})")
-            
-            # Botão de download do JSON
             json_bytes = json.dumps(dados_edital, ensure_ascii=False, indent=2).encode('utf-8')
             st.download_button(
                 label="📊 Baixar Dados Estruturados (JSON)",
@@ -298,10 +321,7 @@ if os.path.exists(EDITAL_JSON_PATH):
                 file_name=f"Edital_Dados_{datetime.now().strftime('%Y%m%d')}.json",
                 mime="application/json"
             )
-        else:
-            st.info("💡 Processe o Edital com IA para gerar o documento DOCX para download.")
-            
-    except Exception as e:
-        st.warning(f"⚠️ Erro ao verificar documentos: {e}")
+        except Exception:
+            pass
 else:
-    st.info("💡 Nenhum documento gerado ainda. Faça upload de um insumo e processe com IA para gerar os documentos.")
+    st.info("💡 Processe o Edital com IA para gerar o documento DOCX para download.")
