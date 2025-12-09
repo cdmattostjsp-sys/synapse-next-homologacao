@@ -88,13 +88,24 @@ def aplicar_estilo_institucional():
     }
 
     /* Botões tipo primary: azul escuro para melhor contraste */
-    .stButton > button[kind="primary"] {
+    .stButton > button[kind="primary"],
+    .stButton > button[data-testid="baseButton-primary"],
+    button[kind="primary"] {
         background-color: #1f77b4 !important;  /* Azul escuro */
         color: white !important;
     }
 
-    .stButton > button[kind="primary"]:hover {
+    .stButton > button[kind="primary"]:hover,
+    .stButton > button[data-testid="baseButton-primary"]:hover,
+    button[kind="primary"]:hover {
         background-color: #145a8a !important;
+        color: white !important;
+    }
+
+    /* Forçar cor branca no texto dos botões primary */
+    .stButton > button[kind="primary"] *,
+    .stButton > button[data-testid="baseButton-primary"] *,
+    button[kind="primary"] * {
         color: white !important;
     }
 
