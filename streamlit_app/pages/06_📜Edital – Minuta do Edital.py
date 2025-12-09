@@ -256,8 +256,10 @@ if st.button("✨ Processar com IA", type="primary"):
                 if edital_processado.get("tipo_licitacao"):
                     st.metric("📝 Modalidade", edital_processado["tipo_licitacao"])
             
-            st.info("🔄 Recarregue a página para visualizar os dados processados no formulário.")
-            st.rerun()
+            # Marcar que o processamento foi concluído nesta sessão
+            st.session_state["edital_processado_agora"] = True
+            
+            st.info("⬇️ Role para baixo para visualizar os botões de download do documento.")
 
 st.caption("💡 O botão acima processa o Edital carregado do módulo INSUMOS + contexto DFD/ETP/TR com IA especializada do TJSP.")
 
@@ -266,6 +268,14 @@ st.caption("💡 O botão acima processa o Edital carregado do módulo INSUMOS +
 # ==========================================================
 st.divider()
 st.subheader("📥 Exportação de Documentos")
+
+# Alerta se acabou de processar
+if st.session_state.get("edital_processado_agora"):
+    st.success("🎉 Documento processado com sucesso! Botões de download disponíveis abaixo.")
+    # Limpar flag para próxima vez
+    if st.button("🔄 Atualizar formulário com dados processados"):
+        st.session_state.pop("edital_processado_agora", None)
+        st.rerun()
 
 # Verificar se existe edital processado com DOCX gerado
 docx_disponivel = False
