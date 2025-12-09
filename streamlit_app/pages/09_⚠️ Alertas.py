@@ -53,7 +53,7 @@ st.markdown("---")
 # ==========================================================
 col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
 with col_btn2:
-    if st.button("🔄 Atualizar Alertas", use_container_width=True):
+    if st.button("🔄 Atualizar Alertas", use_container_width=True, type="primary"):
         with st.spinner("🔍 Coletando estado dos documentos..."):
             resultado = gerar_alertas_reais(salvar_historico=True)
             st.success(f"✅ {resultado['totais']['total']} alertas detectados!")

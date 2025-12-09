@@ -149,7 +149,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================================
 st.subheader("📤 Exportação de Dados")
 
-if st.button("💾 Exportar Alertas Consolidados para JSON", use_container_width=True):
+if st.button("💾 Exportar Alertas Consolidados para JSON", use_container_width=True, type="primary"):
     try:
         export_alerts_json({"alerts": alertas})
         st.success("✅ Arquivo JSON exportado com sucesso para a pasta /exports/analises.")

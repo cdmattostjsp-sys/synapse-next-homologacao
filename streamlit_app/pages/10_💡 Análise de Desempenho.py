@@ -72,7 +72,7 @@ dias = periodo_opcoes[periodo_selecionado]
 # ==========================================================
 col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
 with col_btn2:
-    if st.button("🔄 Atualizar Métricas", use_container_width=True):
+    if st.button("🔄 Atualizar Métricas", use_container_width=True, type="primary"):
         with st.spinner("📊 Coletando métricas do sistema..."):
             metricas = gerar_metricas_desempenho(dias=dias, salvar_historico=True)
             st.session_state.metricas_cache = metricas

@@ -199,7 +199,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================================
 st.subheader("📘 Relatório Executivo (Exportação PDF)")
 
-if st.button("📤 Gerar Relatório Executivo em PDF", use_container_width=True):
+if st.button("📤 Gerar Relatório Executivo em PDF", use_container_width=True, type="primary"):
     gerar_relatorio_fn = _get_relatorio_executivo()
     
     if gerar_relatorio_fn is None:
