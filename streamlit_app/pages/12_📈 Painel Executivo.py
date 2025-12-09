@@ -76,9 +76,11 @@ if not alertas or len(alertas) == 0:
     st.stop()
 
 df = pd.DataFrame(alertas)
-for col in ["severidade", "area", "titulo", "status", "mensagem", "recomendacao"]:
-    if col not in df.columns:
-        df[col] = "não classificado"
+
+# Validar colunas existentes (não criar dados mockados)
+if "severidade" not in df.columns or "modulo" not in df.columns:
+    st.error("❌ Estrutura de alertas inválida. Reprocesse os documentos.")
+    st.stop()
 
 # ==========================================================
 # 📊 Indicadores Executivos
@@ -89,14 +91,14 @@ total = len(df)
 altos = len(df[df["severidade"] == "alto"])
 medios = len(df[df["severidade"] == "medio"])
 baixos = len(df[df["severidade"] == "baixo"])
-areas = df["area"].nunique()
+modulos_afetados = df["modulo"].nunique()
 
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Alertas Totais", total)
 col2.metric("Alta Severidade", altos)
 col3.metric("Média Severidade", medios)
 col4.metric("Baixa Severidade", baixos)
-col5.metric("Áreas Afetadas", areas)
+col5.metric("Módulos Afetados", modulos_afetados)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -155,40 +157,40 @@ st.subheader("🏛️ Distribuição Institucional de Alertas")
 
 colA, colB = st.columns(2)
 with colA:
-    st.markdown("**Distribuição por Área Institucional**")
-    dist_area = df["area"].value_counts().rename_axis("Área").reset_index(name="Alertas")
-    fig_area = px.bar(
-        dist_area,
-        x="Área",
+    st.markdown("**Distribuição por Módulo**")
+    dist_modulo = df["modulo"].value_counts().rename_axis("Módulo").reset_index(name="Alertas")
+    fig_modulo = px.bar(
+        dist_modulo,
+        x="Módulo",
         y="Alertas",
-        color="Área",
+        color="Módulo",
         text_auto=True,
         color_discrete_sequence=px.colors.qualitative.Safe
     )
-    fig_area.update_layout(
+    fig_modulo.update_layout(
         title=dict(x=0.5, font=dict(size=16, color="#004A8F")),
         showlegend=False,
         height=400
     )
-    st.plotly_chart(fig_area, use_container_width=True)
+    st.plotly_chart(fig_modulo, use_container_width=True)
 
 with colB:
-    st.markdown("**Tipos de Alerta Mais Frequentes**")
-    tipos = df["titulo"].value_counts().rename_axis("Tipo de Alerta").reset_index(name="Ocorrências").head(10)
-    fig_tipos = px.bar(
-        tipos,
+    st.markdown("**Categorias de Alerta Mais Frequentes**")
+    categorias = df["categoria"].value_counts().rename_axis("Categoria").reset_index(name="Ocorrências").head(10)
+    fig_categorias = px.bar(
+        categorias,
         x="Ocorrências",
-        y="Tipo de Alerta",
+        y="Categoria",
         orientation="h",
         text_auto=True,
         color_discrete_sequence=["#007ACC"]
     )
-    fig_tipos.update_layout(
+    fig_categorias.update_layout(
         title=dict(x=0.5, font=dict(size=16, color="#004A8F")),
         height=400,
         margin=dict(l=20, r=20, t=60, b=40)
     )
-    st.plotly_chart(fig_tipos, use_container_width=True)
+    st.plotly_chart(fig_categorias, use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
