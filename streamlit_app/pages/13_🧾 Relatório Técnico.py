@@ -128,8 +128,11 @@ if st.button("🔍 Compilar dados do relatório", type="primary", use_container_
         st.markdown("**🔔 Alertas Proativos Integrados:**")
         df_alertas = pd.DataFrame(alertas)
         if not df_alertas.empty:
+            # Usar apenas colunas que existem na estrutura real de alertas
+            colunas_exibir = ["modulo", "categoria", "severidade", "mensagem"]
+            colunas_disponiveis = [c for c in colunas_exibir if c in df_alertas.columns]
             st.dataframe(
-                df_alertas[["titulo", "area", "severidade", "mensagem"]],
+                df_alertas[colunas_disponiveis],
                 use_container_width=True,
                 hide_index=True,
             )
