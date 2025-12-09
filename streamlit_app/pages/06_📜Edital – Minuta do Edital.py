@@ -256,12 +256,52 @@ if st.button("✨ Processar com IA", type="primary"):
                 if edital_processado.get("tipo_licitacao"):
                     st.metric("📝 Modalidade", edital_processado["tipo_licitacao"])
             
-            # Link para download do DOCX
-            docx_path = resultado.get("docx_path")
-            if docx_path and Path(docx_path).exists():
-                st.success("📄 Documento DOCX gerado automaticamente!")
-            
             st.info("🔄 Recarregue a página para visualizar os dados processados no formulário.")
             st.rerun()
 
 st.caption("💡 O botão acima processa o Edital carregado do módulo INSUMOS + contexto DFD/ETP/TR com IA especializada do TJSP.")
+
+# ==========================================================
+# 📥 Exportação de Documentos
+# ==========================================================
+st.divider()
+st.subheader("📥 Exportação de Documentos")
+
+# Verificar se existe edital processado com DOCX gerado
+if os.path.exists(EDITAL_JSON_PATH):
+    try:
+        with open(EDITAL_JSON_PATH, "r", encoding="utf-8") as f:
+            dados_edital = json.load(f)
+            
+        docx_path = dados_edital.get("docx_path")
+        
+        if docx_path and os.path.exists(docx_path):
+            # Botão de download do DOCX
+            with open(docx_path, "rb") as f:
+                docx_bytes = f.read()
+                
+            st.download_button(
+                label="📤 Baixar Edital Oficial (DOCX)",
+                data=docx_bytes,
+                file_name=f"Edital_Minuta_{datetime.now().strftime('%Y%m%d')}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                type="primary"
+            )
+            
+            st.success(f"✅ Documento disponível para download ({os.path.basename(docx_path)})")
+            
+            # Botão de download do JSON
+            json_bytes = json.dumps(dados_edital, ensure_ascii=False, indent=2).encode('utf-8')
+            st.download_button(
+                label="📊 Baixar Dados Estruturados (JSON)",
+                data=json_bytes,
+                file_name=f"Edital_Dados_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json"
+            )
+        else:
+            st.info("💡 Processe o Edital com IA para gerar o documento DOCX para download.")
+            
+    except Exception as e:
+        st.warning(f"⚠️ Erro ao verificar documentos: {e}")
+else:
+    st.info("💡 Nenhum documento gerado ainda. Faça upload de um insumo e processe com IA para gerar os documentos.")
