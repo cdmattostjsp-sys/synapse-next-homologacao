@@ -1,0 +1,91 @@
+{
+  "gerado_em": "09/12/2025 12:26:20",
+  "timestamp": "2025-12-09T12:26:20.029938",
+  "periodo_analise_dias": 30,
+  "resumo": {
+    "total_eventos": 0,
+    "total_word_count": 0,
+    "word_count_medio": 0,
+    "documentos_processados": 4,
+    "conformidade_percentual": 0.0,
+    "coerencia_global_atual": 0
+  },
+  "evolucao_temporal": {
+    "volume_eventos": [],
+    "word_count_total": [],
+    "distribuicao_modulos": {}
+  },
+  "coerencia": {
+    "historico": [],
+    "ultima_medicao": null
+  },
+  "conformidade": {
+    "conformidade_percentual": 0.0,
+    "artefatos_completos": 0.0,
+    "artefatos_incompletos": 0.0,
+    "artefatos_ausentes": 5.0,
+    "total_artefatos": 5.0
+  },
+  "distribuicao_artefatos": {
+    "DFD": {
+      "total_eventos": 0,
+      "word_count_total": 0,
+      "word_count_medio": 0,
+      "ultimo_processamento": null
+    },
+    "ETP": {
+      "total_eventos": 0,
+      "word_count_total": 0,
+      "word_count_medio": 0,
+      "ultimo_processamento": null
+    },
+    "TR": {
+      "total_eventos": 0,
+      "word_count_total": 0,
+      "word_count_medio": 0,
+      "ultimo_processamento": null
+    },
+    "EDITAL": {
+      "total_eventos": 0,
+      "word_count_total": 0,
+      "word_count_medio": 0,
+      "ultimo_processamento": null
+    },
+    "CONTRATO": {
+      "total_eventos": 0,
+      "word_count_total": 0,
+      "word_count_medio": 0,
+      "ultimo_processamento": null
+    }
+  },
+  "documentos": {
+    "documentos_processados": 4,
+    "total_campos_extraidos": 19,
+    "documentos": [
+      {
+        "modulo": "DFD",
+        "arquivo": "dfd_data.json",
+        "num_campos": 2,
+        "timestamp": "2025-12-08T14:07:25.548657"
+      },
+      {
+        "modulo": "ETP",
+        "arquivo": "etp_data.json",
+        "num_campos": 2,
+        "timestamp": "2025-12-08T14:07:25.549657"
+      },
+      {
+        "modulo": "TR",
+        "arquivo": "tr_data.json",
+        "num_campos": 2,
+        "timestamp": "2025-12-08T14:07:25.552657"
+      },
+      {
+        "modulo": "CONTRATO",
+        "arquivo": "contrato_data.json",
+        "num_campos": 13,
+        "timestamp": "2025-12-08T14:07:25.548657"
+      }
+    ]
+  }
+}
