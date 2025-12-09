@@ -234,7 +234,7 @@ else:
                 use_container_width=True,
             )
         
-        st.info(f"💾 Registro salvo em: `{pasta_registro.relative_to(Path.cwd())}`")
+        st.info(f"💾 Registro salvo em: `exports/versoes/{pasta_registro.name}`")
 
 # Histórico de registros
 st.divider()
