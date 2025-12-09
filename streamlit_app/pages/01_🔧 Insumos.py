@@ -62,7 +62,7 @@ if uploaded_file is not None:
 # ==========================================================
 # 🧭 Seleção do módulo de destino
 # ==========================================================
-artefato_opcoes = ["DFD", "ETP", "TR", "EDITAL"]
+artefato_opcoes = ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]
 artefato = st.selectbox(
     "Selecione o módulo de destino do insumo:",
     artefato_opcoes,

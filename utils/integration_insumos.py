@@ -120,7 +120,7 @@ def processar_insumo(uploaded_file, artefato: str = "DFD") -> dict:
         return {}
 
     artefato = (artefato or "DFD").upper().strip()
-    if artefato not in {"DFD", "ETP", "TR", "EDITAL"}:
+    if artefato not in {"DFD", "ETP", "TR", "EDITAL", "CONTRATO"}:
         artefato = "DFD"
 
     nome = uploaded_file.name
