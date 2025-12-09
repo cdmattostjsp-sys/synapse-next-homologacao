@@ -349,22 +349,34 @@ def gerar_edital_docx(campos: Dict[str, str], texto_completo: Optional[str] = No
     
     caminho = str(exports_path / nome_arquivo)
     
+    # SEMPRE criar o buffer primeiro (para garantir que funciona)
+    buffer = io.BytesIO()
     try:
-        doc.save(caminho)
-        return caminho
-    except Exception as e:
-        # Fallback: salvar em BytesIO e retornar None (download direto)
-        print(f"[integration_edital] Erro ao salvar DOCX: {e}")
-        # Em ambiente cloud, retornar o documento em memória
-        buffer = io.BytesIO()
         doc.save(buffer)
         buffer.seek(0)
-        
-        # Salvar o buffer no session_state para download posterior
-        if st is not None:
+        print(f"[integration_edital] Buffer DOCX criado: {len(buffer.getvalue())} bytes")
+    except Exception as e:
+        print(f"[integration_edital] ERRO CRÍTICO ao criar buffer: {e}")
+        return None
+    
+    # Salvar o buffer no session_state SEMPRE (prioridade)
+    if st is not None and hasattr(st, 'session_state'):
+        try:
             st.session_state["edital_docx_buffer"] = buffer
             st.session_state["edital_docx_nome"] = nome_arquivo
-        
+            print(f"[integration_edital] Buffer salvo no session_state: {nome_arquivo}")
+        except Exception as e:
+            print(f"[integration_edital] ERRO ao salvar no session_state: {e}")
+    
+    # Tentar salvar no disco (opcional, só funciona em Codespaces)
+    try:
+        # Criar novo buffer para o arquivo (o anterior já está no session_state)
+        doc.save(caminho)
+        print(f"[integration_edital] DOCX salvo em disco: {caminho}")
+        return caminho
+    except Exception as e:
+        print(f"[integration_edital] Não foi possível salvar em disco (esperado no Streamlit Cloud): {e}")
+        # Retornar None mas buffer já está no session_state
         return None
 
 
@@ -476,15 +488,25 @@ def gerar_edital_com_ia(contexto_previo: dict = None) -> dict:
         json.dump(dados_completos, f, ensure_ascii=False, indent=2)
     
     # Gerar também o DOCX
+    print(f"[gerar_edital_com_ia] Iniciando geração do DOCX...")
     rascunho = gerar_rascunho_edital(edital_processado)
+    print(f"[gerar_edital_com_ia] Rascunho gerado: {len(rascunho)} chars")
+    
     docx_path = gerar_edital_docx(edital_processado, texto_completo=rascunho)
+    print(f"[gerar_edital_com_ia] gerar_edital_docx() retornou: {docx_path}")
+    
     dados_completos["docx_path"] = docx_path
     
-    # CRITICAL: Se docx_path é None, significa que o buffer está no session_state
-    # Precisamos garantir que o buffer seja acessível
-    if docx_path is None and st is not None:
-        # Buffer foi salvo no session_state por gerar_edital_docx()
-        # Marcar no resultado que o buffer está disponível
+    # CRITICAL: Verificar se buffer foi criado no session_state
+    if st is not None and "edital_docx_buffer" in st.session_state:
         dados_completos["docx_buffer_disponivel"] = True
+        buffer_size = len(st.session_state["edital_docx_buffer"].getvalue())
+        print(f"[gerar_edital_com_ia] ✅ Buffer confirmado no session_state: {buffer_size} bytes")
+    else:
+        dados_completos["docx_buffer_disponivel"] = False
+        print(f"[gerar_edital_com_ia] ❌ Buffer NÃO encontrado no session_state")
+        print(f"[gerar_edital_com_ia]    st is None: {st is None}")
+        if st is not None:
+            print(f"[gerar_edital_com_ia]    session_state keys: {list(st.session_state.keys())}")
     
     return dados_completos
