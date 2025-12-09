@@ -1,0 +1,19 @@
+{
+    "coerencia_global": 35.3,
+    "comparacoes": {
+        "DFD-ETP": 34.07,
+        "ETP-TR": 32.72,
+        "TR-Edital": 39.1
+    },
+    "divergencias": [
+        {
+            "campo": "DFD-ETP",
+            "descricao": "🟡 Coerência baixa entre DFD e ETP (34.07%). Verificar se objeto, justificativa e especificações estão alinhados entre os documentos."
+        },
+        {
+            "campo": "ETP-TR",
+            "descricao": "🟡 Coerência baixa entre ETP e TR (32.72%). Verificar se objeto, justificativa e especificações estão alinhados entre os documentos."
+        }
+    ],
+    "ausencias": []
+}

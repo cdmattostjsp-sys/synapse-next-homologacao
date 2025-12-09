@@ -1,0 +1,23 @@
+{
+    "coerencia_global": 21.34,
+    "comparacoes": {
+        "DFD-ETP": 18.66,
+        "ETP-TR": 25.2,
+        "TR-Edital": 20.16
+    },
+    "divergencias": [
+        {
+            "campo": "DFD-ETP",
+            "descricao": "Baixa similaridade entre DFD e ETP (18.66%). Pode indicar desalinhamento de informações."
+        },
+        {
+            "campo": "ETP-TR",
+            "descricao": "Baixa similaridade entre ETP e TR (25.2%). Pode indicar desalinhamento de informações."
+        },
+        {
+            "campo": "TR-Edital",
+            "descricao": "Baixa similaridade entre TR e Edital (20.16%). Pode indicar desalinhamento de informações."
+        }
+    ],
+    "ausencias": []
+}

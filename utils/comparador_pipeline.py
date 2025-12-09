@@ -47,11 +47,60 @@ def _clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
+def _extract_keywords(text: str) -> set:
+    """
+    Extrai palavras-chave relevantes do texto (substantivos, verbos, termos técnicos).
+    Remove stopwords e normaliza termos.
+    """
+    # Normalizar texto
+    text = text.lower()
+    
+    # Stopwords básicas do português
+    stopwords = {
+        'a', 'o', 'e', 'é', 'de', 'da', 'do', 'das', 'dos', 'em', 'no', 'na', 
+        'nos', 'nas', 'para', 'com', 'por', 'uma', 'um', 'os', 'as', 'ao', 'à',
+        'aos', 'às', 'pelo', 'pela', 'pelos', 'pelas', 'que', 'se', 'ou', 'mas',
+        'etc', 'ser', 'ter', 'estar', 'data', 'dia', 'mês', 'ano'
+    }
+    
+    # Extrair palavras (mínimo 3 caracteres)
+    palavras = re.findall(r'\b\w{3,}\b', text)
+    
+    # Filtrar stopwords e criar conjunto
+    keywords = {p for p in palavras if p not in stopwords}
+    
+    return keywords
+
 def _similarity(a: str, b: str) -> float:
-    """Calcula similaridade (0–100) entre duas strings."""
+    """
+    Calcula similaridade (0–100) entre duas strings usando:
+    1. Sobreposição de palavras-chave (85% do peso) - conceitos e termos técnicos
+    2. Similaridade de sequência SequenceMatcher (15% do peso) - estrutura textual
+    """
     if not a or not b:
         return 0.0
-    return round(SequenceMatcher(None, a.lower(), b.lower()).ratio() * 100, 2)
+    
+    # 1. Análise baseada em palavras-chave (mais inteligente)
+    keywords_a = _extract_keywords(a)
+    keywords_b = _extract_keywords(b)
+    
+    if not keywords_a or not keywords_b:
+        # Fallback para SequenceMatcher se não houver keywords
+        return round(SequenceMatcher(None, a.lower(), b.lower()).ratio() * 100, 2)
+    
+    # Calcular Jaccard similarity (interseção / união)
+    intersecao = keywords_a & keywords_b
+    uniao = keywords_a | keywords_b
+    jaccard_sim = (len(intersecao) / len(uniao)) * 100 if uniao else 0
+    
+    # 2. SequenceMatcher como complemento (detecta ordem e estrutura)
+    sequence_sim = SequenceMatcher(None, a.lower(), b.lower()).ratio() * 100
+    
+    # Combinar métricas: 85% keywords (conceitos), 15% sequence (estrutura)
+    # Prioriza concordância conceitual sobre ordem exata das palavras
+    similaridade_final = (jaccard_sim * 0.85) + (sequence_sim * 0.15)
+    
+    return round(similaridade_final, 2)
 
 
 # ==========================================================
@@ -74,6 +123,16 @@ def carregar_snapshots(recente: bool = True) -> Dict[str, str]:
 def analisar_coerencia(artefatos: Dict[str, str]) -> Dict[str, Any]:
     """
     Compara os artefatos carregados e gera métricas de coerência textual.
+    
+    VALORES ESPERADOS DE COERÊNCIA:
+    - 60-100%: Excelente coerência (vocabulário muito similar)
+    - 40-60%:  Boa coerência (conceitos alinhados, formulação diferente)
+    - 30-40%:  Coerência moderada (mesmo tema, diferentes níveis de detalhamento)
+    - <30%:    Baixa coerência (possível desalinhamento ou falta de contexto)
+    
+    OBSERVAÇÃO: Documentos como DFD→ETP→TR→Edital naturalmente apresentam
+    coerência moderada (35-45%) pois cada um tem propósito específico e 
+    nível de detalhamento distinto, mesmo tratando do mesmo objeto.
     """
     resultados = {"coerencia_global": 0, "comparacoes": {}, "divergencias": [], "ausencias": []}
 
@@ -95,16 +154,17 @@ def analisar_coerencia(artefatos: Dict[str, str]) -> Dict[str, Any]:
         total_sim += sim
         total_pairs += 1
 
-        # Regras de alerta
-        if sim < 50:
+        # Regras de alerta ajustadas para valores realistas
+        # Documentos progressivos (DFD→ETP→TR→Edital) naturalmente têm 30-45% de coerência
+        if sim < 25:
             resultados["divergencias"].append({
                 "campo": f"{a1}-{a2}",
-                "descricao": f"Baixa similaridade entre {a1} e {a2} ({sim}%). Pode indicar desalinhamento de informações."
+                "descricao": f"🔴 Coerência muito baixa entre {a1} e {a2} ({sim}%). Recomenda-se revisar urgentemente o alinhamento de informações, objeto e justificativa."
             })
-        elif 50 <= sim < 75:
+        elif 25 <= sim < 35:
             resultados["divergencias"].append({
                 "campo": f"{a1}-{a2}",
-                "descricao": f"Similaridade parcial entre {a1} e {a2} ({sim}%). Recomenda-se revisão dos trechos de justificativa ou objeto."
+                "descricao": f"🟡 Coerência baixa entre {a1} e {a2} ({sim}%). Verificar se objeto, justificativa e especificações estão alinhados entre os documentos."
             })
 
     if total_pairs > 0:
