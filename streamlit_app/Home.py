@@ -139,8 +139,8 @@ st.markdown('</div><div class="divider"></div>', unsafe_allow_html=True)
 # Conteúdo introdutório
 # --------------------------------------------------------------
 st.markdown("""
-### 🧭 Bem-vindo ao SynapseNext
-O **Projeto SAAB-Tech** é o ecossistema institucional de automação inteligente que apoia a **Fase Interna da Licitação**, conforme a **Lei nº 14.133/2021** e a **Instrução Normativa nº 12/2025**.
+### 🧭 Bem-vindo(a) ao SynapseNext
+O **Projeto SAAB-Tech** é o ecossistema institucional de automação inteligente que apoia a **Fase Interna da Licitação**, a elaboração de editais, auditorias e contratos, tudo conforme previsto na **Lei nº 14.133/2021** e a **Instrução Normativa nº 12/2025**.
 
 Aqui você encontra todos os módulos que compõem a jornada digital do processo de contratação pública:
 - **Insumos, DFD, ETP, TR e Edital:** geração assistida por IA, análise normativa e validação técnica.  
