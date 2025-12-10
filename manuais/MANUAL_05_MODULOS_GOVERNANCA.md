@@ -1,6 +1,6 @@
 # 📘 Manual do Usuário – Projeto SAAB-Tech
 
-## Manual 04: Módulos de Governança e Monitoramento
+## Manual 05: Módulos de Governança e Monitoramento
 
 **Versão:** 2025.1  
 **Data:** Dezembro/2025  
@@ -9,14 +9,6 @@
 
 ---
 
-## 📑 Índice
-
-1. [Visão Geral dos Módulos de Governança](#1-visão-geral)
-2. [Módulo 09: Alertas](#2-módulo-09-alertas)
-3. [Módulo 10: Análise de Desempenho](#3-módulo-10-análise-desempenho)
-4. [Módulo 11: Painel de Governança](#4-módulo-11-painel-governança)
-5. [Módulo 12: Painel Executivo](#5-módulo-12-painel-executivo)
-6. [Casos Práticos](#6-casos-práticos)
 
 ---
 
@@ -716,4 +708,4 @@ Continue para:
 
 **© 2025 – Tribunal de Justiça do Estado de São Paulo**  
 **Projeto SAAB-Tech | Ecossistema SAAB 5.0**  
-*Manual 04/07 – Módulos de Governança e Monitoramento*
+*Manual 05/07 – Módulos de Governança e Monitoramento*

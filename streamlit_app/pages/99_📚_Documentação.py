@@ -157,36 +157,36 @@ MANUAIS = {
         "nivel": "Intermediário",
         "icone": "📗"
     },
-    "📙 Manual 03A - Edital e Validador": {
-        "arquivo": "MANUAL_03A_EDITAL_VALIDADOR.md",
+    "📙 Manual 03 - Edital e Validador": {
+        "arquivo": "MANUAL_03_EDITAL_VALIDADOR.md",
         "descricao": "Geração de editais e validação automatizada com score de conformidade.",
         "paginas": "40-50",
         "nivel": "Intermediário",
         "icone": "📙"
     },
-    "📕 Manual 03B - Contrato Administrativo": {
-        "arquivo": "MANUAL_03B_CONTRATO.md",
+    "📕 Manual 04 - Contrato Administrativo": {
+        "arquivo": "MANUAL_04_CONTRATO.md",
         "descricao": "Módulo de contrato com 20 campos contratuais e 15 cláusulas DOCX.",
         "paginas": "35-45",
         "nivel": "Intermediário",
         "icone": "📕"
     },
-    "📔 Manual 04 - Módulos de Governança": {
-        "arquivo": "MANUAL_04_MODULOS_GOVERNANCA.md",
+    "📔 Manual 05 - Módulos de Governança": {
+        "arquivo": "MANUAL_05_MODULOS_GOVERNANCA.md",
         "descricao": "Sistema de alertas, análise de desempenho, painéis gerenciais e consolidação.",
         "paginas": "30-40",
         "nivel": "Avançado",
         "icone": "📔"
     },
-    "📓 Manual 05 - Módulos Avançados": {
-        "arquivo": "MANUAL_05_MODULOS_AVANCADOS.md",
+    "📓 Manual 06 - Módulos Avançados": {
+        "arquivo": "MANUAL_06_MODULOS_AVANCADOS.md",
         "descricao": "Relatório técnico, comparador, registro de versão e integração com SAJ ADM.",
         "paginas": "30-40",
         "nivel": "Avançado",
         "icone": "📓"
     },
-    "📖 Manual 06 - FAQ e Troubleshooting": {
-        "arquivo": "MANUAL_06_FAQ_TROUBLESHOOTING.md",
+    "📖 Manual 07 - FAQ e Troubleshooting": {
+        "arquivo": "MANUAL_07_FAQ_TROUBLESHOOTING.md",
         "descricao": "20 perguntas frequentes, soluções de problemas e recursos de suporte.",
         "paginas": "30-40",
         "nivel": "Todos",

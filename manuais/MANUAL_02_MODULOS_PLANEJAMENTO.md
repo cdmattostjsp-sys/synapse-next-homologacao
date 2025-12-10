@@ -9,15 +9,6 @@
 
 ---
 
-## 📑 Índice
-
-1. [Visão Geral dos Módulos de Planejamento](#1-visão-geral)
-2. [Módulo 01: Insumos](#2-módulo-01-insumos)
-3. [Módulo 02: DFD – Formalização da Demanda](#3-módulo-02-dfd)
-4. [Módulo 03: ETP – Estudos Técnicos Preliminares](#4-módulo-03-etp)
-5. [Módulo 04: TR – Termo de Referência](#5-módulo-04-tr)
-6. [Fluxo Integrado de Planejamento](#6-fluxo-integrado)
-7. [Casos Práticos](#7-casos-práticos)
 
 ---
 

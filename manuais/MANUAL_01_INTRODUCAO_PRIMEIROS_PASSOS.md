@@ -9,17 +9,6 @@
 
 ---
 
-## 📑 Índice
-
-1. [Visão Geral do Sistema](#1-visão-geral-do-sistema)
-2. [Objetivos e Benefícios](#2-objetivos-e-benefícios)
-3. [Arquitetura Técnica](#3-arquitetura-técnica)
-4. [Requisitos de Acesso](#4-requisitos-de-acesso)
-5. [Primeiro Acesso](#5-primeiro-acesso)
-6. [Interface e Navegação](#6-interface-e-navegação)
-7. [Conceitos Fundamentais](#7-conceitos-fundamentais)
-8. [Fluxo Completo de Trabalho](#8-fluxo-completo-de-trabalho)
-9. [Boas Práticas](#9-boas-práticas)
 
 ---
 

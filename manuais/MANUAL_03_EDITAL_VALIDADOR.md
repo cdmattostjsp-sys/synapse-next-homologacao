@@ -1,6 +1,6 @@
 # 📘 Manual do Usuário – Projeto SAAB-Tech
 
-## Manual 03A: Módulos de Licitação - Edital e Validador
+## Manual 03: Módulos de Licitação - Edital e Validador
 
 **Versão:** 2025.1  
 **Data:** Dezembro/2025  
@@ -9,13 +9,6 @@
 
 ---
 
-## 📑 Índice
-
-1. [Visão Geral dos Módulos de Licitação](#1-visão-geral)
-2. [Módulo 05: Edital – Minuta do Edital](#2-módulo-05-edital)
-3. [Módulo 06: Validador de Editais](#3-módulo-06-validador)
-4. [Fluxo Integrado Edital + Validação](#4-fluxo-integrado)
-5. [Casos Práticos](#5-casos-práticos)
 
 ---
 
@@ -1025,7 +1018,7 @@ Ação: PUBLICAR ✅
 
 Continue sua jornada de aprendizado:
 
-- **Manual 03B** – Módulo de Contrato Administrativo
+- **Manual 04** – Módulo de Contrato Administrativo
 - **Manual 04** – Módulos de Governança (Alertas, Painéis)
 - **Manual 05** – Módulos Avançados
 
@@ -1046,4 +1039,4 @@ Continue sua jornada de aprendizado:
 
 **© 2025 – Tribunal de Justiça do Estado de São Paulo**  
 **Projeto SAAB-Tech | Ecossistema SAAB 5.0**  
-*Manual 03A/07 – Módulos de Licitação: Edital e Validador*
+*Manual 03/07 – Módulos de Licitação: Edital e Validador*

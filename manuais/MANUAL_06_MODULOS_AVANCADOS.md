@@ -1,6 +1,6 @@
 # 📘 Manual do Usuário – Projeto SAAB-Tech
 
-## Manual 05: Módulos Avançados
+## Manual 06: Módulos Avançados
 
 **Versão:** 2025.1  
 **Data:** Dezembro/2025  
@@ -9,14 +9,6 @@
 
 ---
 
-## 📑 Índice
-
-1. [Visão Geral dos Módulos Avançados](#1-visão-geral)
-2. [Módulo 13: Relatório Técnico](#2-módulo-13-relatório-técnico)
-3. [Módulo 14: Comparador](#3-módulo-14-comparador)
-4. [Módulo 15: Registro de Versão](#4-módulo-15-registro-versão)
-5. [Módulo 16: Integração](#5-módulo-16-integração)
-6. [Casos Práticos](#6-casos-práticos)
 
 ---
 
@@ -781,7 +773,7 @@ Precisa voltar para v5.2 (última boa).
 Você completou o aprendizado dos **Módulos Avançados**!
 
 Continue para:
-- **Manual 06** – FAQ e Troubleshooting (guia de problemas comuns e suporte)
+- **Manual 07** – FAQ e Troubleshooting (guia de problemas comuns e suporte)
 
 ---
 
@@ -803,4 +795,4 @@ Continue para:
 
 **© 2025 – Tribunal de Justiça do Estado de São Paulo**  
 **Projeto SAAB-Tech | Ecossistema SAAB 5.0**  
-*Manual 05/07 – Módulos Avançados*
+*Manual 06/07 – Módulos Avançados*

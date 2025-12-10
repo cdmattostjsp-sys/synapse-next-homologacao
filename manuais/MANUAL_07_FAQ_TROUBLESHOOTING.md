@@ -1,6 +1,6 @@
 # 📘 Manual do Usuário – Projeto SAAB-Tech
 
-## Manual 06: FAQ e Troubleshooting
+## Manual 07: FAQ e Troubleshooting
 
 **Versão:** 2025.1  
 **Data:** Dezembro/2025  
@@ -9,14 +9,6 @@
 
 ---
 
-## 📑 Índice
-
-1. [Perguntas Frequentes (FAQ)](#1-perguntas-frequentes)
-2. [Problemas Comuns e Soluções](#2-problemas-comuns)
-3. [Otimização do Sistema](#3-otimização)
-4. [Recuperação de Dados](#4-recuperação-de-dados)
-5. [Suporte e Contato](#5-suporte)
-6. [Recursos de Treinamento](#6-recursos-treinamento)
 
 ---
 
@@ -837,7 +829,7 @@ NÍVEL 4 - DESENVOLVIMENTO
 ✅ Manual 03B - Contrato Administrativo
 ✅ Manual 04 - Módulos de Governança (Alertas, Painéis)
 ✅ Manual 05 - Módulos Avançados (Relatórios, Integração)
-✅ Manual 06 - FAQ e Troubleshooting (este documento)
+✅ Manual 07 - FAQ e Troubleshooting (este documento)
 
 📁 Local: /manuais/ no repositório
 📥 Download: Portal SAAB-Tech > Documentação
@@ -1035,7 +1027,7 @@ ESCALONADO PARA DEV:  1%
 ✅ Manual 03B - Contrato Administrativo
 ✅ Manual 04 - Módulos de Governança
 ✅ Manual 05 - Módulos Avançados
-✅ Manual 06 - FAQ e Troubleshooting
+✅ Manual 07 - FAQ e Troubleshooting
 ```
 
 ### Agora você está pronto para:
@@ -1057,7 +1049,7 @@ ESCALONADO PARA DEV:  1%
 
 **© 2025 – Tribunal de Justiça do Estado de São Paulo**  
 **Projeto SAAB-Tech | Ecossistema SAAB 5.0**  
-*Manual 06/07 – FAQ e Troubleshooting*  
+*Manual 07/07 – FAQ e Troubleshooting*  
 *Versão 2025.1 – Dezembro/2025*
 
 ---
