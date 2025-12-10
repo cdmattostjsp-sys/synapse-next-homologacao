@@ -12,6 +12,17 @@
 
 ---
 
+## 📑 Índice
+
+1. Perguntas Frequentes (FAQ)
+2. Problemas Comuns e Soluções
+3. Dicas de Otimização
+4. Recuperação de Dados
+5. Canais de Suporte
+6. Recursos de Treinamento
+
+---
+
 ## 1. Perguntas Frequentes
 
 ### 1.1 Uso Geral

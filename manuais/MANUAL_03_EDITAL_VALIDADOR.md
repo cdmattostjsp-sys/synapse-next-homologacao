@@ -12,6 +12,16 @@
 
 ---
 
+## 📑 Índice
+
+1. Visão Geral dos Módulos de Licitação
+2. Módulo 05: Edital - Geração de Minutas
+3. Módulo 06: Validador de Editais
+4. Integração com Módulos Anteriores
+5. Casos Práticos
+
+---
+
 ## 1. Visão Geral
 
 ### 1.1 O que são Módulos de Licitação?

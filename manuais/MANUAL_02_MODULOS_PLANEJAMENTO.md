@@ -12,6 +12,18 @@
 
 ---
 
+## 📑 Índice
+
+1. Visão Geral dos Módulos de Planejamento
+2. Módulo 01: Insumos da Contratação
+3. Módulo 02: DFD - Documento de Formalização da Demanda
+4. Módulo 03: ETP - Estudos Técnicos Preliminares
+5. Módulo 04: TR - Termo de Referência
+6. Integração e Fluxo entre Módulos
+7. Boas Práticas de Preenchimento
+
+---
+
 ## 1. Visão Geral
 
 ### 1.1 O que são Módulos de Planejamento?

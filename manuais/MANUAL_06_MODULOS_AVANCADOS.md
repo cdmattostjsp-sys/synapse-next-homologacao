@@ -12,6 +12,17 @@
 
 ---
 
+## 📑 Índice
+
+1. Visão Geral dos Módulos Avançados
+2. Módulo 13: Relatório Técnico
+3. Módulo 14: Comparador
+4. Módulo 15: Registro de Versão
+5. Módulo 16: Integração
+6. Casos Práticos
+
+---
+
 ## 1. Visão Geral
 
 ### 1.1 O que são Módulos Avançados?

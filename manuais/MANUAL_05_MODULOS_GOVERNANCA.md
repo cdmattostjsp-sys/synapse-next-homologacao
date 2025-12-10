@@ -12,6 +12,17 @@
 
 ---
 
+## 📑 Índice
+
+1. Visão Geral dos Módulos de Governança
+2. Módulo 09: Sistema de Alertas
+3. Módulo 10: Análise de Desempenho
+4. Módulo 11: Painéis Gerenciais
+5. Módulo 12: Consolidação e Governança
+6. Casos Práticos
+
+---
+
 ## 1. Visão Geral
 
 ### 1.1 O que são Módulos de Governança?
