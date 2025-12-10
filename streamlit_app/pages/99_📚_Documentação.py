@@ -144,21 +144,21 @@ st.markdown("""
 # --------------------------------------------------------------
 MANUAIS = {
     "📘 Manual 01 - Introdução e Primeiros Passos": {
-        "arquivo": "MANUAL_01_INTRODUCAO.md",
+        "arquivo": "MANUAL_01_INTRODUCAO_PRIMEIROS_PASSOS.md",
         "descricao": "Visão geral do sistema, arquitetura, requisitos técnicos e primeiros passos.",
         "paginas": "80-120",
         "nivel": "Iniciante",
         "icone": "📘"
     },
     "📗 Manual 02 - Módulos de Planejamento": {
-        "arquivo": "MANUAL_02_PLANEJAMENTO.md",
+        "arquivo": "MANUAL_02_MODULOS_PLANEJAMENTO.md",
         "descricao": "Documentação completa dos módulos Insumos, DFD, ETP e TR.",
         "paginas": "60-80",
         "nivel": "Intermediário",
         "icone": "📗"
     },
     "📙 Manual 03A - Edital e Validador": {
-        "arquivo": "MANUAL_03A_EDITAL.md",
+        "arquivo": "MANUAL_03A_EDITAL_VALIDADOR.md",
         "descricao": "Geração de editais e validação automatizada com score de conformidade.",
         "paginas": "40-50",
         "nivel": "Intermediário",
@@ -293,8 +293,11 @@ if manual_selecionado:
             with open(caminho_manual, 'r', encoding='utf-8') as f:
                 conteudo = f.read()
             
+            # Aviso sobre navegação interna
+            st.info("💡 **Dica:** Use Ctrl+F (ou Cmd+F) para buscar seções específicas dentro do manual.")
+            
             st.markdown('<div class="manual-content">', unsafe_allow_html=True)
-            st.markdown(conteudo)
+            st.markdown(conteudo, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
         with tab2:
