@@ -18,6 +18,11 @@ base_path = Path(__file__).resolve().parents[1]
 if str(base_path) not in sys.path:
     sys.path.insert(0, str(base_path))
 
+# Adiciona o diretório streamlit_app ao path para imports locais
+streamlit_app_path = Path(__file__).resolve().parent
+if str(streamlit_app_path) not in sys.path:
+    sys.path.insert(0, str(streamlit_app_path))
+
 # --------------------------------------------------------------
 # Imports principais
 # --------------------------------------------------------------
