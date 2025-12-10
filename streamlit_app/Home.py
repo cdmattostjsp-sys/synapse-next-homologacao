@@ -32,7 +32,7 @@ import base64
 # --------------------------------------------------------------
 # Imports modulares (NOVO - Arquitetura modular)
 # --------------------------------------------------------------
-from utils.home_components import (
+from home_utils.home_components import (
     render_custom_css,
     render_header,
     render_intro,
