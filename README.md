@@ -1,4 +1,3 @@
-
 ---
 
 ## 🧩 Funcionalidades Principais

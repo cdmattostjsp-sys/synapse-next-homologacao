@@ -1,10 +1,10 @@
-# Atualização forçada para recarregar módulos - vNext
 # -*- coding: utf-8 -*-
 # ==============================================================
 # Projeto SAAB-Tech
 # Página Inicial (Home v6 – Arquitetura Modular + Documentação)
 # ==============================================================
 # Versão institucional vNext+ – Dezembro/2025
+# Build: 2025-12-10T20:00:00 (force rebuild cache)
 # ==============================================================
 
 # --------------------------------------------------------------
