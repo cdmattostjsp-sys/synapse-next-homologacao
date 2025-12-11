@@ -233,6 +233,11 @@ def _montar_texto_narrativo_inicial(
 
 
 # ======================================================================
+# 1️⃣ Carregar dados já existentes (sessão ou arquivos)
+# ======================================================================
+dfd_dados = obter_dfd_da_sessao()
+
+# ======================================================================
 # ✨ ASSISTENTE IA – Geração de rascunho a partir do insumo
 # ======================================================================
 st.subheader("✨ Assistente IA")
@@ -242,29 +247,19 @@ with col_ia1:
     st.info("🧠 Processamento automático: requer documentos enviados no módulo **🔧 Insumos**")
 with col_ia2:
     if st.button("✨ Gerar rascunho com IA", use_container_width=True):
-        # Verifica se há insumos disponíveis
-        insumos_disponiveis = obter_dfd_da_sessao()
-        
-        if not insumos_disponiveis or insumos_disponiveis.get("valor_estimado") == "0,00":
-            st.warning("⚠️ Nenhum insumo encontrado. Envie documentos no módulo **🔧 Insumos** primeiro.")
-        else:
-            try:
+        try:
+            with st.spinner("🧠 Processando com IA..."):
                 dfd_ai = gerar_rascunho_dfd_com_ia()
 
-                if dfd_ai:
-                    st.success("✨ Rascunho gerado com sucesso pela IA!")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ A IA não conseguiu gerar um DFD estruturado.")
-            except Exception as e:
-                st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
+            if dfd_ai:
+                st.success("✨ Rascunho gerado com sucesso pela IA!")
+                st.rerun()
+            else:
+                st.warning("⚠️ A IA não conseguiu gerar um DFD estruturado. Verifique se há insumos processados no módulo **🔧 Insumos**.")
+        except Exception as e:
+            st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
 
 st.markdown("---")
-
-# ======================================================================
-# 1️⃣ Carregar dados já existentes (sessão ou arquivos)
-# ======================================================================
-dfd_dados = obter_dfd_da_sessao()
 
 # Se não há dados prévios, inicializa com estrutura vazia para permitir preenchimento manual
 if not dfd_dados:
