@@ -259,6 +259,128 @@ with col_ia2:
         except Exception as e:
             st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
 
+# ======================================================================
+# 🎨 REFINAMENTO ITERATIVO – Comandos IA por Seção (NOVO)
+# ======================================================================
+with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
+    st.caption("💡 Use esta ferramenta para solicitar melhorias específicas em qualquer seção do DFD")
+    
+    # Dropdown para selecionar seção
+    secao_selecionada = st.selectbox(
+        "Selecione a seção a refinar:",
+        [""] + ["unidade_demandante", "responsavel", "prazo_estimado", "valor_estimado", 
+                "descricao_necessidade", "motivacao", "texto_narrativo"] + SECOES_DFD,
+        format_func=lambda x: "-- Selecione uma seção --" if x == "" else x
+    )
+    
+    # Comandos rápidos predefinidos
+    col_cmd1, col_cmd2 = st.columns(2)
+    with col_cmd1:
+        st.markdown("**Comandos Rápidos:**")
+        if st.button("➕ Adicionar mais detalhes técnicos", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Adicione mais detalhes técnicos e especificações"
+        if st.button("📊 Incluir métricas e indicadores", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Inclua métricas quantitativas e indicadores mensuráveis"
+    
+    with col_cmd2:
+        st.markdown("**&nbsp;**")
+        if st.button("⚖️ Melhorar fundamentação legal", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Fortaleça a fundamentação legal com citações normativas"
+        if st.button("🎯 Tornar mais objetivo e direto", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Torne o texto mais objetivo e direto, eliminando redundâncias"
+    
+    # Campo de comando personalizado
+    comando_personalizado = st.text_area(
+        "Ou digite um comando personalizado:",
+        value=st.session_state.get('comando_ia_rapido', ''),
+        placeholder="Ex: 'Adicione justificativa baseada em economia de recursos'",
+        height=80,
+        key="campo_comando_ia"
+    )
+    
+    # Botão de execução
+    if st.button("✨ Executar Refinamento IA", type="primary", disabled=not secao_selecionada or not comando_personalizado):
+        if secao_selecionada and comando_personalizado:
+            try:
+                with st.spinner(f"🧠 Refinando seção '{secao_selecionada}'..."):
+                    # Obter conteúdo atual da seção
+                    if secao_selecionada in SECOES_DFD:
+                        conteudo_atual = dfd_dados.get("secoes", {}).get(secao_selecionada, "")
+                    else:
+                        conteudo_atual = dfd_dados.get(secao_selecionada, "")
+                    
+                    # Chamar IA para refinamento
+                    from utils.ai_client import AIClient
+                    ai = AIClient()
+                    
+                    prompt_refinamento = f"""Você está refinando a seção '{secao_selecionada}' de um DFD institucional.
+
+CONTEÚDO ATUAL:
+{conteudo_atual}
+
+COMANDO DO USUÁRIO:
+{comando_personalizado}
+
+INSTRUÇÕES:
+1. Mantenha o contexto e informações existentes
+2. Aplique APENAS a melhoria solicitada
+3. Retorne SOMENTE o texto refinado, sem explicações
+4. Mantenha formatação profissional e institucional
+5. Não invente informações, apenas reorganize/expanda as existentes
+
+Responda com o texto refinado:"""
+                    
+                    resultado = ai.ask(
+                        prompt=prompt_refinamento,
+                        conteudo="",
+                        artefato="refinamento_dfd"
+                    )
+                    
+                    # Extrair texto refinado
+                    texto_refinado = ""
+                    if isinstance(resultado, dict):
+                        texto_refinado = resultado.get("resposta", resultado.get("content", str(resultado)))
+                    else:
+                        texto_refinado = str(resultado)
+                    
+                    # Limpar formatação markdown se necessário
+                    texto_refinado = texto_refinado.strip()
+                    
+                    # Mostrar preview antes/depois
+                    st.success("✨ Refinamento concluído! Veja o resultado:")
+                    
+                    col_antes, col_depois = st.columns(2)
+                    with col_antes:
+                        st.markdown("**📝 Antes:**")
+                        st.info(conteudo_atual if conteudo_atual else "_[Vazio]_")
+                    
+                    with col_depois:
+                        st.markdown("**✨ Depois (preview):**")
+                        st.success(texto_refinado)
+                    
+                    # Botão para aplicar
+                    if st.button("✅ Aplicar Refinamento", key="aplicar_refinamento"):
+                        # Atualizar dados na sessão
+                        if secao_selecionada in SECOES_DFD:
+                            if "secoes" not in dfd_dados:
+                                dfd_dados["secoes"] = {}
+                            dfd_dados["secoes"][secao_selecionada] = texto_refinado
+                        else:
+                            dfd_dados[secao_selecionada] = texto_refinado
+                        
+                        st.session_state["dfd_campos_ai"] = dfd_dados
+                        st.success("✅ Refinamento aplicado! Recarregando...")
+                        st.rerun()
+                        
+            except Exception as e:
+                st.error(f"❌ Erro ao refinar: {e}")
+        else:
+            st.warning("⚠️ Selecione uma seção e forneça um comando")
+    
+    # Limpar comando rápido após usar
+    if 'comando_ia_rapido' in st.session_state:
+        del st.session_state['comando_ia_rapido']
+
 st.markdown("---")
 
 # Se não há dados prévios, inicializa com estrutura vazia para permitir preenchimento manual
