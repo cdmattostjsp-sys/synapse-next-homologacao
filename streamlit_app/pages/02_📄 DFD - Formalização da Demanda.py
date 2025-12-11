@@ -386,34 +386,64 @@ Responda com o texto refinado:"""
                     # Limpar formatação
                     texto_refinado = texto_refinado.strip()
                     
-                    # Mostrar preview antes/depois
-                    st.success("✨ Refinamento concluído! Veja o resultado:")
+                    # Salvar no session_state para persistir o preview
+                    st.session_state['refinamento_preview'] = {
+                        'secao': secao_selecionada,
+                        'antes': conteudo_atual,
+                        'depois': texto_refinado
+                    }
                     
-                    col_antes, col_depois = st.columns(2)
-                    with col_antes:
-                        st.markdown("**📝 Antes:**")
-                        st.info(conteudo_atual if conteudo_atual else "_[Vazio]_")
-                    
-                    with col_depois:
-                        st.markdown("**✨ Depois (preview):**")
-                        st.success(texto_refinado)
-                    
-                    # Botão para aplicar
-                    if st.button("✅ Aplicar Refinamento", key="aplicar_refinamento"):
-                        # Atualizar dados na sessão
-                        if secao_selecionada in SECOES_DFD:
-                            if "secoes" not in dfd_dados:
-                                dfd_dados["secoes"] = {}
-                            dfd_dados["secoes"][secao_selecionada] = texto_refinado
-                        else:
-                            dfd_dados[secao_selecionada] = texto_refinado
-                        
-                        st.session_state["dfd_campos_ai"] = dfd_dados
-                        st.success("✅ Refinamento aplicado! Recarregando...")
-                        st.rerun()
-                        
             except Exception as e:
                 st.error(f"❌ Erro ao refinar: {e}")
+    
+    # Mostrar preview SE existir no session_state (fora do botão Executar)
+    if 'refinamento_preview' in st.session_state:
+        preview = st.session_state['refinamento_preview']
+        
+        st.success("✨ Refinamento concluído! Veja o resultado:")
+        
+        col_antes, col_depois = st.columns(2)
+        with col_antes:
+            st.markdown("**📝 Antes:**")
+            st.info(preview['antes'] if preview['antes'] else "_[Vazio]_")
+        
+        with col_depois:
+            st.markdown("**✨ Depois (preview):**")
+            st.success(preview['depois'])
+        
+        # Botões de ação
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 1])
+        
+        with col_btn1:
+            if st.button("✅ Aplicar Refinamento", type="primary", use_container_width=True):
+                # Atualizar dados na sessão
+                secao = preview['secao']
+                texto = preview['depois']
+                
+                if secao in SECOES_DFD:
+                    if "secoes" not in dfd_dados:
+                        dfd_dados["secoes"] = {}
+                    dfd_dados["secoes"][secao] = texto
+                else:
+                    dfd_dados[secao] = texto
+                
+                st.session_state["dfd_campos_ai"] = dfd_dados
+                
+                # Limpar preview
+                del st.session_state['refinamento_preview']
+                
+                st.success("✅ Refinamento aplicado!")
+                st.rerun()
+        
+        with col_btn2:
+            if st.button("📋 Copiar Texto Refinado", use_container_width=True):
+                st.code(preview['depois'], language=None)
+                st.info("💡 Use Ctrl+C para copiar o texto acima")
+        
+        with col_btn3:
+            if st.button("❌ Cancelar", use_container_width=True):
+                del st.session_state['refinamento_preview']
+                st.rerun()
 
 st.markdown("---")
 
