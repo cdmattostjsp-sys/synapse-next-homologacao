@@ -298,9 +298,20 @@ with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
         key="campo_comando_ia"
     )
     
+    # Limpar comando rápido após renderizar o campo
+    if 'comando_ia_rapido' in st.session_state and comando_personalizado:
+        del st.session_state['comando_ia_rapido']
+    
     # Botão de execução
-    if st.button("✨ Executar Refinamento IA", type="primary", disabled=not secao_selecionada or not comando_personalizado):
-        if secao_selecionada and comando_personalizado:
+    if st.button("✨ Executar Refinamento IA", type="primary", disabled=not secao_selecionada):
+        # Validação melhorada
+        comando_final = comando_personalizado.strip()
+        
+        if not secao_selecionada:
+            st.warning("⚠️ Selecione uma seção primeiro")
+        elif not comando_final:
+            st.warning("⚠️ Forneça um comando (use os botões rápidos ou digite)")
+        else:
             try:
                 with st.spinner(f"🧠 Refinando seção '{secao_selecionada}'..."):
                     # Obter conteúdo atual da seção
@@ -319,7 +330,7 @@ CONTEÚDO ATUAL:
 {conteudo_atual}
 
 COMANDO DO USUÁRIO:
-{comando_personalizado}
+{comando_final}
 
 INSTRUÇÕES:
 1. Mantenha o contexto e informações existentes
@@ -374,12 +385,6 @@ Responda com o texto refinado:"""
                         
             except Exception as e:
                 st.error(f"❌ Erro ao refinar: {e}")
-        else:
-            st.warning("⚠️ Selecione uma seção e forneça um comando")
-    
-    # Limpar comando rápido após usar
-    if 'comando_ia_rapido' in st.session_state:
-        del st.session_state['comando_ia_rapido']
 
 st.markdown("---")
 
