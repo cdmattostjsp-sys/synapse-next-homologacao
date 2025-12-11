@@ -26,12 +26,39 @@ from utils.integration_contrato import (
     load_contrato_from_json,
     integrar_com_contexto,
 )
+from home_utils.refinamento_ia import render_refinamento_iterativo
 
 # ==========================================================
 # ⚙️ Configuração básica
 # ==========================================================
 st.set_page_config(page_title="📜 Contrato", layout="wide", page_icon="📜")
 aplicar_estilo_global()
+
+# ==========================================================
+# 📝 Definição dos campos do Contrato para refinamento iterativo
+# ==========================================================
+CAMPOS_CONTRATO = [
+    "numero_contrato",
+    "data_assinatura",
+    "objeto",
+    "partes_contratante",
+    "partes_contratada",
+    "fundamentacao_legal",
+    "vigencia",
+    "prazo_execucao",
+    "valor_global",
+    "forma_pagamento",
+    "reajuste",
+    "garantia_contratual",
+    "obrigacoes_contratada",
+    "obrigacoes_contratante",
+    "fiscalizacao",
+    "penalidades",
+    "rescisao",
+    "alteracoes",
+    "foro",
+    "disposicoes_gerais"
+]
 
 # ==========================================================
 # 📥 Carregamento de dados persistidos (JSON)
@@ -160,6 +187,32 @@ with col_btn2:
                     st.error(f"❌ Erro ao gerar: {e}")
                     import traceback
                     st.code(traceback.format_exc())
+
+st.divider()
+
+# ==========================================================
+# ✨ Refinamento Iterativo com IA
+# ==========================================================
+st.subheader("✨ Refinamento Iterativo com IA")
+st.caption("💡 Refine campos específicos do Contrato usando IA especializada. Escolha um campo e use comandos rápidos ou personalizados.")
+
+# Carregar dados processados para refinamento
+campos_ai = st.session_state.get("contrato_campos_ai", {})
+
+# Identificar campos simples (geralmente curtos) vs campos complexos (text_area)
+campos_simples = ["numero_contrato", "data_assinatura", "vigencia", "prazo_execucao", 
+                  "valor_global", "foro"]
+
+# Chamar componente de refinamento
+campos_ai = render_refinamento_iterativo(
+    secoes_disponiveis=CAMPOS_CONTRATO,
+    dados_atuais=campos_ai if campos_ai else {},
+    artefato="CONTRATO",
+    campos_simples=campos_simples
+)
+
+# Atualizar session_state com refinamentos
+st.session_state["contrato_campos_ai"] = campos_ai
 
 st.divider()
 
