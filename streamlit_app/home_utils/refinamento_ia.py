@@ -87,10 +87,6 @@ def render_refinamento_iterativo(
             key=f"campo_comando_ia_{artefato}"
         )
         
-        # Limpar comando rápido após renderizar o campo
-        if f'comando_ia_rapido_{artefato}' in st.session_state and comando_personalizado:
-            del st.session_state[f'comando_ia_rapido_{artefato}']
-        
         # Botão de execução
         if st.button("✨ Executar Refinamento IA", 
                     type="primary", 
@@ -104,6 +100,10 @@ def render_refinamento_iterativo(
             elif not comando_final:
                 st.warning("⚠️ Forneça um comando (use os botões rápidos ou digite)")
             else:
+                # Limpar comando rápido ANTES de processar
+                if f'comando_ia_rapido_{artefato}' in st.session_state:
+                    del st.session_state[f'comando_ia_rapido_{artefato}']
+                
                 try:
                     with st.spinner(f"🧠 Refinando seção '{secao_selecionada}'..."):
                         # Obter conteúdo atual da seção
