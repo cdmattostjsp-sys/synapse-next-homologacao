@@ -16,6 +16,7 @@ from io import BytesIO
 from docx import Document
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 from utils.integration_tr import export_tr_to_json, ler_modelos_tr
+from home_utils.refinamento_ia import render_refinamento_iterativo
 
 # ==========================================================
 # 🔄 Lazy Loading da OpenAI Client
@@ -54,6 +55,21 @@ st.divider()
 # Paths dos arquivos
 INSUMO_TR_PATH = os.path.join("exports", "insumos", "json", "TR_ultimo.json")
 TR_JSON_PATH = os.path.join("exports", "tr_data.json")
+
+# ==========================================================
+# 📝 Definição das seções do TR para refinamento iterativo
+# ==========================================================
+SECOES_TR = [
+    "objeto",
+    "justificativa_tecnica",
+    "especificacao_tecnica",
+    "criterios_julgamento",
+    "riscos",
+    "observacoes_finais",
+    "prazo_execucao",
+    "estimativa_valor",
+    "fonte_recurso"
+]
 
 tr_salvo = {}
 insumo_detectado = False
@@ -97,8 +113,24 @@ if not tr_salvo and not insumo_detectado:
     st.info("ℹ️ Nenhum TR ou insumo detectado. Faça upload no módulo **🔧 Insumos** ou preencha manualmente.")
 
 # ==========================================================
+# ✨ Refinamento Iterativo com IA
+# ==========================================================
+st.divider()
+st.subheader("✨ Refinamento Iterativo com IA")
+st.caption("💡 Refine seções específicas do TR usando IA especializada. Escolha uma seção e use comandos rápidos ou personalizados.")
+
+# Chamar componente de refinamento
+tr_salvo = render_refinamento_iterativo(
+    secoes_disponiveis=SECOES_TR,
+    dados_atuais=tr_salvo if tr_salvo else {},
+    artefato="TR",
+    campos_simples=None  # TR não tem campos simples separados, todas são seções longas
+)
+
+# ==========================================================
 # 🧾 Formulário TR – 9 Seções Estruturadas
 # ==========================================================
+st.divider()
 st.subheader("📘 Entrada – Termo de Referência")
 
 # ==========================================================
