@@ -21,6 +21,7 @@ from docx import Document
 
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
 from utils.integration_edital import integrar_com_contexto, gerar_edital_com_ia
+from home_utils.refinamento_ia import render_refinamento_iterativo
 
 st.set_page_config(page_title="📜 Edital – Minuta", layout="wide", page_icon="📜")
 aplicar_estilo_global()
@@ -41,6 +42,24 @@ st.divider()
 # Paths dos arquivos
 INSUMO_EDITAL_PATH = os.path.join("exports", "insumos", "json", "EDITAL_ultimo.json")
 EDITAL_JSON_PATH = os.path.join("exports", "edital_data.json")
+
+# ==========================================================
+# 📝 Definição dos campos do Edital para refinamento iterativo
+# ==========================================================
+CAMPOS_EDITAL = [
+    "numero_edital",
+    "data_publicacao",
+    "objeto",
+    "tipo_licitacao",
+    "criterio_julgamento",
+    "condicoes_participacao",
+    "exigencias_habilitacao",
+    "obrigacoes_contratada",
+    "prazo_execucao",
+    "fontes_recursos",
+    "gestor_fiscal",
+    "observacoes_gerais"
+]
 
 # Integrar contexto de DFD/ETP/TR
 contexto = integrar_com_contexto(st.session_state)
@@ -89,8 +108,28 @@ if not edital_salvo and not insumo_detectado and not contexto:
     st.info("ℹ️ Nenhum Edital ou insumo detectado. Faça upload no módulo **🔧 Insumos** ou preencha dados em DFD/ETP/TR primeiro.")
 
 # ==========================================================
+# ✨ Refinamento Iterativo com IA
+# ==========================================================
+st.divider()
+st.subheader("✨ Refinamento Iterativo com IA")
+st.caption("💡 Refine campos específicos do Edital usando IA especializada. Escolha um campo e use comandos rápidos ou personalizados.")
+
+# Identificar campos simples (geralmente curtos) vs campos complexos (text_area)
+campos_simples = ["numero_edital", "data_publicacao", "tipo_licitacao", "criterio_julgamento", 
+                  "prazo_execucao", "fontes_recursos", "gestor_fiscal"]
+
+# Chamar componente de refinamento
+edital_salvo = render_refinamento_iterativo(
+    secoes_disponiveis=CAMPOS_EDITAL,
+    dados_atuais=edital_salvo if edital_salvo else {},
+    artefato="EDITAL",
+    campos_simples=campos_simples
+)
+
+# ==========================================================
 # 🧾 Formulário Edital – 12 Campos Estruturados
 # ==========================================================
+st.divider()
 st.subheader("📘 Entrada – Edital de Licitação")
 
 st.markdown("### 📋 Identificação")
