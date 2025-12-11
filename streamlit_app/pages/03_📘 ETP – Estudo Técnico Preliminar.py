@@ -20,6 +20,7 @@ import streamlit as st
 # ==========================================================
 from utils.integration_etp import obter_etp_da_sessao, status_etp, salvar_etp_em_json, gerar_etp_com_ia
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.refinamento_ia import render_refinamento_iterativo
 
 # ==========================================================
 # ⚙️ Configuração inicial
@@ -105,6 +106,30 @@ with col2:
                 
         except Exception as e:
             st.error(f"❌ Erro: {e}")
+
+# ==========================================================
+# 🎨 REFINAMENTO ITERATIVO (NOVO)
+# ==========================================================
+# Definir seções do ETP
+SECOES_ETP = [
+    "objeto", "descricao_necessidade", "previsao_pca", "planejamento_estrategico",
+    "catalogo_padronizacao", "requisitos_contratacao", "condicoes_recebimento",
+    "condicoes_execucao_pagamento", "garantias", "modalidade_licitacao",
+    "estimativa_quantidades", "levantamento_mercado", "estimativa_valor",
+    "descricao_solucao", "justificativa_parcelamento", "resultados_pretendidos",
+    "providencias_previas", "contratacoes_correlatas", "impactos_ambientais",
+    "possibilidade_compra_locacao", "participacao_consorcio", "vistoria_visita_tecnica",
+    "cumprimento_resolucoes_cnj", "plano_riscos", "equipe_planejamento",
+    "estimativa_prazo_vigencia", "avaliacao_conclusiva"
+]
+
+# Verificar se houve atualização via refinamento
+defaults = render_refinamento_iterativo(
+    secoes_disponiveis=SECOES_ETP,
+    dados_atuais=defaults if defaults else {},
+    artefato="ETP",
+    campos_simples=["unidade_demandante", "responsavel", "prazo_estimado", "valor_estimado"]
+)
 
 st.divider()
 
