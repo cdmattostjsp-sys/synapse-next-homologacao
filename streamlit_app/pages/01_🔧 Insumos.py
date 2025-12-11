@@ -48,26 +48,52 @@ st.divider()
 # ==========================================================
 st.subheader("📎 Envio de documento administrativo")
 
+# Diagnóstico: Verificar se há conflitos no session_state
+if 'debug_upload' not in st.session_state:
+    st.session_state['debug_upload'] = True
+
 # Atualizei a chave para garantir um estado limpo nesta nova versão
-uploaded_file = st.file_uploader(
-    "Selecione o arquivo de insumo (formatos aceitos: TXT, DOCX, PDF)",
-    type=["txt", "docx", "pdf"],
-    key="insumo_upload_final"
-)
+try:
+    uploaded_file = st.file_uploader(
+        "Selecione o arquivo de insumo (formatos aceitos: TXT, DOCX, PDF)",
+        type=["txt", "docx", "pdf"],
+        key="insumo_upload_final",
+        help="💡 Dica: Se o upload não funcionar, tente recarregar a página (F5)"
+    )
+except Exception as e:
+    st.error(f"❌ Erro no componente de upload: {e}")
+    st.info("🔄 Tente recarregar a página (F5) ou limpar o cache do navegador")
+    uploaded_file = None
 
 # 🔍 BLOCO DEBUG (Pode remover após confirmar o funcionamento)
 if uploaded_file is not None:
-    st.info(f"✅ Arquivo carregado na memória: {uploaded_file.name} ({uploaded_file.size} bytes)")
+    st.success(f"✅ Arquivo carregado: **{uploaded_file.name}** ({uploaded_file.size:,} bytes)")
+elif uploaded_file is False:
+    st.error("❌ Erro ao carregar arquivo. Tente novamente.")
+else:
+    st.info("👆 Aguardando seleção de arquivo...")
 
 # ==========================================================
 # 🧭 Seleção do módulo de destino
 # ==========================================================
-artefato_opcoes = ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]
-artefato = st.selectbox(
-    "Selecione o módulo de destino do insumo:",
-    artefato_opcoes,
-    key="insumo_destino"
-)
+col_select, col_reset = st.columns([4, 1])
+
+with col_select:
+    artefato_opcoes = ["DFD", "ETP", "TR", "EDITAL", "CONTRATO"]
+    artefato = st.selectbox(
+        "Selecione o módulo de destino do insumo:",
+        artefato_opcoes,
+        key="insumo_destino"
+    )
+
+with col_reset:
+    st.write("")  # Espaçamento
+    if st.button("🔄 Reset", help="Limpar estado e recarregar"):
+        # Limpar chaves problemáticas do session_state
+        keys_to_clear = [k for k in st.session_state.keys() if 'upload' in k.lower() or 'insumo' in k.lower()]
+        for key in keys_to_clear:
+            del st.session_state[key]
+        st.rerun()
 
 # ==========================================================
 # 🚀 Processamento automático (com IA institucional)
