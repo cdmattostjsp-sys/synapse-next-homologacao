@@ -347,14 +347,43 @@ Responda com o texto refinado:"""
                         artefato="refinamento_dfd"
                     )
                     
-                    # Extrair texto refinado
+                    # Extrair texto refinado (melhorado para lidar com diferentes formatos)
                     texto_refinado = ""
+                    
                     if isinstance(resultado, dict):
-                        texto_refinado = resultado.get("resposta", resultado.get("content", str(resultado)))
+                        # Caso 1: {'refinamento_dfd': {'campo': 'valor'}}
+                        if 'refinamento_dfd' in resultado:
+                            refinamento_data = resultado['refinamento_dfd']
+                            if isinstance(refinamento_data, dict):
+                                # Pegar o valor do campo específico
+                                texto_refinado = refinamento_data.get(secao_selecionada, "")
+                                # Se não encontrou, pegar o primeiro valor não-vazio
+                                if not texto_refinado:
+                                    for valor in refinamento_data.values():
+                                        if isinstance(valor, str) and valor.strip():
+                                            texto_refinado = valor
+                                            break
+                            elif isinstance(refinamento_data, str):
+                                texto_refinado = refinamento_data
+                        
+                        # Caso 2: campos diretos no dict
+                        if not texto_refinado:
+                            texto_refinado = (
+                                resultado.get("resposta") or 
+                                resultado.get("content") or 
+                                resultado.get("texto") or 
+                                resultado.get(secao_selecionada) or
+                                ""
+                            )
+                        
+                        # Caso 3: se ainda vazio, converter dict para string
+                        if not texto_refinado:
+                            import json
+                            texto_refinado = json.dumps(resultado, ensure_ascii=False, indent=2)
                     else:
                         texto_refinado = str(resultado)
                     
-                    # Limpar formatação markdown se necessário
+                    # Limpar formatação
                     texto_refinado = texto_refinado.strip()
                     
                     # Mostrar preview antes/depois
