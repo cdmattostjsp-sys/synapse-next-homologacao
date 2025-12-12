@@ -61,7 +61,18 @@ def aplicar_estilo_global():
 
         /* ---------- SIDEBAR ---------- */
         section[data-testid="stSidebar"] {
-            background-color: #f8f9fb !important;
+            background: linear-gradient(180deg, #F8F9FB 0%, #FFFFFF 100%) !important;
+        }
+        
+        /* Itens de navegação do sidebar */
+        [data-testid="stSidebarNav"] a {
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        [data-testid="stSidebarNav"] a:hover {
+            background-color: #F0F3F7 !important;
+            transform: translateX(3px);
         }
         </style>
         """,
