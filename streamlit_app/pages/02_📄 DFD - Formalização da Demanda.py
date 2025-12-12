@@ -264,6 +264,10 @@ with col_ia2:
 # ======================================================================
 with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
     st.caption("💡 Use esta ferramenta para solicitar melhorias específicas em qualquer seção do DFD")
+
+    # Garante que o campo de comando tenha um estado inicial controlado
+    if "campo_comando_ia" not in st.session_state:
+        st.session_state["campo_comando_ia"] = ""
     
     # Dropdown para selecionar seção
     secao_selecionada = st.selectbox(
@@ -278,21 +282,29 @@ with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
     with col_cmd1:
         st.markdown("**Comandos Rápidos:**")
         if st.button("➕ Adicionar mais detalhes técnicos", use_container_width=True, disabled=not secao_selecionada):
-            st.session_state['comando_ia_rapido'] = "Adicione mais detalhes técnicos e especificações"
+            comando_quick = "Adicione mais detalhes técnicos e especificações"
+            st.session_state['comando_ia_rapido'] = comando_quick
+            st.session_state['campo_comando_ia'] = comando_quick
         if st.button("📊 Incluir métricas e indicadores", use_container_width=True, disabled=not secao_selecionada):
-            st.session_state['comando_ia_rapido'] = "Inclua métricas quantitativas e indicadores mensuráveis"
+            comando_quick = "Inclua métricas quantitativas e indicadores mensuráveis"
+            st.session_state['comando_ia_rapido'] = comando_quick
+            st.session_state['campo_comando_ia'] = comando_quick
     
     with col_cmd2:
         st.markdown("**&nbsp;**")
         if st.button("⚖️ Melhorar fundamentação legal", use_container_width=True, disabled=not secao_selecionada):
-            st.session_state['comando_ia_rapido'] = "Fortaleça a fundamentação legal com citações normativas"
+            comando_quick = "Fortaleça a fundamentação legal com citações normativas"
+            st.session_state['comando_ia_rapido'] = comando_quick
+            st.session_state['campo_comando_ia'] = comando_quick
         if st.button("🎯 Tornar mais objetivo e direto", use_container_width=True, disabled=not secao_selecionada):
-            st.session_state['comando_ia_rapido'] = "Torne o texto mais objetivo e direto, eliminando redundâncias"
+            comando_quick = "Torne o texto mais objetivo e direto, eliminando redundâncias"
+            st.session_state['comando_ia_rapido'] = comando_quick
+            st.session_state['campo_comando_ia'] = comando_quick
     
     # Campo de comando personalizado
     comando_personalizado = st.text_area(
         "Ou digite um comando personalizado:",
-        value=st.session_state.get('comando_ia_rapido', ''),
+        value=st.session_state.get('comando_ia_rapido', st.session_state['campo_comando_ia']),
         placeholder="Ex: 'Adicione justificativa baseada em economia de recursos'",
         height=80,
         key="campo_comando_ia"
