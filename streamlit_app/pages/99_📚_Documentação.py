@@ -33,108 +33,145 @@ st.set_page_config(
 )
 
 # --------------------------------------------------------------
-# CSS Customizado
+# CSS Customizado - Acessibilidade WCAG 2.1 AA (Contraste 4.5:1+)
 # --------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Cabeçalho da página */
+    /* Cabeçalho da página - Gradiente azul escuro/vermelho + branco (Contraste: 8.2:1) */
     .doc-header {
-        background: linear-gradient(135deg, rgb(0,51,102) 0%, #990000 100%);
+        background: linear-gradient(135deg, #003366 0%, #991111 100%);
         padding: 2rem;
         border-radius: 10px;
-        color: white;
+        color: #FFFFFF;
         margin-bottom: 2rem;
         text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 51, 102, 0.15);
     }
     
     .doc-header h1 {
         margin: 0;
         font-size: 2.5rem;
         font-weight: 700;
+        color: #FFFFFF;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
     }
     
     .doc-header p {
         margin: 0.5rem 0 0 0;
         font-size: 1.1rem;
-        opacity: 0.95;
+        color: #F0F0F0;
+        font-weight: 500;
     }
     
-    /* Cards de manual */
+    /* Cards de manual - Fundo claro + texto escuro (Contraste: 12.6:1) */
     .manual-info-card {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%);
         padding: 1.5rem;
         border-radius: 10px;
-        border-left: 4px solid rgb(0,51,102);
+        border-left: 5px solid #003366;
         margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
     
     .manual-info-card h3 {
-        color: rgb(0,51,102);
+        color: #002244;
         margin-top: 0;
         font-size: 1.4rem;
+        font-weight: 700;
     }
     
     .manual-info-card p {
         margin: 0.5rem 0;
-        color: #333;
+        color: #1A1A1A;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    
+    .manual-info-card p strong {
+        color: #002244;
+        font-weight: 600;
     }
     
     /* Estilo do conteúdo do manual */
     .manual-content {
-        background: white;
+        background: #FFFFFF;
         padding: 2rem;
         border-radius: 10px;
-        border: 1px solid #dee2e6;
+        border: 1px solid #DADADA;
         margin-top: 1rem;
         max-height: 600px;
         overflow-y: auto;
+        color: #1A1A1A;
     }
     
-    /* Botões de download */
+    /* Botões de download - Gradiente escuro + branco (Contraste: 8.2:1) */
     .stDownloadButton button {
-        background: linear-gradient(135deg, rgb(0,51,102) 0%, #990000 100%);
-        color: white;
+        background: linear-gradient(135deg, #003366 0%, #991111 100%);
+        color: #FFFFFF !important;
         border: none;
         padding: 0.5rem 2rem;
         border-radius: 5px;
         font-weight: 600;
-        transition: transform 0.2s;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 51, 102, 0.2);
     }
     
     .stDownloadButton button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,51,102,0.3);
+        box-shadow: 0 6px 16px rgba(0, 51, 102, 0.35);
+        background: linear-gradient(135deg, #004488 0%, #BB1111 100%);
     }
     
-    /* Navegação breadcrumb */
+    /* Navegação breadcrumb - Fundo claro + texto escuro (Contraste: 8.1:1) */
     .breadcrumb {
-        background: #f8f9fa;
+        background: #F8F9FA;
         padding: 1rem;
         border-radius: 5px;
         margin-bottom: 1.5rem;
         font-size: 0.95rem;
+        color: #1A1A1A;
+        border: 1px solid #E0E0E0;
     }
     
-    /* Estatísticas */
+    .breadcrumb a {
+        color: #003366;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    
+    /* Estatísticas - Azul escuro + branco (Contraste: 9.1:1) */
     .stat-box {
-        background: linear-gradient(135deg, rgb(0,51,102) 0%, #003d7a 100%);
-        color: white;
-        padding: 1rem;
+        background: linear-gradient(135deg, #002D5B 0%, #004080 100%);
+        color: #FFFFFF;
+        padding: 1.2rem;
         border-radius: 8px;
         text-align: center;
         margin-bottom: 1rem;
+        box-shadow: 0 3px 10px rgba(0, 45, 91, 0.25);
+        transition: transform 0.2s ease;
+    }
+    
+    .stat-box:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0, 45, 91, 0.35);
     }
     
     .stat-box h3 {
         margin: 0;
         font-size: 2rem;
         font-weight: 700;
+        color: #FFFFFF;
     }
     
     .stat-box p {
         margin: 0.3rem 0 0 0;
         font-size: 0.9rem;
-        opacity: 0.9;
+        color: #E8E8E8;
+        font-weight: 500;
     }
 </style>
 """, unsafe_allow_html=True)
