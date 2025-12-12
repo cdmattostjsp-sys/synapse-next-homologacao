@@ -285,10 +285,12 @@ with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
             comando_quick = "Adicione mais detalhes técnicos e especificações"
             st.session_state['comando_ia_rapido'] = comando_quick
             st.session_state['campo_comando_ia'] = comando_quick
+            st.rerun()
         if st.button("📊 Incluir métricas e indicadores", use_container_width=True, disabled=not secao_selecionada):
             comando_quick = "Inclua métricas quantitativas e indicadores mensuráveis"
             st.session_state['comando_ia_rapido'] = comando_quick
             st.session_state['campo_comando_ia'] = comando_quick
+            st.rerun()
     
     with col_cmd2:
         st.markdown("**&nbsp;**")
@@ -296,10 +298,12 @@ with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
             comando_quick = "Fortaleça a fundamentação legal com citações normativas"
             st.session_state['comando_ia_rapido'] = comando_quick
             st.session_state['campo_comando_ia'] = comando_quick
+            st.rerun()
         if st.button("🎯 Tornar mais objetivo e direto", use_container_width=True, disabled=not secao_selecionada):
             comando_quick = "Torne o texto mais objetivo e direto, eliminando redundâncias"
             st.session_state['comando_ia_rapido'] = comando_quick
             st.session_state['campo_comando_ia'] = comando_quick
+            st.rerun()
     
     # Campo de comando personalizado
     comando_personalizado = st.text_area(
