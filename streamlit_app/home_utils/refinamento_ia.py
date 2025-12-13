@@ -58,12 +58,14 @@ def render_refinamento_iterativo(
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd1_{artefato}"):
-                st.session_state[f'comando_ia_rapido_{artefato}'] = "Adicione mais detalhes técnicos e especificações"
+                st.session_state[f'comando_rapido_temp_{artefato}'] = "Adicione mais detalhes técnicos e especificações"
+                st.rerun()
             if st.button("📊 Incluir métricas e indicadores", 
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd2_{artefato}"):
-                st.session_state[f'comando_ia_rapido_{artefato}'] = "Inclua métricas quantitativas e indicadores mensuráveis"
+                st.session_state[f'comando_rapido_temp_{artefato}'] = "Inclua métricas quantitativas e indicadores mensuráveis"
+                st.rerun()
         
         with col_cmd2:
             st.markdown("**&nbsp;**")
@@ -71,20 +73,25 @@ def render_refinamento_iterativo(
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd3_{artefato}"):
-                st.session_state[f'comando_ia_rapido_{artefato}'] = "Fortaleça a fundamentação legal com citações normativas"
+                st.session_state[f'comando_rapido_temp_{artefato}'] = "Fortaleça a fundamentação legal com citações normativas"
+                st.rerun()
             if st.button("🎯 Tornar mais objetivo e direto", 
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd4_{artefato}"):
-                st.session_state[f'comando_ia_rapido_{artefato}'] = "Torne o texto mais objetivo e direto, eliminando redundâncias"
+                st.session_state[f'comando_rapido_temp_{artefato}'] = "Torne o texto mais objetivo e direto, eliminando redundâncias"
+                st.rerun()
+        
+        # Sincronizar comando rápido com campo de texto
+        valor_inicial = st.session_state.get(f'comando_rapido_temp_{artefato}', '')
         
         # Campo de comando personalizado
         comando_personalizado = st.text_area(
             "Ou digite um comando personalizado:",
-            value=st.session_state.get(f'comando_ia_rapido_{artefato}', ''),
+            value=valor_inicial,
             placeholder="Ex: 'Adicione justificativa baseada em economia de recursos'",
             height=80,
-            key=f"comando_ia_rapido_{artefato}"
+            key=f"campo_comando_{artefato}"
         )
         
         # Botão de execução
@@ -145,8 +152,9 @@ Responda com o texto refinado:"""
                             'depois': texto_refinado
                         }
                         
-                        # Limpar comando após sucesso
-                        st.session_state[f'comando_ia_rapido_{artefato}'] = ""
+                        # Limpar comando rápido após sucesso
+                        if f'comando_rapido_temp_{artefato}' in st.session_state:
+                            del st.session_state[f'comando_rapido_temp_{artefato}']
                         st.rerun()
                         
                 except Exception as e:
