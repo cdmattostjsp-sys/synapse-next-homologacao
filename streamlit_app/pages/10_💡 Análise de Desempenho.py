@@ -22,6 +22,7 @@ if str(ROOT) not in sys.path:
 # ==========================================================
 
 import streamlit as st
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
@@ -35,6 +36,7 @@ from utils.ui_style import aplicar_estilo_institucional, rodape_institucional
 from utils.analytics_pipeline import gerar_metricas_desempenho, carregar_historico_desempenho, obter_estatisticas_historico
 
 st.set_page_config(page_title="💡 Análise de Desempenho – SynapseNext", layout="wide")
+apply_sidebar_grouping()
 aplicar_estilo_institucional()
 
 # ==========================================================

@@ -20,6 +20,8 @@ from pathlib import Path
 # ==========================================================
 from utils.integration_insumos import processar_insumo
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.sidebar_organizer import apply_sidebar_grouping
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 
 # ==========================================================
 # ⚙️ Configuração inicial
@@ -34,7 +36,8 @@ st.set_page_config(
 # A manipulação manual do state no topo do script causava race condition
 # no Streamlit Cloud, resetando o arquivo enviado para None.
 
-# Aplicar estilo e cabeçalho institucional
+# Aplicar CSS da sidebar e estilo institucional
+apply_sidebar_grouping()
 aplicar_estilo_global()
 exibir_cabecalho_padrao(
     "🔧 Módulo de Insumos",

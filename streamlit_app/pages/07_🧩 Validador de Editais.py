@@ -23,6 +23,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 
 # Importar extração de texto (mesmo módulo usado em Insumos)
 try:
@@ -39,6 +40,7 @@ except ImportError:
 # ⚙️ Configuração de Página
 # ----------------------------------------------------------
 st.set_page_config(page_title="🧩 Validador de Editais", layout="wide", page_icon="🧩")
+apply_sidebar_grouping()
 aplicar_estilo_global()
 
 exibir_cabecalho_padrao(

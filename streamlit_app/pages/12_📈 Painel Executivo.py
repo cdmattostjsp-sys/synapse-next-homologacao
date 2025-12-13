@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 # ==========================================================
 
 import streamlit as st
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
@@ -47,6 +48,7 @@ st.set_page_config(
     layout="wide",
     page_icon="📈"
 )
+apply_sidebar_grouping()
 aplicar_estilo_institucional()
 
 # ==========================================================

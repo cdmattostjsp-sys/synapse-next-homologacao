@@ -18,6 +18,7 @@ from datetime import datetime
 import streamlit as st
 
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 from utils.integration_contrato import (
     processar_insumo_contrato,
     gerar_contrato_com_ia,
@@ -32,6 +33,7 @@ from home_utils.refinamento_ia import render_refinamento_iterativo
 # ⚙️ Configuração básica
 # ==========================================================
 st.set_page_config(page_title="📜 Contrato", layout="wide", page_icon="📜")
+apply_sidebar_grouping()
 aplicar_estilo_global()
 
 # ==========================================================

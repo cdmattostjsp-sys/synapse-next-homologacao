@@ -39,6 +39,7 @@ def apply_sidebar_grouping():
         margin: 0.15rem 0.5rem !important;
         padding: 0.5rem 0.75rem !important;
         transition: all 0.2s ease !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
         border-left: 3px solid transparent !important;
     }
     

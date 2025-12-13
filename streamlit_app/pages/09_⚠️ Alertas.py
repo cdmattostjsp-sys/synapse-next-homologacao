@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
 # ==========================================================
 
 import streamlit as st
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 import plotly.express as px
 import pandas as pd
 from datetime import datetime
@@ -34,6 +35,7 @@ from utils.alertas_pipeline import gerar_alertas_reais, carregar_historico, obte
 
 # Configuração da página Streamlit
 st.set_page_config(page_title="⚠️ Alertas – SynapseNext", layout="wide")
+apply_sidebar_grouping()
 aplicar_estilo_institucional()
 
 # ==========================================================

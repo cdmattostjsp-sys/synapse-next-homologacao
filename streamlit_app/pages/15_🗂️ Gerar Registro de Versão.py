@@ -39,12 +39,14 @@ st.set_page_config(
     layout="wide",
     page_icon="🗂️"
 )
+apply_sidebar_grouping()
 
 # ==========================================================
 # 🔧 Imports institucionais
 # ==========================================================
 try:
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 except Exception:
     aplicar_estilo_global = lambda: None
     exibir_cabecalho_padrao = lambda *a, **kw: None

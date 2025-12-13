@@ -29,6 +29,7 @@ import pandas as pd
 # ⚙️ Configuração da Página (DEVE SER O PRIMEIRO COMANDO ST)
 # ==========================================================
 st.set_page_config(page_title="🧾 Relatório Técnico Consolidado – SynapseNext", layout="wide", page_icon="🧾")
+apply_sidebar_grouping()
 
 # ==========================================================
 # 🔧 Imports de módulos institucionais
@@ -37,6 +38,7 @@ try:
     from utils.relatorio_consolidado_pipeline import coletar_dados_relatorio, gerar_relatorio_docx
     from utils.alertas_pipeline import gerar_alertas
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 except Exception as e:
     st.error(f"❌ Falha ao importar módulos institucionais: {e}")
     st.stop()

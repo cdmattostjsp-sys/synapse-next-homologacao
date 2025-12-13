@@ -21,6 +21,7 @@ if str(base_path) not in sys.path:
 # Imports principais
 # --------------------------------------------------------------
 import streamlit as st
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 from datetime import datetime
 
 # --------------------------------------------------------------
@@ -31,6 +32,7 @@ st.set_page_config(
     layout="wide",
     page_icon="📚"
 )
+apply_sidebar_grouping()
 
 # --------------------------------------------------------------
 # CSS Customizado - Acessibilidade WCAG 2.1 AA (Contraste 4.5:1+)

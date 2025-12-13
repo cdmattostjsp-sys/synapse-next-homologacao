@@ -23,6 +23,7 @@ from typing import Any, Dict, List
 from datetime import datetime
 
 import streamlit as st
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 from docx import Document
 
 from utils.integration_dfd import (
@@ -31,7 +32,6 @@ from utils.integration_dfd import (
     gerar_rascunho_dfd_com_ia,
     status_dfd,
 )
-from home_utils.refinamento_ia import render_refinamento_iterativo
 
 # ======================================================================
 # ⚙️ CONFIGURAÇÃO DA PÁGINA
@@ -40,6 +40,7 @@ st.set_page_config(
     page_title="📄 Formalização da Demanda (DFD)",
     layout="wide",
 )
+apply_sidebar_grouping()
 
 st.title("📄 Formalização da Demanda (DFD)")
 st.caption("📌 Preencha manualmente ou carregue dados processados do módulo 🔧 Insumos + IA")
@@ -261,16 +262,190 @@ with col_ia2:
             st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
 
 # ======================================================================
-# 🎨 REFINAMENTO ITERATIVO – Usando componente reutilizável
+# 🎨 REFINAMENTO ITERATIVO – Comandos IA por Seção (NOVO)
 # ======================================================================
-# Verificar se houve atualização via refinamento
-dfd_dados = render_refinamento_iterativo(
-    secoes_disponiveis=SECOES_DFD,
-    dados_atuais=dfd_dados if dfd_dados else {},
-    artefato="DFD",
-    campos_simples=["unidade_demandante", "responsavel", "prazo_estimado", 
-                   "valor_estimado", "descricao_necessidade", "motivacao", "texto_narrativo"]
-)
+with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
+    st.caption("💡 Use esta ferramenta para solicitar melhorias específicas em qualquer seção do DFD")
+    
+    # Dropdown para selecionar seção
+    secao_selecionada = st.selectbox(
+        "Selecione a seção a refinar:",
+        [""] + ["unidade_demandante", "responsavel", "prazo_estimado", "valor_estimado", 
+                "descricao_necessidade", "motivacao", "texto_narrativo"] + SECOES_DFD,
+        format_func=lambda x: "-- Selecione uma seção --" if x == "" else x
+    )
+    
+    # Comandos rápidos predefinidos
+    col_cmd1, col_cmd2 = st.columns(2)
+    with col_cmd1:
+        st.markdown("**Comandos Rápidos:**")
+        if st.button("➕ Adicionar mais detalhes técnicos", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Adicione mais detalhes técnicos e especificações"
+        if st.button("📊 Incluir métricas e indicadores", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Inclua métricas quantitativas e indicadores mensuráveis"
+    
+    with col_cmd2:
+        st.markdown("**&nbsp;**")
+        if st.button("⚖️ Melhorar fundamentação legal", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Fortaleça a fundamentação legal com citações normativas"
+        if st.button("🎯 Tornar mais objetivo e direto", use_container_width=True, disabled=not secao_selecionada):
+            st.session_state['comando_ia_rapido'] = "Torne o texto mais objetivo e direto, eliminando redundâncias"
+    
+    # Campo de comando personalizado
+    comando_personalizado = st.text_area(
+        "Ou digite um comando personalizado:",
+        value=st.session_state.get('comando_ia_rapido', ''),
+        placeholder="Ex: 'Adicione justificativa baseada em economia de recursos'",
+        height=80,
+        key="campo_comando_ia"
+    )
+    
+    # Limpar comando rápido após renderizar o campo
+    if 'comando_ia_rapido' in st.session_state and comando_personalizado:
+        del st.session_state['comando_ia_rapido']
+    
+    # Botão de execução
+    if st.button("✨ Executar Refinamento IA", type="primary", disabled=not secao_selecionada):
+        # Validação melhorada
+        comando_final = comando_personalizado.strip()
+        
+        if not secao_selecionada:
+            st.warning("⚠️ Selecione uma seção primeiro")
+        elif not comando_final:
+            st.warning("⚠️ Forneça um comando (use os botões rápidos ou digite)")
+        else:
+            try:
+                with st.spinner(f"🧠 Refinando seção '{secao_selecionada}'..."):
+                    # Obter conteúdo atual da seção
+                    if secao_selecionada in SECOES_DFD:
+                        conteudo_atual = dfd_dados.get("secoes", {}).get(secao_selecionada, "")
+                    else:
+                        conteudo_atual = dfd_dados.get(secao_selecionada, "")
+                    
+                    # Chamar IA para refinamento
+                    from utils.ai_client import AIClient
+                    ai = AIClient()
+                    
+                    prompt_refinamento = f"""Você está refinando a seção '{secao_selecionada}' de um DFD institucional.
+
+CONTEÚDO ATUAL:
+{conteudo_atual}
+
+COMANDO DO USUÁRIO:
+{comando_final}
+
+INSTRUÇÕES:
+1. Mantenha o contexto e informações existentes
+2. Aplique APENAS a melhoria solicitada
+3. Retorne SOMENTE o texto refinado, sem explicações
+4. Mantenha formatação profissional e institucional
+5. Não invente informações, apenas reorganize/expanda as existentes
+
+Responda com o texto refinado:"""
+                    
+                    resultado = ai.ask(
+                        prompt=prompt_refinamento,
+                        conteudo="",
+                        artefato="refinamento_dfd"
+                    )
+                    
+                    # Extrair texto refinado (melhorado para lidar com diferentes formatos)
+                    texto_refinado = ""
+                    
+                    if isinstance(resultado, dict):
+                        # Caso 1: {'refinamento_dfd': {'campo': 'valor'}}
+                        if 'refinamento_dfd' in resultado:
+                            refinamento_data = resultado['refinamento_dfd']
+                            if isinstance(refinamento_data, dict):
+                                # Pegar o valor do campo específico
+                                texto_refinado = refinamento_data.get(secao_selecionada, "")
+                                # Se não encontrou, pegar o primeiro valor não-vazio
+                                if not texto_refinado:
+                                    for valor in refinamento_data.values():
+                                        if isinstance(valor, str) and valor.strip():
+                                            texto_refinado = valor
+                                            break
+                            elif isinstance(refinamento_data, str):
+                                texto_refinado = refinamento_data
+                        
+                        # Caso 2: campos diretos no dict
+                        if not texto_refinado:
+                            texto_refinado = (
+                                resultado.get("resposta") or 
+                                resultado.get("content") or 
+                                resultado.get("texto") or 
+                                resultado.get(secao_selecionada) or
+                                ""
+                            )
+                        
+                        # Caso 3: se ainda vazio, converter dict para string
+                        if not texto_refinado:
+                            import json
+                            texto_refinado = json.dumps(resultado, ensure_ascii=False, indent=2)
+                    else:
+                        texto_refinado = str(resultado)
+                    
+                    # Limpar formatação
+                    texto_refinado = texto_refinado.strip()
+                    
+                    # Salvar no session_state para persistir o preview
+                    st.session_state['refinamento_preview'] = {
+                        'secao': secao_selecionada,
+                        'antes': conteudo_atual,
+                        'depois': texto_refinado
+                    }
+                    
+            except Exception as e:
+                st.error(f"❌ Erro ao refinar: {e}")
+    
+    # Mostrar preview SE existir no session_state (fora do botão Executar)
+    if 'refinamento_preview' in st.session_state:
+        preview = st.session_state['refinamento_preview']
+        
+        st.success("✨ Refinamento concluído! Veja o resultado:")
+        
+        col_antes, col_depois = st.columns(2)
+        with col_antes:
+            st.markdown("**📝 Antes:**")
+            st.info(preview['antes'] if preview['antes'] else "_[Vazio]_")
+        
+        with col_depois:
+            st.markdown("**✨ Depois (preview):**")
+            st.success(preview['depois'])
+        
+        # Botões de ação
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 1])
+        
+        with col_btn1:
+            if st.button("✅ Aplicar Refinamento", type="primary", use_container_width=True):
+                # Atualizar dados na sessão
+                secao = preview['secao']
+                texto = preview['depois']
+                
+                if secao in SECOES_DFD:
+                    if "secoes" not in dfd_dados:
+                        dfd_dados["secoes"] = {}
+                    dfd_dados["secoes"][secao] = texto
+                else:
+                    dfd_dados[secao] = texto
+                
+                st.session_state["dfd_campos_ai"] = dfd_dados
+                
+                # Limpar preview
+                del st.session_state['refinamento_preview']
+                
+                st.success("✅ Refinamento aplicado!")
+                st.rerun()
+        
+        with col_btn2:
+            if st.button("📋 Copiar Texto Refinado", use_container_width=True):
+                st.code(preview['depois'], language=None)
+                st.info("💡 Use Ctrl+C para copiar o texto acima")
+        
+        with col_btn3:
+            if st.button("❌ Cancelar", use_container_width=True):
+                del st.session_state['refinamento_preview']
+                st.rerun()
 
 st.markdown("---")
 

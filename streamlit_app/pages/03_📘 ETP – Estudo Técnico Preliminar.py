@@ -20,12 +20,14 @@ import streamlit as st
 # ==========================================================
 from utils.integration_etp import obter_etp_da_sessao, status_etp, salvar_etp_em_json, gerar_etp_com_ia
 from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 from home_utils.refinamento_ia import render_refinamento_iterativo
 
 # ==========================================================
 # ⚙️ Configuração inicial
 # ==========================================================
 st.set_page_config(page_title="📘 ETP – Estudo Técnico Preliminar", layout="wide", page_icon="📘")
+apply_sidebar_grouping()
 aplicar_estilo_global()
 
 exibir_cabecalho_padrao(

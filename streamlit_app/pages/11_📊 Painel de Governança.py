@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 # ==========================================================
 
 import streamlit as st
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 import pandas as pd
 import plotly.express as px
 import sys, os
@@ -28,6 +29,7 @@ st.set_page_config(
     page_title="📊 Painel de Governança – SynapseNext",
     layout="wide"
 )
+apply_sidebar_grouping()
 aplicar_estilo_institucional()
 
 # ==========================================================
