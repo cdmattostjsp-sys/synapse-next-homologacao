@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
 # Import do Streamlit
 import streamlit as st
 import pandas as pd
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 
 # ==========================================================
 # ⚙️ Configuração da Página (DEVE SER O PRIMEIRO COMANDO ST)
@@ -38,7 +39,6 @@ try:
     from utils.relatorio_consolidado_pipeline import coletar_dados_relatorio, gerar_relatorio_docx
     from utils.alertas_pipeline import gerar_alertas
     from utils.ui_components import aplicar_estilo_global, exibir_cabecalho_padrao
-from home_utils.sidebar_organizer import apply_sidebar_grouping
 except Exception as e:
     st.error(f"❌ Falha ao importar módulos institucionais: {e}")
     st.stop()
