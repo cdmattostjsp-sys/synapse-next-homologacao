@@ -84,7 +84,7 @@ def render_refinamento_iterativo(
             value=st.session_state.get(f'comando_ia_rapido_{artefato}', ''),
             placeholder="Ex: 'Adicione justificativa baseada em economia de recursos'",
             height=80,
-            key=f"campo_comando_ia_{artefato}"
+            key=f"comando_ia_rapido_{artefato}"
         )
         
         # Botão de execução
@@ -100,10 +100,6 @@ def render_refinamento_iterativo(
             elif not comando_final:
                 st.warning("⚠️ Forneça um comando (use os botões rápidos ou digite)")
             else:
-                # Limpar comando rápido ANTES de processar
-                if f'comando_ia_rapido_{artefato}' in st.session_state:
-                    del st.session_state[f'comando_ia_rapido_{artefato}']
-                
                 try:
                     with st.spinner(f"🧠 Refinando seção '{secao_selecionada}'..."):
                         # Obter conteúdo atual da seção
@@ -148,6 +144,10 @@ Responda com o texto refinado:"""
                             'antes': conteudo_atual,
                             'depois': texto_refinado
                         }
+                        
+                        # Limpar comando após sucesso
+                        st.session_state[f'comando_ia_rapido_{artefato}'] = ""
+                        st.rerun()
                         
                 except Exception as e:
                     st.error(f"❌ Erro ao refinar: {e}")
