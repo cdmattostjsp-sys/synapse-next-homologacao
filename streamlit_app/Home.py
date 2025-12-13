@@ -40,6 +40,7 @@ from home_utils.home_components import (
     render_manuais_section,
     render_footer
 )
+from home_utils.sidebar_organizer import apply_sidebar_grouping
 
 # --------------------------------------------------------------
 # Configuração da página
@@ -66,6 +67,9 @@ LOGO_BASE64 = get_base64_image(LOGO_PATH)
 # ==============================================================
 # ESTRUTURA MODULAR DA PÁGINA (REFATORADO v6)
 # ==============================================================
+
+# Aplica agrupamento visual na sidebar (CSS Injection)
+apply_sidebar_grouping()
 
 # Renderiza estilos CSS customizados
 render_custom_css()
