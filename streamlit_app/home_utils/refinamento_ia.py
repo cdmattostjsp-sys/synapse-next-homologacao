@@ -50,6 +50,11 @@ def render_refinamento_iterativo(
             key=f"refinamento_{artefato}_secao"
         )
         
+        # Sincronizar comando rápido ANTES de renderizar botões
+        if f'comando_rapido_temp_{artefato}' in st.session_state:
+            st.session_state[f"campo_comando_{artefato}"] = st.session_state[f'comando_rapido_temp_{artefato}']
+            del st.session_state[f'comando_rapido_temp_{artefato}']
+        
         # Comandos rápidos predefinidos
         col_cmd1, col_cmd2 = st.columns(2)
         with col_cmd1:
@@ -82,17 +87,21 @@ def render_refinamento_iterativo(
                 st.session_state[f'comando_rapido_temp_{artefato}'] = "Torne o texto mais objetivo e direto, eliminando redundâncias"
                 st.rerun()
         
-        # Sincronizar comando rápido com campo de texto
-        valor_inicial = st.session_state.get(f'comando_rapido_temp_{artefato}', '')
-        
-        # Campo de comando personalizado
+        # Campo de comando personalizado (usa key diretamente para sincronização)
         comando_personalizado = st.text_area(
             "Ou digite um comando personalizado:",
-            value=valor_inicial,
             placeholder="Ex: 'Adicione justificativa baseada em economia de recursos'",
             height=80,
             key=f"campo_comando_{artefato}"
         )
+        
+        # DEBUG TEMPORÁRIO
+        with st.expander("🐛 Debug (remover depois)", expanded=False):
+            st.write(f"**Session State Keys relacionadas a {artefato}:**")
+            debug_keys = {k: v for k, v in st.session_state.items() if artefato.lower() in k.lower()}
+            st.json(debug_keys)
+            st.write(f"**comando_personalizado value:** `{comando_personalizado}`")
+            st.write(f"**comando_personalizado stripped:** `{comando_personalizado.strip()}`")
         
         # Botão de execução
         if st.button("✨ Executar Refinamento IA", 
