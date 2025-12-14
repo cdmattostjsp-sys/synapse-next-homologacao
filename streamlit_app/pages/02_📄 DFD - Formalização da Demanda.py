@@ -245,7 +245,7 @@ dfd_dados = obter_dfd_da_sessao()
 # ======================================================================
 st.subheader("✨ Assistente IA")
 
-col_ia1, col_ia2 = st.columns([3, 1])
+col_ia1, col_ia2, col_ia3 = st.columns([2, 1, 1])
 with col_ia1:
     st.info("🧠 Processamento automático: requer documentos enviados no módulo **🔧 Insumos**")
 with col_ia2:
@@ -261,6 +261,37 @@ with col_ia2:
                 st.warning("⚠️ A IA não conseguiu gerar um DFD estruturado. Verifique se há insumos processados no módulo **🔧 Insumos**.")
         except Exception as e:
             st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
+
+with col_ia3:
+    if st.button("📤 Enviar para ETP", use_container_width=True, disabled=not dfd_dados):
+        try:
+            import os
+            from datetime import datetime
+            
+            # Criar diretório se não existir
+            base = os.path.join("exports", "insumos", "json")
+            os.makedirs(base, exist_ok=True)
+            
+            # Preparar payload estruturado para o ETP
+            payload = {
+                "artefato": "ETP",
+                "origem": "DFD_estruturado",
+                "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "ok",
+                "campos_ai": dfd_dados,  # Dados estruturados completos
+                "conteudo_textual": dfd_dados.get("texto_narrativo", ""),  # Texto narrativo
+            }
+            
+            # Salvar como ETP_ultimo.json
+            arq_ultimo = os.path.join(base, "ETP_ultimo.json")
+            with open(arq_ultimo, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            
+            st.success("✅ DFD enviado para o ETP com estrutura preservada!")
+            st.info("👉 Acesse o módulo **📘 ETP** para continuar o preenchimento")
+            
+        except Exception as e:
+            st.error(f"❌ Erro ao enviar para ETP: {e}")
 
 # ======================================================================
 # 🎨 REFINAMENTO ITERATIVO – Comandos IA por Seção (NOVO)
