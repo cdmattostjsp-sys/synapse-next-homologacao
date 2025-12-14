@@ -36,6 +36,13 @@ def render_refinamento_iterativo(
         ]
     
     # ======================================================================
+    # Sincronização ANTES do expander (para funcionar após st.rerun)
+    # ======================================================================
+    if f'comando_rapido_temp_{artefato}' in st.session_state:
+        st.session_state[f"campo_comando_{artefato}"] = st.session_state[f'comando_rapido_temp_{artefato}']
+        del st.session_state[f'comando_rapido_temp_{artefato}']
+    
+    # ======================================================================
     # Interface de Refinamento
     # ======================================================================
     with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
@@ -49,11 +56,6 @@ def render_refinamento_iterativo(
             format_func=lambda x: "-- Selecione uma seção --" if x == "" else x,
             key=f"refinamento_{artefato}_secao"
         )
-        
-        # Sincronizar comando rápido ANTES de renderizar botões
-        if f'comando_rapido_temp_{artefato}' in st.session_state:
-            st.session_state[f"campo_comando_{artefato}"] = st.session_state[f'comando_rapido_temp_{artefato}']
-            del st.session_state[f'comando_rapido_temp_{artefato}']
         
         # Comandos rápidos predefinidos
         col_cmd1, col_cmd2 = st.columns(2)
@@ -94,14 +96,6 @@ def render_refinamento_iterativo(
             height=80,
             key=f"campo_comando_{artefato}"
         )
-        
-        # DEBUG TEMPORÁRIO
-        with st.expander("🐛 Debug (remover depois)", expanded=False):
-            st.write(f"**Session State Keys relacionadas a {artefato}:**")
-            debug_keys = {k: v for k, v in st.session_state.items() if artefato.lower() in k.lower()}
-            st.json(debug_keys)
-            st.write(f"**comando_personalizado value:** `{comando_personalizado}`")
-            st.write(f"**comando_personalizado stripped:** `{comando_personalizado.strip()}`")
         
         # Botão de execução
         if st.button("✨ Executar Refinamento IA", 
