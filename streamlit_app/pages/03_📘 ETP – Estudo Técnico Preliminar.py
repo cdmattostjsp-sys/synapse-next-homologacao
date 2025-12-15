@@ -287,44 +287,114 @@ with tab5:
 
 st.divider()
 
-# Botão de salvar manual
-if st.button("Salvar ETP", type="secondary", use_container_width=True):
-    etp_completo = {
-        "unidade_demandante": unidade,
-        "responsavel": responsavel,
-        "prazo_estimado": prazo,
-        "valor_estimado": valor,
-        "secoes": {
-            "objeto": st.session_state.get("s1", ""),
-            "descricao_necessidade": st.session_state.get("s2", ""),
-            "previsao_pca": st.session_state.get("s3", ""),
-            "planejamento_estrategico": st.session_state.get("s4", ""),
-            "catalogo_padronizacao": st.session_state.get("s5", ""),
-            "requisitos_contratacao": st.session_state.get("s6", ""),
-            "condicoes_recebimento": st.session_state.get("s7", ""),
-            "condicoes_execucao_pagamento": st.session_state.get("s8", ""),
-            "garantias": st.session_state.get("s9", ""),
-            "modalidade_licitacao": st.session_state.get("s10", ""),
-            "estimativa_quantidades": st.session_state.get("s11", ""),
-            "levantamento_mercado": st.session_state.get("s12", ""),
-            "estimativa_valor": st.session_state.get("s13", ""),
-            "descricao_solucao": st.session_state.get("s14", ""),
-            "justificativa_parcelamento": st.session_state.get("s15", ""),
-            "resultados_pretendidos": st.session_state.get("s16", ""),
-            "providencias_previas": st.session_state.get("s17", ""),
-            "contratacoes_correlatas": st.session_state.get("s18", ""),
-            "impactos_ambientais": st.session_state.get("s19", ""),
-            "possibilidade_compra_locacao": st.session_state.get("s20", ""),
-            "participacao_consorcio": st.session_state.get("s21", ""),
-            "vistoria_visita_tecnica": st.session_state.get("s22", ""),
-            "cumprimento_resolucoes_cnj": st.session_state.get("s23", ""),
-            "plano_riscos": st.session_state.get("s24", ""),
-            "equipe_planejamento": st.session_state.get("s25", ""),
-            "estimativa_prazo_vigencia": st.session_state.get("s26", ""),
-            "avaliacao_conclusiva": st.session_state.get("s27", "")
+# Botões de ação
+col_salvar, col_baixar = st.columns(2)
+
+with col_salvar:
+    if st.button("Salvar ETP", type="secondary", use_container_width=True):
+        etp_completo = {
+            "unidade_demandante": unidade,
+            "responsavel": responsavel,
+            "prazo_estimado": prazo,
+            "valor_estimado": valor,
+            "secoes": {
+                "objeto": st.session_state.get("s1", ""),
+                "descricao_necessidade": st.session_state.get("s2", ""),
+                "previsao_pca": st.session_state.get("s3", ""),
+                "planejamento_estrategico": st.session_state.get("s4", ""),
+                "catalogo_padronizacao": st.session_state.get("s5", ""),
+                "requisitos_contratacao": st.session_state.get("s6", ""),
+                "condicoes_recebimento": st.session_state.get("s7", ""),
+                "condicoes_execucao_pagamento": st.session_state.get("s8", ""),
+                "garantias": st.session_state.get("s9", ""),
+                "modalidade_licitacao": st.session_state.get("s10", ""),
+                "estimativa_quantidades": st.session_state.get("s11", ""),
+                "levantamento_mercado": st.session_state.get("s12", ""),
+                "estimativa_valor": st.session_state.get("s13", ""),
+                "descricao_solucao": st.session_state.get("s14", ""),
+                "justificativa_parcelamento": st.session_state.get("s15", ""),
+                "resultados_pretendidos": st.session_state.get("s16", ""),
+                "providencias_previas": st.session_state.get("s17", ""),
+                "contratacoes_correlatas": st.session_state.get("s18", ""),
+                "impactos_ambientais": st.session_state.get("s19", ""),
+                "possibilidade_compra_locacao": st.session_state.get("s20", ""),
+                "participacao_consorcio": st.session_state.get("s21", ""),
+                "vistoria_visita_tecnica": st.session_state.get("s22", ""),
+                "cumprimento_resolucoes_cnj": st.session_state.get("s23", ""),
+                "plano_riscos": st.session_state.get("s24", ""),
+                "equipe_planejamento": st.session_state.get("s25", ""),
+                "estimativa_prazo_vigencia": st.session_state.get("s26", ""),
+                "avaliacao_conclusiva": st.session_state.get("s27", "")
+            }
         }
-    }
-    salvar_etp_em_json(etp_completo, origem="formulario_manual")
-    st.success("ETP salvo com sucesso")
+        salvar_etp_em_json(etp_completo, origem="formulario_manual")
+        st.success("ETP salvo com sucesso")
+
+with col_baixar:
+    if st.button("Baixar ETP (DOCX)", use_container_width=True):
+        doc = Document()
+        
+        doc.add_heading("Estudo Técnico Preliminar (ETP)", level=1)
+        doc.add_paragraph("Lei 14.133/2021 - Nova Lei de Licitações")
+        
+        # Dados Administrativos
+        doc.add_heading("Dados Administrativos", level=2)
+        doc.add_paragraph(f"Unidade Demandante: {unidade}")
+        doc.add_paragraph(f"Responsável: {responsavel}")
+        doc.add_paragraph(f"Prazo Estimado: {prazo}")
+        doc.add_paragraph(f"Valor Estimado: R$ {valor}")
+        
+        # 27 Seções estruturadas
+        doc.add_heading("Seções do ETP", level=2)
+        
+        secoes_nomes = [
+            ("1. Objeto", "s1"),
+            ("2. Descrição da Necessidade", "s2"),
+            ("3. Previsão no PCA", "s3"),
+            ("4. Planejamento Estratégico", "s4"),
+            ("5. Catálogo e Padronização", "s5"),
+            ("6. Requisitos da Contratação", "s6"),
+            ("7. Condições de Recebimento", "s7"),
+            ("8. Condições de Execução e Pagamento", "s8"),
+            ("9. Garantias", "s9"),
+            ("10. Modalidade de Licitação", "s10"),
+            ("11. Estimativa de Quantidades", "s11"),
+            ("12. Levantamento de Mercado", "s12"),
+            ("13. Estimativa de Valor", "s13"),
+            ("14. Descrição da Solução", "s14"),
+            ("15. Justificativa de Parcelamento", "s15"),
+            ("16. Resultados Pretendidos", "s16"),
+            ("17. Providências Prévias", "s17"),
+            ("18. Contratações Correlatas", "s18"),
+            ("19. Impactos Ambientais", "s19"),
+            ("20. Possibilidade de Compra/Locação", "s20"),
+            ("21. Participação em Consórcio", "s21"),
+            ("22. Vistoria/Visita Técnica", "s22"),
+            ("23. Cumprimento de Resoluções CNJ", "s23"),
+            ("24. Plano de Riscos", "s24"),
+            ("25. Equipe de Planejamento", "s25"),
+            ("26. Estimativa de Prazo de Vigência", "s26"),
+            ("27. Avaliação Conclusiva", "s27")
+        ]
+        
+        for nome, key in secoes_nomes:
+            doc.add_heading(nome, level=3)
+            conteudo = st.session_state.get(key, "")
+            if conteudo and conteudo.strip():
+                doc.add_paragraph(conteudo)
+            else:
+                doc.add_paragraph("[Não preenchido]")
+        
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        st.download_button(
+            label="⬇️ Download DOCX (ETP completo)",
+            data=buffer,
+            file_name="ETP_completo_Lei14133.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
 
 st.caption("Dica: Use o Assistente IA para preencher automaticamente as 27 seções a partir dos insumos carregados")
