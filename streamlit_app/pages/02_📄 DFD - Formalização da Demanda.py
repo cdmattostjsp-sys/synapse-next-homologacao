@@ -43,39 +43,82 @@ st.set_page_config(
 )
 apply_sidebar_grouping()
 
-st.title("Formalização da Demanda (DFD)")
-st.caption("Preencha manualmente ou carregue dados processados do módulo Insumos")
-st.info(status_dfd())
-
-# Estilo institucional SAAB
+# Estilo institucional PJe-inspired
 st.markdown("""
 <style>
-/* Bloco de IA - destaque institucional discreto */
+/* Título principal - tamanho reduzido para sobriedade */
+h1 {
+    font-size: 1.8rem !important;
+    font-weight: 500 !important;
+    color: #2c3e50 !important;
+    margin-bottom: 0.3rem !important;
+}
+/* Caption institucional */
+.caption {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+/* Bloco de IA - destaque sutil */
 .ia-block {
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 1.2rem;
-    background-color: #fafafa;
-    margin: 1rem 0 1.5rem 0;
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 1rem 1.2rem;
+    background-color: #f6f8fa;
+    margin: 1rem 0 1.2rem 0;
 }
 .ia-block h3 {
-    font-size: 1.1rem;
-    font-weight: 500;
-    color: #2c3e50;
-    margin: 0 0 0.8rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.6rem 0;
+    letter-spacing: -0.01em;
 }
-/* Botões institucionais */
+/* Seções com fundo cinza leve */
+h3 {
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    background-color: #f3f4f6 !important;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 3px !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+/* Botões - destaque apenas para ações principais */
 div.stButton > button {
-    border-radius: 4px;
+    border-radius: 3px;
     font-weight: 500;
+    border: 1px solid #d0d7de;
 }
-/* Formulário - aspecto clean */
+div.stButton > button[kind="primary"] {
+    background-color: #0969da !important;
+    border-color: #0969da !important;
+}
+/* Formulário clean */
 .stTextInput label, .stTextArea label {
     font-weight: 500;
-    color: #2c3e50;
+    color: #1f2937;
+    font-size: 0.9rem;
+}
+/* Expander refinamento com destaque discreto */
+details {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0.5rem;
+    background-color: #ffffff;
+}
+summary {
+    font-weight: 500;
+    color: #0969da;
+    cursor: pointer;
 }
 </style>
 """, unsafe_allow_html=True)
+
+st.markdown("<h1>Formalização da Demanda (DFD)</h1>", unsafe_allow_html=True)
+st.markdown("<p class='caption'>Preencha manualmente ou carregue dados do módulo Insumos</p>", unsafe_allow_html=True)
+st.info(status_dfd())
 
 # ======================================================================
 # 📚 Constantes – padrão Moderno-Governança (11 seções)
@@ -275,14 +318,12 @@ dfd_dados = obter_dfd_da_sessao()
 # ======================================================================
 st.markdown('<div class="ia-block">', unsafe_allow_html=True)
 st.markdown("### Assistente IA")
-
-col_info = st.columns(1)[0]
-col_info.caption("Processamento automático: requer documentos enviados no módulo Insumos")
+st.caption("Processamento automático: requer documentos no módulo Insumos")
 
 col_ia1, col_ia2, col_ia3 = st.columns(3)
 
 with col_ia1:
-    if st.button("⚙ Gerar rascunho automático", use_container_width=True, key="btn_ia_gerar"):
+    if st.button("Gerar rascunho automático", use_container_width=True, type="primary", key="btn_ia_gerar"):
         try:
             with st.spinner("Processando documento..."):
                 dfd_ai = gerar_rascunho_dfd_com_ia()
@@ -324,7 +365,7 @@ with col_ia2:
             st.error(f"Erro: {e}")
 
 with col_ia3:
-    st.caption("_Refinamento por seção disponível abaixo_")
+    st.write("")  # Espaçamento
 
 st.markdown('</div>', unsafe_allow_html=True)
 
