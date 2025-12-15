@@ -26,67 +26,71 @@ from home_utils.refinamento_ia import render_refinamento_iterativo
 # ==========================================================
 # ⚙️ Configuração inicial
 # ==========================================================
-st.set_page_config(page_title="📘 ETP – Estudo Técnico Preliminar", layout="wide", page_icon="📘")
+st.set_page_config(page_title="ETP – Estudo Técnico Preliminar", layout="wide")
 apply_sidebar_grouping()
-aplicar_estilo_global()
 
-exibir_cabecalho_padrao(
-    "📘 Estudo Técnico Preliminar (ETP)",
-    "Pré-preenchimento automático a partir de insumos + validação IA institucional"
-)
-st.divider()
-
-# ==========================================================
-# 🔍 Carregamento automático (sessão + fallback persistente)
-# ==========================================================
+st.title("Estudo Técnico Preliminar (ETP)")
+st.caption("Pré-preenchimento automático a partir de insumos ou preenchimento manual")
 st.info(status_etp())
-defaults = obter_etp_da_sessao()
 
-if defaults:
-    st.success("📎 Campos do ETP carregados automaticamente do módulo INSUMOS.")
-else:
-    st.info("Nenhum insumo ativo encontrado. Você pode preencher manualmente ou enviar um documento na aba **🔧 Insumos**.")
-
-# ==========================================================
-# 🎨 Estilo institucional SAAB – botões
-# ==========================================================
+# Estilo institucional SAAB
 st.markdown("""
 <style>
-div.stButton > button:first-child {
-    background-color: #003366 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    height: 2.8em !important;
-    font-weight: 500 !important;
+/* Bloco de IA - destaque institucional discreto */
+.ia-block {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1.2rem;
+    background-color: #fafafa;
+    margin: 1rem 0 1.5rem 0;
 }
-div.stButton > button:first-child:hover {
-    background-color: #002244 !important;
-    color: white !important;
-    transition: 0.2s;
+.ia-block h3 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #2c3e50;
+    margin: 0 0 0.8rem 0;
+}
+/* Botões institucionais */
+div.stButton > button {
+    border-radius: 4px;
+    font-weight: 500;
+}
+/* Formulário - aspecto clean */
+.stTextInput label, .stTextArea label {
+    font-weight: 500;
+    color: #2c3e50;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================================
-# 🧾 Formulário ETP Estruturado (27 Seções Lei 14.133/2021)
-# ==========================================================
-st.subheader("📋 Estudo Técnico Preliminar Estruturado")
+defaults = obter_etp_da_sessao()
 
-# Botão de processamento IA no topo
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.info("📊 Preencha as seções abaixo ou clique em 'Processar com IA' para preenchimento automático")
-with col2:
-    if st.button("✨ Processar com IA", type="primary", use_container_width=True):
-        st.info("🧠 Executando agente ETP especializado...")
+if defaults:
+    st.success("Campos carregados do módulo anterior")
+else:
+    st.info("Preencha manualmente ou envie documento no módulo Insumos")
+
+# ==========================================================
+# ASSISTENTE IA – Ferramentas de automação
+# ==========================================================
+st.markdown('<div class="ia-block">', unsafe_allow_html=True)
+st.markdown("### Assistente IA")
+
+col_info = st.columns(1)[0]
+col_info.caption("Processamento automático: requer insumos do módulo anterior ou documentos enviados")
+
+col_ia1, col_ia2, col_ia3 = st.columns(3)
+
+with col_ia1:
+    if st.button("⚙ Processar com IA", use_container_width=True, key="btn_ia_processar"):
         try:
-            resultado = gerar_etp_com_ia()
+            with st.spinner("Processando documento..."):
+                resultado = gerar_etp_com_ia()
             
             if resultado:
-                st.success("✅ ETP estruturado com sucesso!")
+                st.success("ETP estruturado com sucesso")
                 
-                # Exibir dados administrativos extraídos
+                # Exibir resumo
                 col_a, col_b, col_c, col_d = st.columns(4)
                 with col_a:
                     st.metric("Unidade", (resultado.get("unidade_demandante", "N/A")[:25] + "...") if len(resultado.get("unidade_demandante", "")) > 25 else resultado.get("unidade_demandante", "N/A"))
@@ -97,20 +101,51 @@ with col2:
                 with col_d:
                     st.metric("Valor", f"R$ {resultado.get('valor_estimado', '0,00')}")
                 
-                # Contar seções preenchidas
                 secoes = resultado.get("secoes", {})
                 secoes_preenchidas = sum(1 for v in secoes.values() if v and v.strip())
-                st.info(f"📊 Seções preenchidas: {secoes_preenchidas}/27")
+                st.info(f"Seções preenchidas: {secoes_preenchidas}/27")
                 
                 st.rerun()
             else:
-                st.warning("⚠️ Nenhum dado foi gerado. Verifique se há um insumo carregado.")
+                st.warning("Nenhum insumo encontrado")
                 
         except Exception as e:
-            st.error(f"❌ Erro: {e}")
+            st.error(f"Erro ao processar: {e}")
+
+with col_ia2:
+    if st.button("Enviar para TR", use_container_width=True, disabled=not defaults, key="btn_enviar_tr"):
+        try:
+            from datetime import datetime
+            
+            base = os.path.join("exports", "insumos", "json")
+            os.makedirs(base, exist_ok=True)
+            
+            payload = {
+                "artefato": "TR",
+                "origem": "ETP_estruturado",
+                "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "ok",
+                "campos_ai": defaults,
+                "conteudo_textual": "",  # TR não precisa de texto narrativo
+            }
+            
+            arq_ultimo = os.path.join(base, "TR_ultimo.json")
+            with open(arq_ultimo, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            
+            st.success("Dados enviados para o módulo TR")
+            st.info("Acesse o módulo TR para continuar")
+            
+        except Exception as e:
+            st.error(f"Erro: {e}")
+
+with col_ia3:
+    st.caption("_Refinamento por seção disponível abaixo_")
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================================
-# 🎨 REFINAMENTO ITERATIVO (NOVO)
+# REFINAMENTO ITERATIVO
 # ==========================================================
 # Definir seções do ETP
 SECOES_ETP = [
@@ -139,7 +174,7 @@ st.divider()
 secoes = defaults.get("secoes", {}) if isinstance(defaults.get("secoes"), dict) else {}
 
 # Dados administrativos
-st.markdown("### 📋 Dados Administrativos")
+st.markdown("### Dados Administrativos")
 col1, col2 = st.columns(2)
 with col1:
     unidade = st.text_input("Unidade Demandante", value=defaults.get("unidade_demandante", ""))
@@ -151,15 +186,15 @@ with col2:
 st.divider()
 
 # 27 Seções estruturadas em tabs
-st.markdown("### 📑 27 Seções do ETP (Lei 14.133/2021)")
+st.markdown("### Seções do ETP (Lei 14.133/2021)")
 
 # Criar 5 grupos de tabs para organizar melhor
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📄 Seções 1-6", 
-    "📄 Seções 7-12", 
-    "📄 Seções 13-18", 
-    "📄 Seções 19-24", 
-    "📄 Seções 25-27"
+    "Seções 1-6", 
+    "Seções 7-12", 
+    "Seções 13-18", 
+    "Seções 19-24", 
+    "Seções 25-27"
 ])
 
 with tab1:
@@ -202,7 +237,7 @@ with tab5:
 st.divider()
 
 # Botão de salvar manual
-if st.button("💾 Salvar ETP", type="secondary", use_container_width=True):
+if st.button("Salvar ETP", type="secondary", use_container_width=True):
     etp_completo = {
         "unidade_demandante": unidade,
         "responsavel": responsavel,
@@ -239,7 +274,6 @@ if st.button("💾 Salvar ETP", type="secondary", use_container_width=True):
         }
     }
     salvar_etp_em_json(etp_completo, origem="formulario_manual")
-    st.success("✅ ETP salvo com sucesso!")
-    st.balloons()
+    st.success("ETP salvo com sucesso")
 
-st.caption("💡 **Dica**: Clique em 'Processar com IA' para preencher automaticamente todas as 27 seções a partir do documento carregado no módulo INSUMOS.")
+st.caption("Dica: Use o Assistente IA para preencher automaticamente as 27 seções a partir dos insumos carregados")
