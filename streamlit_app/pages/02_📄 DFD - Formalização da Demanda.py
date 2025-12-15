@@ -43,9 +43,39 @@ st.set_page_config(
 )
 apply_sidebar_grouping()
 
-st.title("📄 Formalização da Demanda (DFD)")
-st.caption("📌 Preencha manualmente ou carregue dados processados do módulo 🔧 Insumos + IA")
+st.title("Formalização da Demanda (DFD)")
+st.caption("Preencha manualmente ou carregue dados processados do módulo Insumos")
 st.info(status_dfd())
+
+# Estilo institucional SAAB
+st.markdown("""
+<style>
+/* Bloco de IA - destaque institucional discreto */
+.ia-block {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1.2rem;
+    background-color: #fafafa;
+    margin: 1rem 0 1.5rem 0;
+}
+.ia-block h3 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #2c3e50;
+    margin: 0 0 0.8rem 0;
+}
+/* Botões institucionais */
+div.stButton > button {
+    border-radius: 4px;
+    font-weight: 500;
+}
+/* Formulário - aspecto clean */
+.stTextInput label, .stTextArea label {
+    font-weight: 500;
+    color: #2c3e50;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ======================================================================
 # 📚 Constantes – padrão Moderno-Governança (11 seções)
@@ -241,60 +271,65 @@ def _montar_texto_narrativo_inicial(
 dfd_dados = obter_dfd_da_sessao()
 
 # ======================================================================
-# ✨ ASSISTENTE IA – Geração de rascunho a partir do insumo
+# ASSISTENTE IA – Ferramentas de automação
 # ======================================================================
-st.subheader("✨ Assistente IA")
+st.markdown('<div class="ia-block">', unsafe_allow_html=True)
+st.markdown("### Assistente IA")
 
-col_ia1, col_ia2, col_ia3 = st.columns([2, 1, 1])
+col_info = st.columns(1)[0]
+col_info.caption("Processamento automático: requer documentos enviados no módulo Insumos")
+
+col_ia1, col_ia2, col_ia3 = st.columns(3)
+
 with col_ia1:
-    st.info("🧠 Processamento automático: requer documentos enviados no módulo **🔧 Insumos**")
-with col_ia2:
-    if st.button("✨ Gerar rascunho com IA", use_container_width=True):
+    if st.button("⚙ Gerar rascunho automático", use_container_width=True, key="btn_ia_gerar"):
         try:
-            with st.spinner("🧠 Processando com IA..."):
+            with st.spinner("Processando documento..."):
                 dfd_ai = gerar_rascunho_dfd_com_ia()
 
             if dfd_ai:
-                st.success("✨ Rascunho gerado com sucesso pela IA!")
+                st.success("Rascunho gerado com sucesso")
                 st.rerun()
             else:
-                st.warning("⚠️ A IA não conseguiu gerar um DFD estruturado. Verifique se há insumos processados no módulo **🔧 Insumos**.")
+                st.warning("Nenhum insumo encontrado. Verifique o módulo Insumos.")
         except Exception as e:
-            st.error(f"❌ Erro ao gerar rascunho com IA: {e}")
+            st.error(f"Erro ao processar: {e}")
 
-with col_ia3:
-    if st.button("📤 Enviar para ETP", use_container_width=True, disabled=not dfd_dados):
+with col_ia2:
+    if st.button("Enviar para ETP", use_container_width=True, disabled=not dfd_dados, key="btn_enviar_etp"):
         try:
             import os
             from datetime import datetime
             
-            # Criar diretório se não existir
             base = os.path.join("exports", "insumos", "json")
             os.makedirs(base, exist_ok=True)
             
-            # Preparar payload estruturado para o ETP
             payload = {
                 "artefato": "ETP",
                 "origem": "DFD_estruturado",
                 "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "status": "ok",
-                "campos_ai": dfd_dados,  # Dados estruturados completos
-                "conteudo_textual": dfd_dados.get("texto_narrativo", ""),  # Texto narrativo
+                "campos_ai": dfd_dados,
+                "conteudo_textual": dfd_dados.get("texto_narrativo", ""),
             }
             
-            # Salvar como ETP_ultimo.json
             arq_ultimo = os.path.join(base, "ETP_ultimo.json")
             with open(arq_ultimo, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
             
-            st.success("✅ DFD enviado para o ETP com estrutura preservada!")
-            st.info("👉 Acesse o módulo **📘 ETP** para continuar o preenchimento")
+            st.success("Dados enviados para o módulo ETP")
+            st.info("Acesse o módulo ETP para continuar")
             
         except Exception as e:
-            st.error(f"❌ Erro ao enviar para ETP: {e}")
+            st.error(f"Erro: {e}")
+
+with col_ia3:
+    st.caption("_Refinamento por seção disponível abaixo_")
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
-# 🎨 REFINAMENTO ITERATIVO – Comandos IA por Seção (NOVO)
+# REFINAMENTO ITERATIVO – Ajustes por seção
 # ======================================================================
 # Verificar se houve atualização via refinamento
 dfd_dados = render_refinamento_iterativo(
@@ -309,12 +344,12 @@ st.markdown("---")
 
 # Se não há dados prévios, inicializa com estrutura vazia para permitir preenchimento manual
 if not dfd_dados:
-    st.info("ℹ️ Nenhum DFD pré-processado encontrado. Você pode:")
+    st.info("Nenhum DFD encontrado. Opções disponíveis:")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("**1. Processar automaticamente:** Envie documentos no módulo **🔧 Insumos** e clique em 'Gerar rascunho com IA'")
+        st.markdown("**Processar automaticamente:** Envie documentos no módulo Insumos e use o Assistente IA")
     with col2:
-        st.markdown("**2. Preencher manualmente:** Use o formulário abaixo para criar o DFD do zero")
+        st.markdown("**Preencher manualmente:** Use o formulário abaixo")
     st.markdown("---")
     
     # Inicializa estrutura vazia
@@ -343,56 +378,56 @@ texto_narrativo_inicial = _montar_texto_narrativo_inicial(
     campos_trad,
 )
 
-with st.expander("🔍 Visualizar dados brutos importados (JSON completo)", expanded=False):
+with st.expander("Visualizar dados importados (JSON)", expanded=False):
     st.json(dfd_dados)
 
 # ======================================================================
-# 2️⃣ Formulário administrativo + estrutura completa do DFD
+# FORMULÁRIO DFD
 # ======================================================================
-st.subheader("🧾 DFD – Dados Administrativos e Estrutura Completa")
+st.subheader("Formulário DFD")
 
 with st.form(key="form_dfd_moderno"):
 
-    st.markdown("### 1. Dados Administrativos")
+    st.markdown("### Dados Administrativos")
 
     col1, col2 = st.columns(2)
     unidade = col1.text_input("Unidade Demandante", value=campos_trad["unidade_demandante"])
-    responsavel = col2.text_input("Responsável pela Demanda", value=campos_trad["responsavel"])
+    responsavel = col2.text_input("Responsável", value=campos_trad["responsavel"])
 
     col3, col4 = st.columns(2)
-    prazo = col3.text_input("Prazo Estimado para Atendimento", value=campos_trad["prazo_estimado"])
-    valor_estimado = col4.text_input("Estimativa de Valor (R$)", value=campos_trad["valor_estimado"])
+    prazo = col3.text_input("Prazo Estimado", value=campos_trad["prazo_estimado"])
+    valor_estimado = col4.text_input("Valor Estimado (R$)", value=campos_trad["valor_estimado"])
 
     st.markdown("---")
-    st.markdown("### 2. Síntese Tradicional do DFD")
+    st.markdown("### Síntese da Demanda")
 
     descricao = st.text_area(
-        "Descrição da Necessidade (síntese)",
+        "Descrição da Necessidade",
         value=campos_trad["descricao"],
         height=180,
     )
 
     motivacao = st.text_area(
-        "Motivação / Objetivos Estratégicos / Justificativa (síntese)",
+        "Motivação e Objetivos",
         value=campos_trad["motivacao"],
         height=180,
     )
 
     st.markdown("---")
-    st.markdown("### 3. Texto Narrativo Consolidado (DFD Moderno-Governança)")
+    st.markdown("### Texto Narrativo Consolidado")
 
     texto_narrativo = st.text_area(
-        "Texto narrativo completo (numerado, pronto para dossiê)",
+        "Texto completo estruturado",
         value=texto_narrativo_inicial,
         height=260,
     )
 
     st.markdown("---")
-    st.markdown("### 4. Seções Estruturadas do DFD (11 seções)")
+    st.markdown("### Seções Estruturadas (11 seções padrão)")
 
     secoes_editadas: Dict[str, str] = {}
 
-    with st.expander("✏️ Editar seções individualmente (estrutura Moderno-Governança)", expanded=False):
+    with st.expander("Editar seções individualmente", expanded=False):
         for nome_secao in SECOES_DFD:
             secoes_editadas[nome_secao] = st.text_area(
                 nome_secao,
@@ -401,19 +436,19 @@ with st.form(key="form_dfd_moderno"):
             )
 
     st.markdown("---")
-    st.markdown("### 5. Lacunas identificadas pela IA")
+    st.markdown("### Lacunas Identificadas")
 
     if lacunas_iniciais:
         for item in lacunas_iniciais:
             st.markdown(f"- {item}")
     else:
-        st.caption("Nenhuma lacuna foi identificada automaticamente pela IA para este DFD.")
+        st.caption("Nenhuma lacuna identificada")
 
-    submit = st.form_submit_button("💾 Salvar DFD consolidado")
+    submit = st.form_submit_button("Salvar DFD")
 
 
 # ======================================================================
-# 3️⃣ Salvamento final (JSON completo – modelo moderno)
+# SALVAMENTO
 # ======================================================================
 if submit:
     dfd_final = {
@@ -436,16 +471,16 @@ if submit:
 
     caminho = salvar_dfd_em_json(dfd_final, origem="formulario_dfd_moderno_streamlit")
 
-    st.success("✅ DFD consolidado salvo com sucesso!")
-    st.caption(f"Arquivo salvo em: `{caminho}`")
+    st.success("DFD salvo com sucesso")
+    st.caption(f"Arquivo: `{caminho}`")
     st.json(dfd_final)
 
 # ======================================================================
-# 📥 Exportação DOCX (completo)
+# EXPORTAÇÃO
 # ======================================================================
-st.subheader("📥 Exportar DFD em DOCX")
+st.subheader("Exportar Documento")
 
-if st.button("📄 Baixar DFD em DOCX"):
+if st.button("Baixar DFD (DOCX)"):
     doc = Document()
 
     doc.add_heading("Formalização da Demanda (DFD)", level=1)

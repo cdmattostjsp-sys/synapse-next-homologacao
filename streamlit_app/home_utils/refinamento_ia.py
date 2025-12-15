@@ -45,13 +45,13 @@ def render_refinamento_iterativo(
     # ======================================================================
     # Interface de Refinamento
     # ======================================================================
-    with st.expander("🎨 Refinamento Iterativo (Comandos IA)", expanded=False):
-        st.caption(f"💡 Use esta ferramenta para solicitar melhorias específicas em qualquer seção do {artefato}")
+    with st.expander("Refinamento por seção (IA)", expanded=False):
+        st.caption(f"Solicite ajustes específicos em qualquer seção do {artefato}")
         
         # Dropdown para selecionar seção
         todas_secoes = [""] + campos_simples + secoes_disponiveis
         secao_selecionada = st.selectbox(
-            "Selecione a seção a refinar:",
+            "Selecione a seção:",
             todas_secoes,
             format_func=lambda x: "-- Selecione uma seção --" if x == "" else x,
             key=f"refinamento_{artefato}_secao"
@@ -60,14 +60,14 @@ def render_refinamento_iterativo(
         # Comandos rápidos predefinidos
         col_cmd1, col_cmd2 = st.columns(2)
         with col_cmd1:
-            st.markdown("**Comandos Rápidos:**")
-            if st.button("➕ Adicionar mais detalhes técnicos", 
+            st.markdown("**Comandos rápidos:**")
+            if st.button("Adicionar detalhes técnicos", 
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd1_{artefato}"):
                 st.session_state[f'comando_rapido_temp_{artefato}'] = "Adicione mais detalhes técnicos e especificações"
                 st.rerun()
-            if st.button("📊 Incluir métricas e indicadores", 
+            if st.button("Incluir métricas", 
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd2_{artefato}"):
@@ -76,13 +76,13 @@ def render_refinamento_iterativo(
         
         with col_cmd2:
             st.markdown("**&nbsp;**")
-            if st.button("⚖️ Melhorar fundamentação legal", 
+            if st.button("Melhorar fundamentação legal", 
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd3_{artefato}"):
                 st.session_state[f'comando_rapido_temp_{artefato}'] = "Fortaleça a fundamentação legal com citações normativas"
                 st.rerun()
-            if st.button("🎯 Tornar mais objetivo e direto", 
+            if st.button("Tornar mais objetivo", 
                         use_container_width=True, 
                         disabled=not secao_selecionada,
                         key=f"cmd4_{artefato}"):
@@ -98,7 +98,7 @@ def render_refinamento_iterativo(
         )
         
         # Botão de execução
-        if st.button("✨ Executar Refinamento IA", 
+        if st.button("⚙ Processar refinamento", 
                     type="primary", 
                     disabled=not secao_selecionada,
                     key=f"executar_refinamento_{artefato}"):
@@ -106,12 +106,12 @@ def render_refinamento_iterativo(
             comando_final = comando_personalizado.strip()
             
             if not secao_selecionada:
-                st.warning("⚠️ Selecione uma seção primeiro")
+                st.warning("Selecione uma seção primeiro")
             elif not comando_final:
-                st.warning("⚠️ Forneça um comando (use os botões rápidos ou digite)")
+                st.warning("Forneça um comando (use os botões rápidos ou digite)")
             else:
                 try:
-                    with st.spinner(f"🧠 Refinando seção '{secao_selecionada}'..."):
+                    with st.spinner(f"Processando seção '{secao_selecionada}'..."):
                         # Obter conteúdo atual da seção
                         if secao_selecionada in secoes_disponiveis:
                             conteudo_atual = dados_atuais.get("secoes", {}).get(secao_selecionada, "")
@@ -161,28 +161,28 @@ Responda com o texto refinado:"""
                         st.rerun()
                         
                 except Exception as e:
-                    st.error(f"❌ Erro ao refinar: {e}")
+                    st.error(f"Erro ao processar: {e}")
         
         # Mostrar preview SE existir no session_state (fora do botão Executar)
         if f'refinamento_preview_{artefato}' in st.session_state:
             preview = st.session_state[f'refinamento_preview_{artefato}']
             
-            st.success("✨ Refinamento concluído! Veja o resultado:")
+            st.success("Refinamento concluído")
             
             col_antes, col_depois = st.columns(2)
             with col_antes:
-                st.markdown("**📝 Antes:**")
+                st.markdown("**Texto original:**")
                 st.info(preview['antes'] if preview['antes'] else "_[Vazio]_")
             
             with col_depois:
-                st.markdown("**✨ Depois (preview):**")
+                st.markdown("**Texto refinado:**")
                 st.success(preview['depois'])
             
             # Botões de ação
             col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 1])
             
             with col_btn1:
-                if st.button("✅ Aplicar Refinamento", 
+                if st.button("Aplicar alterações", 
                            type="primary", 
                            use_container_width=True,
                            key=f"aplicar_{artefato}"):
@@ -203,18 +203,18 @@ Responda com o texto refinado:"""
                     # Limpar preview
                     del st.session_state[f'refinamento_preview_{artefato}']
                     
-                    st.success("✅ Refinamento aplicado!")
+                    st.success("Alterações aplicadas")
                     st.rerun()
             
             with col_btn2:
-                if st.button("📋 Copiar Texto Refinado", 
+                if st.button("Copiar texto", 
                            use_container_width=True,
                            key=f"copiar_{artefato}"):
                     st.code(preview['depois'], language=None)
-                    st.info("💡 Use Ctrl+C para copiar o texto acima")
+                    st.info("Use Ctrl+C para copiar")
             
             with col_btn3:
-                if st.button("❌ Cancelar", 
+                if st.button("Cancelar", 
                            use_container_width=True,
                            key=f"cancelar_{artefato}"):
                     del st.session_state[f'refinamento_preview_{artefato}']
