@@ -6,6 +6,7 @@ if str(ROOT) not in sys.path:
 
 # ==========================================================
 # pages/08_📜 Contrato.py – SynapseNext / SAAB TJSP v2025.1
+# Versão: 2025.1.1 (fix indentação botões)
 # ==========================================================
 # Módulo final da jornada de contratação pública.
 # Gera o Contrato Administrativo a partir de insumos cumulativos
