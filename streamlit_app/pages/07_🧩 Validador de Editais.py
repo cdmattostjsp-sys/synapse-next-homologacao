@@ -48,6 +48,7 @@ st.markdown("""
 /* ============================================
    PADRÃO VISUAL PJe-INSPIRED - SYNAPSE NEXT
    Versão: 2025.1-homolog
+   Build: 20251215-1700
    ============================================ */
 
 /* Título principal - tamanho reduzido para sobriedade */
