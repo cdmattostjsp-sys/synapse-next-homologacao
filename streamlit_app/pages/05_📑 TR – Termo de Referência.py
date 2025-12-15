@@ -39,15 +39,96 @@ def _get_openai_client():
 # ==========================================================
 st.set_page_config(page_title="📑 Termo de Referência", layout="wide", page_icon="📑")
 apply_sidebar_grouping()
-aplicar_estilo_global()
+
+# Estilo institucional PJe-inspired
+st.markdown("""
+<style>
+/* ============================================
+   PADRÃO VISUAL PJe-INSPIRED - SYNAPSE NEXT
+   Versão: 2025.1-homolog
+   ============================================ */
+
+/* Título principal - tamanho reduzido para sobriedade */
+h1 {
+    font-size: 1.8rem !important;
+    font-weight: 500 !important;
+    color: #2c3e50 !important;
+    margin-bottom: 0.3rem !important;
+}
+
+/* Caption institucional */
+.caption {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Bloco de IA - destaque sutil */
+.ia-block {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 1rem 1.2rem;
+    background-color: #f0f2f5;
+    margin: 1rem 0 1.2rem 0;
+}
+.ia-block h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.6rem 0;
+    letter-spacing: -0.01em;
+}
+
+/* Seções com fundo cinza - contraste melhorado */
+h3 {
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    background-color: #e5e7eb !important;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 3px !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Botões - destaque apenas para ações principais */
+div.stButton > button {
+    border-radius: 3px;
+    font-weight: 500;
+    border: 1px solid #d0d7de;
+}
+div.stButton > button[kind="primary"] {
+    background-color: #0969da !important;
+    border-color: #0969da !important;
+}
+
+/* Formulário clean */
+.stTextInput label, .stTextArea label {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 0.9rem;
+}
+
+/* Expander refinamento com destaque discreto */
+details {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0.5rem;
+    background-color: #ffffff;
+}
+summary {
+    font-weight: 500;
+    color: #0969da;
+    cursor: pointer;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================================
 # 🏛️ Cabeçalho institucional
 # ==========================================================
-exibir_cabecalho_padrao(
-    "📑 Termo de Referência (TR)",
-    "Pré-preenchimento automático a partir de insumos + geração IA institucional"
-)
+st.markdown("<h1>Termo de Referência (TR)</h1>", unsafe_allow_html=True)
+st.markdown("<p class='caption'>Preencha manualmente ou processe insumos com IA especializada</p>", unsafe_allow_html=True)
 st.divider()
 
 # ==========================================================
@@ -115,30 +196,87 @@ if not tr_salvo and not insumo_detectado:
     st.info("ℹ️ Nenhum TR ou insumo detectado. Faça upload no módulo **🔧 Insumos** ou preencha manualmente.")
 
 # ==========================================================
-# ✨ Refinamento Iterativo com IA
+# 🧾 Formulário TR – 9 Seções Estruturadas
 # ==========================================================
-st.divider()
-st.subheader("✨ Refinamento Iterativo com IA")
-st.caption("💡 Refine seções específicas do TR usando IA especializada. Escolha uma seção e use comandos rápidos ou personalizados.")
+st.markdown("### Assistente IA")
+st.caption("Processamento automático: requer insumos do módulo anterior")
 
-# Chamar componente de refinamento
+col_ia1, col_ia2, col_ia3 = st.columns(3)
+
+with col_ia1:
+    if st.button("⚡ Processar com IA", use_container_width=True, type="primary", key="btn_ia_processar"):
+        try:
+            with st.spinner("Processando TR com IA especializada..."):
+                from utils.integration_tr import gerar_tr_com_ia
+                resultado = gerar_tr_com_ia()
+                
+            if "erro" in resultado:
+                st.error(f"❌ {resultado['erro']}")
+            else:
+                st.success("TR estruturado com sucesso")
+                
+                # Exibir resumo
+                tr_processado = resultado.get("TR", {})
+                secoes_ia = sum(1 for v in tr_processado.values() if v and v.strip())
+                
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("Seções", f"{secoes_ia}/9")
+                with col_b:
+                    st.metric("Prazo", tr_processado.get("prazo_execucao", "N/A")[:20])
+                with col_c:
+                    st.metric("Valor", f"R$ {tr_processado.get('estimativa_valor', '0,00')}")
+                
+                st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao processar: {e}")
+
+with col_ia2:
+    if st.button("📤 Enviar para Edital", use_container_width=True, disabled=not tr_salvo, key="btn_enviar_edital"):
+        try:
+            from datetime import datetime
+            
+            base = os.path.join("exports", "insumos", "json")
+            os.makedirs(base, exist_ok=True)
+            
+            payload = {
+                "artefato": "EDITAL",
+                "origem": "TR_estruturado",
+                "data_processamento": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "ok",
+                "campos_ai": tr_salvo,
+                "conteudo_textual": "",
+            }
+            
+            arq_ultimo = os.path.join(base, "EDITAL_ultimo.json")
+            with open(arq_ultimo, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            
+            st.success("Dados enviados para o módulo Edital")
+            st.info("Acesse o módulo Edital para continuar")
+            
+        except Exception as e:
+            st.error(f"Erro: {e}")
+
+with col_ia3:
+    st.write("")  # Espaçamento
+
+st.divider()
+
+# Refinamento iterativo
 tr_salvo = render_refinamento_iterativo(
     secoes_disponiveis=SECOES_TR,
     dados_atuais=tr_salvo if tr_salvo else {},
     artefato="TR",
-    campos_simples=None  # TR não tem campos simples separados, todas são seções longas
+    campos_simples=None
 )
 
-# ==========================================================
-# 🧾 Formulário TR – 9 Seções Estruturadas
-# ==========================================================
 st.divider()
-st.subheader("📘 Entrada – Termo de Referência")
 
 # ==========================================================
 # Formulário com 9 seções estruturadas
 # ==========================================================
-st.markdown("### 📋 Seções do Termo de Referência")
+st.markdown("### Seções do Termo de Referência")
 
 # Seção 1: Objeto
 objeto = st.text_area(
@@ -149,53 +287,50 @@ objeto = st.text_area(
     help="Descrição do objeto a ser contratado"
 )
 
-col1, col2 = st.columns(2)
-with col1:
-    # Seção 2: Justificativa Técnica
-    justificativa_tecnica = st.text_area(
-        "2. Justificativa Técnica",
-        value=tr_salvo.get("justificativa_tecnica", ""),
-        height=150,
-        key="tr_just",
-        help="Fundamentação da necessidade da contratação"
-    )
-    
-    # Seção 4: Critérios de Julgamento
-    criterios_julgamento = st.text_area(
-        "4. Critérios de Julgamento",
-        value=tr_salvo.get("criterios_julgamento", ""),
-        height=120,
-        key="tr_crit",
-        help="Critérios para avaliação das propostas"
-    )
-    
-    # Seção 6: Observações Finais
-    observacoes_finais = st.text_area(
-        "6. Observações Finais",
-        value=tr_salvo.get("observacoes_finais", ""),
-        height=120,
-        key="tr_obs",
-        help="Informações complementares e observações"
-    )
+# Seção 2: Justificativa Técnica (coluna única)
+justificativa_tecnica = st.text_area(
+    "2. Justificativa Técnica",
+    value=tr_salvo.get("justificativa_tecnica", ""),
+    height=150,
+    key="tr_just",
+    help="Fundamentação da necessidade da contratação"
+)
 
-with col2:
-    # Seção 3: Especificações Técnicas
-    especificacao_tecnica = st.text_area(
-        "3. Especificações Técnicas",
-        value=tr_salvo.get("especificacao_tecnica", ""),
-        height=150,
-        key="tr_espec",
-        help="Detalhamento técnico dos serviços/produtos"
-    )
-    
-    # Seção 5: Riscos
-    riscos = st.text_area(
-        "5. Riscos Associados",
-        value=tr_salvo.get("riscos", ""),
-        height=120,
-        key="tr_riscos",
-        help="Identificação e mitigação de riscos"
-    )
+# Seção 3: Especificações Técnicas (coluna única)
+especificacao_tecnica = st.text_area(
+    "3. Especificações Técnicas",
+    value=tr_salvo.get("especificacao_tecnica", ""),
+    height=150,
+    key="tr_espec",
+    help="Detalhamento técnico dos serviços/produtos"
+)
+
+# Seção 4: Critérios de Julgamento (coluna única)
+criterios_julgamento = st.text_area(
+    "4. Critérios de Julgamento",
+    value=tr_salvo.get("criterios_julgamento", ""),
+    height=120,
+    key="tr_crit",
+    help="Critérios para avaliação das propostas"
+)
+
+# Seção 5: Riscos (coluna única)
+riscos = st.text_area(
+    "5. Riscos Associados",
+    value=tr_salvo.get("riscos", ""),
+    height=120,
+    key="tr_riscos",
+    help="Identificação e mitigação de riscos"
+)
+
+# Seção 6: Observações Finais (coluna única)
+observacoes_finais = st.text_area(
+    "6. Observações Finais",
+    value=tr_salvo.get("observacoes_finais", ""),
+    height=120,
+    key="tr_obs",
+    help="Informações complementares e observações"
+)
 
 st.divider()
 
@@ -227,68 +362,73 @@ with col5:
         help="Origem do recurso orçamentário"
     )
 
-# ==========================================================
-# Métricas de preenchimento
-# ==========================================================
-secoes_preenchidas = sum([
-    1 if objeto else 0,
-    1 if justificativa_tecnica else 0,
-    1 if especificacao_tecnica else 0,
-    1 if criterios_julgamento else 0,
-    1 if riscos else 0,
-    1 if observacoes_finais else 0,
-    1 if prazo_execucao else 0,
-    1 if estimativa_valor else 0,
-    1 if fonte_recurso else 0,
-])
-
-col_m1, col_m2, col_m3 = st.columns([2, 1, 1])
-with col_m1:
-    st.metric("📊 Seções preenchidas", f"{secoes_preenchidas}/9")
-with col_m2:
-    if prazo_execucao:
-        st.metric("⏱️ Prazo", prazo_execucao)
-with col_m3:
-    if estimativa_valor:
-        st.metric("💰 Valor Estimado", f"R$ {estimativa_valor}")
-
-# ==========================================================
-# ⚙️ Botão de Processamento IA
-# ==========================================================
 st.divider()
-st.subheader("⚙️ Processamento com IA Institucional")
 
-if st.button("✨ Processar com IA", type="primary"):
-    with st.spinner("🤖 Processando TR com IA especializada..."):
-        from utils.integration_tr import gerar_tr_com_ia
+# Botões de ação
+col_salvar, col_baixar = st.columns(2)
+
+with col_salvar:
+    if st.button("Salvar TR", type="secondary", use_container_width=True):
+        tr_completo = {
+            "objeto": objeto,
+            "justificativa_tecnica": justificativa_tecnica,
+            "especificacao_tecnica": especificacao_tecnica,
+            "criterios_julgamento": criterios_julgamento,
+            "riscos": riscos,
+            "observacoes_finais": observacoes_finais,
+            "prazo_execucao": prazo_execucao,
+            "estimativa_valor": estimativa_valor,
+            "fonte_recurso": fonte_recurso,
+        }
         
-        resultado = gerar_tr_com_ia()
-        
-        if "erro" in resultado:
-            st.error(f"❌ {resultado['erro']}")
+        resultado = export_tr_to_json(tr_completo)
+        if "erro" not in resultado:
+            st.success("TR salvo com sucesso")
         else:
-            st.success("✅ TR processado com sucesso!")
-            
-            # Exibir métricas do processamento
-            tr_processado = resultado.get("TR", {})
-            secoes_ia = sum(1 for v in tr_processado.values() if v and v.strip())
-            
-            col_ia1, col_ia2, col_ia3 = st.columns(3)
-            with col_ia1:
-                st.metric("🤖 Seções processadas pela IA", f"{secoes_ia}/9")
-            with col_ia2:
-                if tr_processado.get("prazo_execucao"):
-                    st.metric("⏱️ Prazo Identificado", tr_processado["prazo_execucao"])
-            with col_ia3:
-                if tr_processado.get("estimativa_valor"):
-                    st.metric("💰 Valor Identificado", tr_processado["estimativa_valor"])
-            
-            st.info("🔄 Recarregue a página para visualizar os dados processados no formulário.")
-            st.rerun()
+            st.error(f"Erro: {resultado['erro']}")
 
-st.caption("💡 O botão acima processa o TR carregado do módulo INSUMOS com IA especializada do TJSP.")
+with col_baixar:
+    if st.button("Baixar TR (DOCX)", use_container_width=True):
+        doc = Document()
+        
+        doc.add_heading("Termo de Referência (TR)", level=1)
+        doc.add_paragraph("Lei 14.133/2021 - Nova Lei de Licitações")
+        
+        # Seções do TR
+        doc.add_heading("Seções do Termo de Referência", level=2)
+        
+        secoes_nomes = [
+            ("1. Objeto da Contratação", objeto),
+            ("2. Justificativa Técnica", justificativa_tecnica),
+            ("3. Especificações Técnicas", especificacao_tecnica),
+            ("4. Critérios de Julgamento", criterios_julgamento),
+            ("5. Riscos Associados", riscos),
+            ("6. Observações Finais", observacoes_finais),
+        ]
+        
+        for nome, conteudo in secoes_nomes:
+            doc.add_heading(nome, level=3)
+            if conteudo and conteudo.strip():
+                doc.add_paragraph(conteudo)
+            else:
+                doc.add_paragraph("[Não preenchido]")
+        
+        # Informações Complementares
+        doc.add_heading("Informações Complementares", level=2)
+        doc.add_paragraph(f"7. Prazo de Execução: {prazo_execucao if prazo_execucao else '[Não preenchido]'}")
+        doc.add_paragraph(f"8. Estimativa de Valor: R$ {estimativa_valor if estimativa_valor else '[Não preenchido]'}")
+        doc.add_paragraph(f"9. Fonte de Recurso: {fonte_recurso if fonte_recurso else '[Não preenchido]'}")
+        
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        st.download_button(
+            label="⬇️ Download DOCX (TR completo)",
+            data=buffer,
+            file_name="TR_completo_Lei14133.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
 
-# ==========================================================
-# 💾 Exportação do artefato (DOCX) - REMOVIDO
-# (agora o TRAgent gera JSON estruturado, não documento Word)
-# ==========================================================
+st.caption("Dica: Use o Assistente IA para preencher automaticamente as seções a partir dos insumos carregados")
