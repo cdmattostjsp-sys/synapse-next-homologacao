@@ -64,7 +64,7 @@ h1 {
     border: 1px solid #d0d7de;
     border-radius: 3px;
     padding: 1rem 1.2rem;
-    background-color: #f6f8fa;
+    background-color: #f0f2f5;
     margin: 1rem 0 1.2rem 0;
 }
 .ia-block h3 {
@@ -74,12 +74,12 @@ h1 {
     margin: 0 0 0.6rem 0;
     letter-spacing: -0.01em;
 }
-/* Seções com fundo cinza leve */
+/* Seções com fundo cinza - contraste melhorado */
 h3 {
     font-size: 1.1rem !important;
     font-weight: 500 !important;
     color: #374151 !important;
-    background-color: #f3f4f6 !important;
+    background-color: #e5e7eb !important;
     padding: 0.6rem 0.8rem !important;
     border-radius: 3px !important;
     margin-top: 1.5rem !important;
@@ -323,7 +323,7 @@ st.caption("Processamento automático: requer documentos no módulo Insumos")
 col_ia1, col_ia2, col_ia3 = st.columns(3)
 
 with col_ia1:
-    if st.button("Gerar rascunho automático", use_container_width=True, type="primary", key="btn_ia_gerar"):
+    if st.button("⚡ Gerar rascunho automático", use_container_width=True, type="primary", key="btn_ia_gerar"):
         try:
             with st.spinner("Processando documento..."):
                 dfd_ai = gerar_rascunho_dfd_com_ia()
@@ -337,7 +337,7 @@ with col_ia1:
             st.error(f"Erro ao processar: {e}")
 
 with col_ia2:
-    if st.button("Enviar para ETP", use_container_width=True, disabled=not dfd_dados, key="btn_enviar_etp"):
+    if st.button("📤 Enviar para ETP", use_container_width=True, disabled=not dfd_dados, key="btn_enviar_etp"):
         try:
             import os
             from datetime import datetime

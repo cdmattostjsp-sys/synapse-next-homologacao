@@ -50,7 +50,7 @@ h1 {
     border: 1px solid #d0d7de;
     border-radius: 3px;
     padding: 1rem 1.2rem;
-    background-color: #f6f8fa;
+    background-color: #f0f2f5;
     margin: 1rem 0 1.2rem 0;
 }
 .ia-block h3 {
@@ -60,12 +60,12 @@ h1 {
     margin: 0 0 0.6rem 0;
     letter-spacing: -0.01em;
 }
-/* Seções com fundo cinza leve */
+/* Seções com fundo cinza - contraste melhorado */
 h3 {
     font-size: 1.1rem !important;
     font-weight: 500 !important;
     color: #374151 !important;
-    background-color: #f3f4f6 !important;
+    background-color: #e5e7eb !important;
     padding: 0.6rem 0.8rem !important;
     border-radius: 3px !important;
     margin-top: 1.5rem !important;
@@ -92,7 +92,7 @@ div.stButton > button[kind="primary"] {
     gap: 2px;
 }
 .stTabs [data-baseweb="tab"] {
-    background-color: #f3f4f6;
+    background-color: #e5e7eb;
     border-radius: 3px;
     padding: 0.5rem 1rem;
     font-weight: 500;
@@ -133,7 +133,7 @@ st.caption("Processamento automático: requer insumos do módulo anterior")
 col_ia1, col_ia2, col_ia3 = st.columns(3)
 
 with col_ia1:
-    if st.button("Processar com IA", use_container_width=True, type="primary", key="btn_ia_processar"):
+    if st.button("⚡ Processar com IA", use_container_width=True, type="primary", key="btn_ia_processar"):
         try:
             with st.spinner("Processando documento..."):
                 resultado = gerar_etp_com_ia()
@@ -164,7 +164,7 @@ with col_ia1:
             st.error(f"Erro ao processar: {e}")
 
 with col_ia2:
-    if st.button("Enviar para TR", use_container_width=True, disabled=not defaults, key="btn_enviar_tr"):
+    if st.button("📤 Enviar para TR", use_container_width=True, disabled=not defaults, key="btn_enviar_tr"):
         try:
             from datetime import datetime
             
