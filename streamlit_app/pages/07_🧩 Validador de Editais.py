@@ -41,12 +41,93 @@ except ImportError:
 # ----------------------------------------------------------
 st.set_page_config(page_title="🧩 Validador de Editais", layout="wide", page_icon="🧩")
 apply_sidebar_grouping()
-aplicar_estilo_global()
 
-exibir_cabecalho_padrao(
-    "🧩 Validador de Editais",
-    "Validação de conformidade legal (Lei 14.133/2021) e checklist institucional TJSP"
-)
+# Estilo institucional PJe-inspired
+st.markdown("""
+<style>
+/* ============================================
+   PADRÃO VISUAL PJe-INSPIRED - SYNAPSE NEXT
+   Versão: 2025.1-homolog
+   ============================================ */
+
+/* Título principal - tamanho reduzido para sobriedade */
+h1 {
+    font-size: 1.8rem !important;
+    font-weight: 500 !important;
+    color: #2c3e50 !important;
+    margin-bottom: 0.3rem !important;
+}
+
+/* Caption institucional */
+.caption {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Seções com fundo cinza - contraste melhorado */
+h2, h3 {
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    background-color: #e5e7eb !important;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 3px !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Botões - destaque apenas para ações principais */
+div.stButton > button {
+    border-radius: 3px;
+    font-weight: 500;
+    border: 1px solid #d0d7de;
+}
+div.stButton > button[kind="primary"] {
+    background-color: #0969da !important;
+    border-color: #0969da !important;
+}
+
+/* Formulário clean */
+.stTextInput label, .stTextArea label, .stSelectbox label {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 0.9rem;
+}
+
+/* Expander com destaque discreto */
+details {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0.5rem;
+    background-color: #ffffff;
+}
+summary {
+    font-weight: 500;
+    color: #0969da;
+    cursor: pointer;
+}
+
+/* Tabs institucionais */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: #f0f2f5;
+    border-radius: 3px 3px 0 0;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #e5e7eb;
+    border-bottom: 2px solid #0969da;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Cabeçalho institucional
+st.markdown("<h1>🧩 Validador de Editais</h1>", unsafe_allow_html=True)
+st.markdown("<p class='caption'>Validação de conformidade legal (Lei 14.133/2021) e checklist institucional TJSP</p>", unsafe_allow_html=True)
 st.divider()
 
 # ==========================================================
@@ -280,7 +361,7 @@ if "validacao_origem" not in st.session_state:
 # 📥 Origem do Edital (3 opções)
 # ==========================================================
 
-st.subheader("📥 Selecione a origem do Edital:")
+st.markdown("### 📥 Selecione a origem do Edital")
 
 tab1, tab2, tab3 = st.tabs(["📎 Edital Gerado", "📄 Upload de Arquivo", "✍️ Entrada Manual"])
 
@@ -381,7 +462,7 @@ with tab3:
 
 if st.session_state["validacao_texto"]:
     st.divider()
-    st.subheader("📋 Edital Carregado para Validação")
+    st.markdown("### 📋 Edital Carregado para Validação")
     
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -435,7 +516,7 @@ if st.session_state["validacao_texto"]:
 
 if "resultado_validacao" in st.session_state and "resultado_checklist" in st.session_state:
     st.divider()
-    st.header("📊 RESULTADO DA VALIDAÇÃO")
+    st.markdown("## 📊 RESULTADO DA VALIDAÇÃO")
     
     resultado_campos = st.session_state["resultado_validacao"]
     resultado_checklist = st.session_state["resultado_checklist"]
@@ -471,7 +552,7 @@ if "resultado_validacao" in st.session_state and "resultado_checklist" in st.ses
     st.divider()
     
     # Detalhamento - Campos Obrigatórios
-    st.subheader("1️⃣ Campos Obrigatórios (Lei 14.133/2021)")
+    st.markdown("### 1️⃣ Campos Obrigatórios (Lei 14.133/2021)")
     
     col1, col2 = st.columns(2)
     
@@ -491,7 +572,7 @@ if "resultado_validacao" in st.session_state and "resultado_checklist" in st.ses
     st.divider()
     
     # Detalhamento - Checklist Base
-    st.subheader(f"2️⃣ {resultado_checklist['base']['title']}")
+    st.markdown(f"### 2️⃣ {resultado_checklist['base']['title']}")
     
     itens_ok_base = sum(1 for item in resultado_checklist['base']['items'] if item['encontrado'])
     st.progress(itens_ok_base / len(resultado_checklist['base']['items']))
@@ -508,7 +589,7 @@ if "resultado_validacao" in st.session_state and "resultado_checklist" in st.ses
     
     # Detalhamento - Checklist Específico
     if resultado_checklist['especifico']['items']:
-        st.subheader(f"3️⃣ {resultado_checklist['especifico']['title']}")
+        st.markdown(f"### 3️⃣ {resultado_checklist['especifico']['title']}")
         
         itens_ok_esp = sum(1 for item in resultado_checklist['especifico']['items'] if item['encontrado'])
         st.progress(itens_ok_esp / len(resultado_checklist['especifico']['items']))
@@ -524,7 +605,7 @@ if "resultado_validacao" in st.session_state and "resultado_checklist" in st.ses
     st.divider()
     
     # Exportação
-    st.subheader("💾 Exportar Relatório")
+    st.markdown("### 💾 Exportar Relatório")
     
     col1, col2 = st.columns(2)
     
