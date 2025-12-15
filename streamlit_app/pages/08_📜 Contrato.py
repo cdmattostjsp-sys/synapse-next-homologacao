@@ -368,95 +368,95 @@ col_salvar, col_baixar = st.columns(2)
 with col_salvar:
     if st.button("Salvar Contrato", type="secondary", use_container_width=True):
         campos_manuais = {
-        "numero_contrato": numero_contrato,
-        "data_assinatura": data_assinatura,
-        "objeto": objeto,
-        "partes_contratante": partes_contratante,
-        "partes_contratada": partes_contratada,
-        "fundamentacao_legal": fundamentacao_legal,
-        "vigencia": vigencia,
-        "prazo_execucao": prazo_execucao,
-        "valor_global": valor_global,
-        "forma_pagamento": forma_pagamento,
-        "reajuste": reajuste,
-        "garantia_contratual": garantia_contratual,
-        "obrigacoes_contratada": obrigacoes_contratada,
-        "obrigacoes_contratante": obrigacoes_contratante,
-        "fiscalizacao": fiscalizacao,
-        "penalidades": penalidades,
-        "rescisao": rescisao,
-        "alteracoes": alteracoes,
-        "foro": foro,
-        "disposicoes_gerais": disposicoes_gerais,
-    }
-    
-    resultado_manual = {
-        "artefato": "CONTRATO",
-        "nome_arquivo": "edicao_manual",
-        "status": "editado_manualmente",
-        "timestamp": datetime.now().isoformat(),
-        "CONTRATO": campos_manuais
-    }
-    
-    export_contrato_to_json(resultado_manual)
-    st.session_state["contrato_campos_ai"] = campos_manuais
-    st.success("✅ Campos salvos com sucesso!")
+            "numero_contrato": numero_contrato,
+            "data_assinatura": data_assinatura,
+            "objeto": objeto,
+            "partes_contratante": partes_contratante,
+            "partes_contratada": partes_contratada,
+            "fundamentacao_legal": fundamentacao_legal,
+            "vigencia": vigencia,
+            "prazo_execucao": prazo_execucao,
+            "valor_global": valor_global,
+            "forma_pagamento": forma_pagamento,
+            "reajuste": reajuste,
+            "garantia_contratual": garantia_contratual,
+            "obrigacoes_contratada": obrigacoes_contratada,
+            "obrigacoes_contratante": obrigacoes_contratante,
+            "fiscalizacao": fiscalizacao,
+            "penalidades": penalidades,
+            "rescisao": rescisao,
+            "alteracoes": alteracoes,
+            "foro": foro,
+            "disposicoes_gerais": disposicoes_gerais,
+        }
+        
+        resultado_manual = {
+            "artefato": "CONTRATO",
+            "nome_arquivo": "edicao_manual",
+            "status": "editado_manualmente",
+            "timestamp": datetime.now().isoformat(),
+            "CONTRATO": campos_manuais
+        }
+        
+        export_contrato_to_json(resultado_manual)
+        st.session_state["contrato_campos_ai"] = campos_manuais
+        st.success("✅ Campos salvos com sucesso!")
 
 with col_baixar:
     if st.button("Baixar Contrato (DOCX)", use_container_width=True):
         campos_atuais = {
-        "numero_contrato": numero_contrato,
-        "data_assinatura": data_assinatura,
-        "objeto": objeto,
-        "partes_contratante": partes_contratante,
-        "partes_contratada": partes_contratada,
-        "fundamentacao_legal": fundamentacao_legal,
-        "vigencia": vigencia,
-        "prazo_execucao": prazo_execucao,
-        "valor_global": valor_global,
-        "forma_pagamento": forma_pagamento,
-        "reajuste": reajuste,
-        "garantia_contratual": garantia_contratual,
-        "obrigacoes_contratada": obrigacoes_contratada,
-        "obrigacoes_contratante": obrigacoes_contratante,
-        "fiscalizacao": fiscalizacao,
-        "penalidades": penalidades,
-        "rescisao": rescisao,
-        "alteracoes": alteracoes,
-        "foro": foro,
-        "disposicoes_gerais": disposicoes_gerais,
-    }
-    
-    with st.spinner("⏳ Gerando documento DOCX profissional..."):
-        try:
-            # Gerar DOCX usando função profissional
-            caminho = gerar_contrato_docx(campos_atuais, session_state=st.session_state)
-            
-            # Verificar se buffer foi criado
-            if "contrato_docx_buffer" in st.session_state:
-                buffer = st.session_state["contrato_docx_buffer"]
-                nome_arquivo = st.session_state.get("contrato_docx_nome", "Contrato_TJSP.docx")
+            "numero_contrato": numero_contrato,
+            "data_assinatura": data_assinatura,
+            "objeto": objeto,
+            "partes_contratante": partes_contratante,
+            "partes_contratada": partes_contratada,
+            "fundamentacao_legal": fundamentacao_legal,
+            "vigencia": vigencia,
+            "prazo_execucao": prazo_execucao,
+            "valor_global": valor_global,
+            "forma_pagamento": forma_pagamento,
+            "reajuste": reajuste,
+            "garantia_contratual": garantia_contratual,
+            "obrigacoes_contratada": obrigacoes_contratada,
+            "obrigacoes_contratante": obrigacoes_contratante,
+            "fiscalizacao": fiscalizacao,
+            "penalidades": penalidades,
+            "rescisao": rescisao,
+            "alteracoes": alteracoes,
+            "foro": foro,
+            "disposicoes_gerais": disposicoes_gerais,
+        }
+        
+        with st.spinner("⏳ Gerando documento DOCX profissional..."):
+            try:
+                # Gerar DOCX usando função profissional
+                caminho = gerar_contrato_docx(campos_atuais, session_state=st.session_state)
                 
-                st.download_button(
-                    label="📥 Baixar Contrato em DOCX",
-                    data=buffer,
-                    file_name=nome_arquivo,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    type="primary"
-                )
-                
-                st.success("✅ Documento DOCX gerado com sucesso!")
-                st.info(f"📄 Arquivo: {nome_arquivo}")
-                
-                if caminho:
-                    st.caption(f"💾 Salvo também em: `{caminho}`")
-            else:
-                st.error("❌ Erro ao gerar buffer do documento.")
-                
-        except Exception as e:
-            st.error(f"❌ Erro ao gerar DOCX: {e}")
-            import traceback
-            st.code(traceback.format_exc())
+                # Verificar se buffer foi criado
+                if "contrato_docx_buffer" in st.session_state:
+                    buffer = st.session_state["contrato_docx_buffer"]
+                    nome_arquivo = st.session_state.get("contrato_docx_nome", "Contrato_TJSP.docx")
+                    
+                    st.download_button(
+                        label="📥 Baixar Contrato em DOCX",
+                        data=buffer,
+                        file_name=nome_arquivo,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        type="primary"
+                    )
+                    
+                    st.success("✅ Documento DOCX gerado com sucesso!")
+                    st.info(f"📄 Arquivo: {nome_arquivo}")
+                    
+                    if caminho:
+                        st.caption(f"💾 Salvo também em: `{caminho}`")
+                else:
+                    st.error("❌ Erro ao gerar buffer do documento.")
+                    
+            except Exception as e:
+                st.error(f"❌ Erro ao gerar DOCX: {e}")
+                import traceback
+                st.code(traceback.format_exc())
 
 st.divider()
 
