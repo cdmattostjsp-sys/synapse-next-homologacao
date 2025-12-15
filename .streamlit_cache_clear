@@ -1,0 +1,4 @@
+# Cache clear trigger - 2025.12.15 - 16:30
+# Força Streamlit Cloud a recompilar todos os módulos
+timestamp: 2025-12-15T16:30:00
+version: 2025.1.1
