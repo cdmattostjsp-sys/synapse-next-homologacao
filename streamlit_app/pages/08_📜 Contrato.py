@@ -34,7 +34,90 @@ from home_utils.refinamento_ia import render_refinamento_iterativo
 # ==========================================================
 st.set_page_config(page_title="📜 Contrato", layout="wide", page_icon="📜")
 apply_sidebar_grouping()
-aplicar_estilo_global()
+
+# Estilo institucional PJe-inspired
+st.markdown("""
+<style>
+/* ============================================
+   PADRÃO VISUAL PJe-INSPIRED - SYNAPSE NEXT
+   Versão: 2025.1-homolog
+   ============================================ */
+
+/* Título principal - tamanho reduzido para sobriedade */
+h1 {
+    font-size: 1.8rem !important;
+    font-weight: 500 !important;
+    color: #2c3e50 !important;
+    margin-bottom: 0.3rem !important;
+}
+
+/* Caption institucional */
+.caption {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Bloco de IA - destaque sutil */
+.ia-block {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 1rem 1.2rem;
+    background-color: #f0f2f5;
+    margin: 1rem 0 1.2rem 0;
+}
+.ia-block h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.6rem 0;
+    letter-spacing: -0.01em;
+}
+
+/* Seções com fundo cinza - contraste melhorado */
+h3 {
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    background-color: #e5e7eb !important;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 3px !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Botões - destaque apenas para ações principais */
+div.stButton > button {
+    border-radius: 3px;
+    font-weight: 500;
+    border: 1px solid #d0d7de;
+}
+div.stButton > button[kind="primary"] {
+    background-color: #0969da !important;
+    border-color: #0969da !important;
+}
+
+/* Formulário clean */
+.stTextInput label, .stTextArea label {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 0.9rem;
+}
+
+/* Expander refinamento com destaque discreto */
+details {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0.5rem;
+    background-color: #ffffff;
+}
+summary {
+    font-weight: 500;
+    color: #0969da;
+    cursor: pointer;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================================
 # 📝 Definição dos campos do Contrato para refinamento iterativo
@@ -72,10 +155,8 @@ if dados_contrato_anterior and "CONTRATO" in dados_contrato_anterior:
 # ==========================================================
 # 🏛️ Cabeçalho institucional
 # ==========================================================
-exibir_cabecalho_padrao(
-    "📜 Contrato Administrativo TJSP",
-    "Consolidação final da jornada de contratação pública: DFD → ETP → TR → Edital → CONTRATO"
-)
+st.markdown("<h1>Contrato Administrativo</h1>", unsafe_allow_html=True)
+st.markdown("<p class='caption'>Consolidação final da jornada de contratação pública: DFD → ETP → TR → Edital → CONTRATO</p>", unsafe_allow_html=True)
 st.divider()
 
 # ==========================================================
@@ -107,27 +188,31 @@ else:
 
 st.divider()
 
-# ==========================================================
-# 📤 Upload de insumo (opcional)
-# ==========================================================
-st.subheader("📤 Upload de Insumo (opcional)")
-st.markdown("""
-**Opção 1**: Upload direto de arquivo (PDF/DOCX/TXT) de contrato ou minuta  
-**Opção 2**: Processar apenas com contexto (se DFD/ETP/TR/Edital disponíveis)  
-**Opção 3**: Preencher manualmente os campos abaixo
-""")
+# Upload de insumo (opcional)
+arquivo_upload = None
+with st.expander("📤 Upload de Insumo (opcional)", expanded=False):
+    st.markdown("""
+    **Opção 1**: Upload direto de arquivo (PDF/DOCX/TXT) de contrato ou minuta  
+    **Opção 2**: Processar apenas com contexto (se DFD/ETP/TR/Edital disponíveis)  
+    **Opção 3**: Preencher manualmente os campos abaixo
+    """)
+    
+    arquivo_upload = st.file_uploader(
+        "Envie um arquivo de referência:",
+        type=["pdf", "docx", "txt"],
+        help="O ContratoAgent processará este arquivo e integrará com o contexto disponível"
+    )
 
-arquivo_upload = st.file_uploader(
-    "Envie um arquivo de referência:",
-    type=["pdf", "docx", "txt"],
-    help="O ContratoAgent processará este arquivo e integrará com o contexto disponível"
-)
+# 🤖 Assistente IA (Bloco institucional PJe-inspired)
+st.markdown("### 🤖 Assistente IA")
+st.caption("Processamento automático: upload de arquivo ou geração a partir do contexto acumulado (DFD/ETP/TR/Edital)")
 
-col_btn1, col_btn2 = st.columns(2)
+col_ia1, col_ia2, col_ia3 = st.columns(3)
 
-with col_btn1:
-    if arquivo_upload is not None:
-        if st.button("🤖 Processar Insumo com ContratoAgent", type="primary"):
+with col_ia1:
+    processar_arquivo = arquivo_upload is not None
+    if st.button("⚡ Processar com IA", use_container_width=True, type="primary", disabled=not processar_arquivo and modulos_disponiveis == 0, key="btn_ia_processar"):
+        if arquivo_upload is not None:
             with st.spinner("⏳ Processando com ContratoAgent especializado..."):
                 try:
                     # Integrar contexto
@@ -158,9 +243,8 @@ with col_btn1:
                     import traceback
                     st.code(traceback.format_exc())
 
-with col_btn2:
-    if modulos_disponiveis > 0:
-        if st.button("🧠 Gerar Contrato APENAS do Contexto", type="secondary"):
+        else:
+            # Processar apenas com contexto
             with st.spinner("⏳ Gerando contrato a partir de DFD/ETP/TR/Edital..."):
                 try:
                     # Integrar contexto
@@ -190,22 +274,22 @@ with col_btn2:
                     import traceback
                     st.code(traceback.format_exc())
 
+with col_ia2:
+    st.info("📋 **Campos**: 20 campos contratuais estruturados")
+
+with col_ia3:
+    if modulos_disponiveis > 0:
+        st.success(f"✅ **Contexto**: {modulos_disponiveis}/4 módulos")
+    else:
+        st.warning("⚠️ **Contexto**: Nenhum módulo detectado")
+
 st.divider()
 
-# ==========================================================
-# ✨ Refinamento Iterativo com IA
-# ==========================================================
-st.subheader("✨ Refinamento Iterativo com IA")
-st.caption("💡 Refine campos específicos do Contrato usando IA especializada. Escolha um campo e use comandos rápidos ou personalizados.")
-
-# Carregar dados processados para refinamento
+# Refinamento iterativo
 campos_ai = st.session_state.get("contrato_campos_ai", {})
-
-# Identificar campos simples (geralmente curtos) vs campos complexos (text_area)
 campos_simples = ["numero_contrato", "data_assinatura", "vigencia", "prazo_execucao", 
                   "valor_global", "foro"]
 
-# Chamar componente de refinamento
 campos_ai = render_refinamento_iterativo(
     secoes_disponiveis=CAMPOS_CONTRATO,
     dados_atuais=campos_ai if campos_ai else {},
@@ -213,7 +297,6 @@ campos_ai = render_refinamento_iterativo(
     campos_simples=campos_simples
 )
 
-# Atualizar session_state com refinamentos
 st.session_state["contrato_campos_ai"] = campos_ai
 
 st.divider()
@@ -221,62 +304,70 @@ st.divider()
 # ==========================================================
 # 🧾 Formulário – Campos contratuais (20 campos)
 # ==========================================================
-st.subheader("📄 Dados do Contrato Administrativo")
+st.markdown("### Dados do Contrato Administrativo")
 
 # Carregar dados processados
 campos_ai = st.session_state.get("contrato_campos_ai", {})
 
-# Dividir em 3 colunas para melhor organização
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("##### 📋 Identificação")
+# Identificação (3 colunas)
+st.markdown("#### Identificação")
+col_id1, col_id2, col_id3 = st.columns(3)
+with col_id1:
     numero_contrato = st.text_input("Número do Contrato", value=campos_ai.get("numero_contrato", ""))
+with col_id2:
     data_assinatura = st.text_input("Data de Assinatura", value=campos_ai.get("data_assinatura", ""))
-    
-    st.markdown("##### 💰 Valores e Prazos")
-    vigencia = st.text_input("Vigência", value=campos_ai.get("vigencia", ""))
-    prazo_execucao = st.text_input("Prazo de Execução", value=campos_ai.get("prazo_execucao", ""))
-    valor_global = st.text_input("Valor Global", value=campos_ai.get("valor_global", ""))
-    forma_pagamento = st.text_area("Forma de Pagamento", value=campos_ai.get("forma_pagamento", ""), height=80)
-    reajuste = st.text_area("Reajuste", value=campos_ai.get("reajuste", ""), height=70)
-    garantia_contratual = st.text_area("Garantia Contratual", value=campos_ai.get("garantia_contratual", ""), height=70)
-
-with col2:
-    st.markdown("##### 👥 Partes e Fundamentação")
-    partes_contratante = st.text_area("Partes Contratante", value=campos_ai.get("partes_contratante", ""), height=80)
-    partes_contratada = st.text_area("Partes Contratada", value=campos_ai.get("partes_contratada", ""), height=80)
-    fundamentacao_legal = st.text_area("Fundamentação Legal", value=campos_ai.get("fundamentacao_legal", ""), height=100)
-    
-    st.markdown("##### 📝 Objeto")
-    objeto = st.text_area("Objeto do Contrato", value=campos_ai.get("objeto", ""), height=150)
-
-with col3:
-    st.markdown("##### ⚖️ Obrigações e Fiscalização")
-    obrigacoes_contratada = st.text_area("Obrigações da Contratada", value=campos_ai.get("obrigacoes_contratada", ""), height=120)
-    obrigacoes_contratante = st.text_area("Obrigações da Contratante", value=campos_ai.get("obrigacoes_contratante", ""), height=120)
-    fiscalizacao = st.text_area("Fiscalização", value=campos_ai.get("fiscalizacao", ""), height=100)
-    
-    st.markdown("##### 🚨 Penalidades e Rescisão")
-    penalidades = st.text_area("Penalidades", value=campos_ai.get("penalidades", ""), height=100)
-    rescisao = st.text_area("Rescisão", value=campos_ai.get("rescisao", ""), height=80)
-
-# Campos adicionais em linha cheia
-st.markdown("##### 📌 Disposições Finais")
-col_disp1, col_disp2 = st.columns(2)
-with col_disp1:
-    alteracoes = st.text_area("Alterações Contratuais", value=campos_ai.get("alteracoes", ""), height=70)
+with col_id3:
     foro = st.text_input("Foro Competente", value=campos_ai.get("foro", ""))
 
-with col_disp2:
-    disposicoes_gerais = st.text_area("Disposições Gerais", value=campos_ai.get("disposicoes_gerais", ""), height=70)
+# Partes (2 colunas)
+st.markdown("#### Partes Contratantes")
+col_partes1, col_partes2 = st.columns(2)
+with col_partes1:
+    partes_contratante = st.text_area("Contratante", value=campos_ai.get("partes_contratante", ""), height=80)
+with col_partes2:
+    partes_contratada = st.text_area("Contratada", value=campos_ai.get("partes_contratada", ""), height=80)
 
-# ==========================================================
-# 💾 Salvar manualmente campos editados
-# ==========================================================
+# Objeto e Fundamentação (coluna única)
+st.markdown("#### Objeto e Fundamentação")
+objeto = st.text_area("Objeto do Contrato", value=campos_ai.get("objeto", ""), height=120)
+fundamentacao_legal = st.text_area("Fundamentação Legal", value=campos_ai.get("fundamentacao_legal", ""), height=100)
+
+# Valores e Prazos (3 colunas)
+st.markdown("#### Valores e Prazos")
+col_val1, col_val2, col_val3 = st.columns(3)
+
+with col_val1:
+    vigencia = st.text_input("Vigência", value=campos_ai.get("vigencia", ""))
+with col_val2:
+    prazo_execucao = st.text_input("Prazo de Execução", value=campos_ai.get("prazo_execucao", ""))
+with col_val3:
+    valor_global = st.text_input("Valor Global", value=campos_ai.get("valor_global", ""))
+
+forma_pagamento = st.text_area("Forma de Pagamento", value=campos_ai.get("forma_pagamento", ""), height=80)
+reajuste = st.text_area("Reajuste", value=campos_ai.get("reajuste", ""), height=70)
+garantia_contratual = st.text_area("Garantia Contratual", value=campos_ai.get("garantia_contratual", ""), height=70)
+
+# Obrigações (coluna única)
+st.markdown("#### Obrigações das Partes")
+obrigacoes_contratada = st.text_area("Obrigações da Contratada", value=campos_ai.get("obrigacoes_contratada", ""), height=120)
+obrigacoes_contratante = st.text_area("Obrigações da Contratante", value=campos_ai.get("obrigacoes_contratante", ""), height=120)
+fiscalizacao = st.text_area("Fiscalização", value=campos_ai.get("fiscalizacao", ""), height=100)
+
+# Penalidades e Disposições (coluna única)
+st.markdown("#### Penalidades e Disposições Finais")
+penalidades = st.text_area("Penalidades", value=campos_ai.get("penalidades", ""), height=100)
+rescisao = st.text_area("Rescisão", value=campos_ai.get("rescisao", ""), height=80)
+alteracoes = st.text_area("Alterações Contratuais", value=campos_ai.get("alteracoes", ""), height=70)
+disposicoes_gerais = st.text_area("Disposições Gerais", value=campos_ai.get("disposicoes_gerais", ""), height=70)
+
 st.divider()
-if st.button("💾 Salvar Campos Editados Manualmente", type="secondary"):
-    campos_manuais = {
+
+# Botões de ação
+col_salvar, col_baixar = st.columns(2)
+
+with col_salvar:
+    if st.button("Salvar Contrato", type="secondary", use_container_width=True):
+        campos_manuais = {
         "numero_contrato": numero_contrato,
         "data_assinatura": data_assinatura,
         "objeto": objeto,
@@ -311,14 +402,9 @@ if st.button("💾 Salvar Campos Editados Manualmente", type="secondary"):
     st.session_state["contrato_campos_ai"] = campos_manuais
     st.success("✅ Campos salvos com sucesso!")
 
-# ==========================================================
-# 📄 Geração DOCX profissional
-# ==========================================================
-st.divider()
-st.subheader("📄 Exportação do Contrato Administrativo")
-
-if st.button("📤 Gerar DOCX Profissional", type="primary"):
-    campos_atuais = {
+with col_baixar:
+    if st.button("Baixar Contrato (DOCX)", use_container_width=True):
+        campos_atuais = {
         "numero_contrato": numero_contrato,
         "data_assinatura": data_assinatura,
         "objeto": objeto,
@@ -372,6 +458,11 @@ if st.button("📤 Gerar DOCX Profissional", type="primary"):
             import traceback
             st.code(traceback.format_exc())
 
+st.divider()
+
+# Dica institucional
+st.caption("💡 **Dica**: Use o Assistente IA para preencher automaticamente os campos a partir do contexto disponível (DFD/ETP/TR/Edital)")
+
 # ==========================================================
 # 📊 Informações de diagnóstico
 # ==========================================================
@@ -382,7 +473,3 @@ with st.expander("🔍 Informações de Diagnóstico"):
         "timestamp_ultima_atualizacao": dados_contrato_anterior.get("timestamp", "N/A") if dados_contrato_anterior else "N/A",
         "buffer_docx_disponivel": "contrato_docx_buffer" in st.session_state,
     })
-
-st.divider()
-st.caption("📎 Este módulo utiliza o **ContratoAgent especializado** com enriquecimento AGRESSIVO de 20 campos baseado na Lei Federal nº 14.133/2021.")
-
