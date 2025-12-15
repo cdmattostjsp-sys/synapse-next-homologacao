@@ -36,20 +36,87 @@ st.set_page_config(
 # A manipulação manual do state no topo do script causava race condition
 # no Streamlit Cloud, resetando o arquivo enviado para None.
 
-# Aplicar CSS da sidebar e estilo institucional
+# Aplicar CSS da sidebar
 apply_sidebar_grouping()
-aplicar_estilo_global()
-exibir_cabecalho_padrao(
-    "🔧 Módulo de Insumos",
-    "Envie documentos administrativos para processamento e integração automatizada "
-    "com os módulos DFD, ETP, TR e Edital."
-)
+
+# Estilo institucional PJe-inspired
+st.markdown("""
+<style>
+/* ============================================
+   PADRÃO VISUAL PJe-INSPIRED - SYNAPSE NEXT
+   Versão: 2025.1-homolog
+   Build: 20251215-1710
+   ============================================ */
+
+/* Título principal - tamanho reduzido para sobriedade */
+h1 {
+    font-size: 1.8rem !important;
+    font-weight: 500 !important;
+    color: #2c3e50 !important;
+    margin-bottom: 0.3rem !important;
+}
+
+/* Caption institucional */
+.caption {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Seções com fundo cinza - contraste melhorado */
+h2, h3 {
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    background-color: #e5e7eb !important;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 3px !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Botões - destaque apenas para ações principais */
+div.stButton > button {
+    border-radius: 3px;
+    font-weight: 500;
+    border: 1px solid #d0d7de;
+}
+div.stButton > button[kind="primary"] {
+    background-color: #0969da !important;
+    border-color: #0969da !important;
+}
+
+/* Formulário clean */
+.stTextInput label, .stTextArea label, .stSelectbox label {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 0.9rem;
+}
+
+/* Expander com destaque discreto */
+details {
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0.5rem;
+    background-color: #ffffff;
+}
+summary {
+    font-weight: 500;
+    color: #0969da;
+    cursor: pointer;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Cabeçalho institucional
+st.markdown("<h1>🔧 Módulo de Insumos</h1>", unsafe_allow_html=True)
+st.markdown("<p class='caption'>Envie documentos administrativos para processamento e integração automatizada com os módulos DFD, ETP, TR, Edital e Contrato</p>", unsafe_allow_html=True)
 st.divider()
 
 # ==========================================================
 # 📂 Interface de Upload
 # ==========================================================
-st.subheader("📎 Envio de documento administrativo")
+st.markdown("### 📎 Envio de documento administrativo")
 
 # Diagnóstico: Verificar se há conflitos no session_state
 if 'debug_upload' not in st.session_state:
@@ -132,7 +199,7 @@ else:
 # 🗒️ Histórico de insumos processados
 # ==========================================================
 st.divider()
-st.subheader("📚 Histórico de insumos disponíveis")
+st.markdown("### 📚 Histórico de insumos disponíveis")
 
 EXPORTS_JSON_DIR = os.path.join("exports", "insumos", "json")
 
